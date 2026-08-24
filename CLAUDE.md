@@ -1,0 +1,83 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project overview
+
+A virtual tabletop (VTT) app for tabletop RPGs, built with Nuxt 4. The UI is deliberately styled as a retro Windows 98 desktop (via `98.css`) — draggable/resizable "windows" for dialogs, a title bar, a window menu bar, etc. Most UI strings, comments, and error messages in the codebase are written in Brazilian Portuguese; match that convention when editing existing files.
+
+## Commands
+
+```bash
+npm run dev        # start dev server at http://localhost:3000
+npm run build      # production build
+npm run generate   # static generation
+npm run preview    # preview a production build locally
+```
+
+There is no lint or test setup configured in this repo — do not assume `npm run lint`/`npm test` exist.
+
+### Database (Drizzle + SQLite)
+
+The schema lives at `server/db/schema.ts`. There are two Drizzle configs:
+- `drizzle.config.ts` (TS, points at `server/db/schema.ts`) — used for normal `drizzle-kit` TS workflows.
+- `drizzle.config.cjs` (CJS, points at `server/db/schema.cjs`) — used by the `.cjs` tooling/scripts.
+
+Common drizzle-kit commands (run against whichever config matches the file you changed):
+```bash
+npx drizzle-kit generate --config drizzle.config.ts   # generate a migration from schema.ts changes
+npx drizzle-kit push --config drizzle.config.ts       # push schema directly to the sqlite db
+```
+`DATABASE_URL` (in `.env`) points at the SQLite file (defaults to `./sqlite.db` if unset). `scripts/list-tables.cjs` / `.js` are quick one-off scripts to dump table names from the db file.
+
+When you change `server/db/schema.ts`, keep `server/db/schema.cjs` in sync manually — they are not generated from one another.
+
+## Architecture
+
+### Nuxt layout
+
+- `app/` — client app: `pages/`, `components/`, `layouts/`, `middleware/`, `app.vue`, `error.vue`. Standard Nuxt 4 file-based routing.
+- `server/` — Nitro server: `api/v1/**` (REST endpoints), `api/auth/**` (better-auth), `middleware/` (server-side request middleware), `utils/` (auto-imported server utilities), `db/schema.ts` (Drizzle schema, single source of truth for the data model).
+- `lib/` — small shared non-Nuxt-specific helpers (`auth-client.ts` for the better-auth Vue client, `rollDice.ts`).
+- `composables/` — Vue composables (currently `useMenuActions`, the provide/inject bridge described below).
+- Path aliases in use: `#server/...` resolves into `server/...` (Nitro server alias), `~~/` and `~/` resolve to the app root / `app/` respectively.
+
+### Auto-imports
+
+Nitro auto-imports everything exported from `server/utils/*` (e.g. `auth`, `useDrizzle`, `tables`, resource shapers) as well as h3 helpers (`defineEventHandler`, `getRouterParam`, `createError`, `readBody`, etc.) into every `server/api/**` file. Most route handlers do **not** import these explicitly — don't be surprised by "undefined" symbols in a handler; check `server/utils/` before assuming something is missing. Some files do import them redundantly for clarity/history; either style works, but prefer the auto-import (no explicit import) to match most of the codebase.
+
+### Auth
+
+- `better-auth` (`server/utils/auth.ts`) is configured with the Drizzle adapter over the same SQLite db, using the `user`/`session`/`account`/`verification` tables in `server/db/schema.ts`. Email/password auth is enabled.
+- `server/api/auth/[...all].ts` mounts the better-auth handler for all `/api/auth/*` routes.
+- `server/middleware/auth.ts` is a global Nitro middleware that rejects any `/api/v1/*` request with no valid session (401). Individual `server/api/v1/**` handlers additionally re-check `session.user` themselves in most cases — this is defensive duplication, not a bug; keep doing it when adding new v1 routes since the shared middleware alone shouldn't be relied on as the only guard in a handler that also needs `session.user.id` for row ownership.
+- Client-side: `lib/auth-client.ts` creates the better-auth Vue client (hardcoded `baseURL: "http://localhost:3000"`). `app/middleware/auth.ts` is a Nuxt route middleware (`definePageMeta({ middleware: 'auth' })`) that redirects to `/login` when there's no client session.
+
+### Data model (`server/db/schema.ts`)
+
+Core entities and ownership:
+- `user` / `session` / `account` / `verification` — better-auth tables.
+- `tokensTable` — reusable token templates (name, image, size, tags, attributes), owned by `userId`.
+- `scenariosTable` — a reusable background/map (image, size, tags), owned by `userId`.
+- `scenesTable` — a specific arrangement of tokens on top of a `scenariosTable` (`scenarioId` FK), owned by `userId`. Stores `tokens` (a JSON array of `SceneToken`, i.e. per-scene token instances copied from a token template) and `startingPosition` as JSON columns.
+- `roomsTable` / `roomPlayersTable` — live play sessions: a room snapshots a scene (`snapshot: RoomSceneSnapshot` JSON, copied from a source scene) plus live `initiative` order, and has players with a `RoomPlayerRole` (`owner`/`gm`/`player`/`spectator`). **Note:** these tables exist in the schema and there's a stub page at `app/pages/rooms/index.vue`, but there are no `server/api/v1/rooms/**` endpoints yet — this feature is not wired up end-to-end.
+
+Ownership is enforced per-row via `userId`/`ownerId` columns, not via a separate ACL — most read/update/delete queries filter `where(and(eq(table.id, id), eq(table.userId, session.user.id)))`. Follow this pattern for new routes rather than checking ownership after the fact.
+
+Several JSON-typed columns exist for denormalized nested data (`tokens`, `attributes`, `tags`, `snapshot`, `initiative`, `startingPosition`) — these are plain typed JS objects/arrays serialized by Drizzle's `{ mode: "json" }`, not separate related tables. When editing scene/room tokens, you're mutating a JSON blob in one row, not a child table.
+
+### API conventions (`server/api/v1/**`)
+
+Resources (`scenes`, `scenarios`, `tokens`) follow the same REST shape: `index.get.ts` (list), `index.post.ts` (create), `[id]/index.get.ts` or `[id].get.ts` (read one), `.put.ts` (replace), `.patch.ts` (partial update), `.delete.ts` (delete). Note the `scenes` routes nest the id segment as a folder (`scenes/[id]/index.get.ts`) while `scenarios` uses a flat filename (`scenarios/[id].get.ts`) — check the existing sibling files in a resource's folder before adding a new verb so the new route matches that resource's existing convention.
+
+Create endpoints (`scenarios`, `tokens`, and `scenes` when duplicating) accept **either** `multipart/form-data` (new upload — image file required) or `application/json` (duplicate-from-existing — reuses an existing image URL, name gets a `" (Cópia)"` suffix) — branch on the `content-type` header, matching the existing handlers.
+
+Uploaded files are written via `useStorage('uploads')` (configured in `nuxt.config.ts` as an `fs` driver rooted at `./public`) under a resource-specific prefix (`scenarios:<file>`, `tokens:<file>`), which serves them back at `/scenarios/<file>` / `/tokens/<file>` under `public/`.
+
+`server/utils/resources.ts` holds response-shaping helpers (e.g. `sceneResource`) that flatten a Drizzle relational query result (`{ scenes: {...}, scenarios: {...} }`) into the API's response shape — add new shapers here rather than reshaping ad hoc in route handlers.
+
+### Client app structure
+
+- `app/layouts/dashboard.vue` renders the Windows-98-style desktop chrome (title bar, menu bar, status bar) and implements a **provide/inject action bus**: it `provide()`s `menuActions` (an object of `register`/`unregister`/reactive `actions`), and menu items call `onAction(name)` which looks up and invokes a handler by name. Pages/components register their own handlers via the `useMenuActions()` composable (`composables/useMenuActions.ts`) for actions like `salvar` (save) or `novo-token` (new token) scoped to whatever page is currently mounted, and must `unregister` them `onUnmounted`. When adding a new page-level menu action, follow this register/unregister pattern rather than adding page-specific logic into the layout.
+- The scene editor (`app/pages/dashboard/scenes/[id].vue`) renders the canvas with `vue-konva` (`Stage`/`Layer`/`Image`/`Transformer`, etc.) for placing, dragging, and transforming tokens over a scenario background image.
+- Windowed dialogs (`EditTokenWindow.vue`, `InsertSceneWindow.vue`, `AlertWindow.vue`, `FixedWIndow.vue`, etc.) are the modal/floating-window building blocks styled with `98.css`; reuse these rather than introducing a different dialog pattern.

@@ -1,0 +1,30 @@
+{
+  "name": "vtt_rpg_v2",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "98.css": "^0.1.21",
+    "bcrypt-ts": "^9.0.2",
+    "better-auth": "^1.6.29",
+    "better-sqlite3": "^12.11.1",
+    "drizzle-orm": "^0.45.2",
+    "konva": "^10.3.0",
+    "nuxt": "^4.5.2",
+    "vue": "^3.5.40",
+    "vue-konva": "^3.4.0",
+    "vue-router": "^5.2.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "drizzle-kit": "^0.31.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.2.2"
+  }
+}
