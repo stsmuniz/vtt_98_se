@@ -1,31 +1,32 @@
-import {createError} from "h3";
-import {eq} from "drizzle-orm";
-import {scenesTable} from "#server/db/schema.ts";
+import { tables } from "#server/utils/drizzle.ts";
+import { and, eq } from "drizzle-orm";
+import { createError } from "h3";
 
+const PATCHABLE_FIELDS = ['scenarioId', 'width', 'height'] as const
 
 export default defineEventHandler(async (event) => {
     const session = await auth.api.getSession({
         headers: event.headers,
     })
 
-    const idParam = getRouterParam(event, "id");
-    const id = Number(idParam);
+    const id = parseIdParam(event)
 
-    if (!idParam || Number.isNaN(id)) {
-        throw createError({
-            statusCode: 400,
-            statusMessage: "ID inválido.",
-        });
+    const body = await readBody<Record<string, unknown>>(event)
+    if (!body) {
+        throw createError({ statusCode: 400, statusMessage: 'Nenhum dado enviado.' })
     }
 
-    const body = await readBody<Partial<Scene>>(event)
+    const updateData: Record<string, unknown> = {}
+    for (const field of PATCHABLE_FIELDS) {
+        if (field in body) updateData[field] = body[field]
+    }
 
     const db = useDrizzle()
-    const [scene]  = await db
+    const [scene] = await db
         .update(tables.scenesTable)
-        .set(body)
-        .where(eq(tables.scenesTable.id, id))
-        .returning({id: scenesTable.id})
+        .set(updateData)
+        .where(and(eq(tables.scenesTable.id, id), eq(tables.scenesTable.userId, session.user.id)))
+        .returning({ id: tables.scenesTable.id })
 
     if (!scene) {
         throw createError({
@@ -34,8 +35,8 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    return await db.query.scenesTable.findFirst({
-        where: eq(scenesTable.id, scene.id),
+    return db.query.scenesTable.findFirst({
+        where: eq(tables.scenesTable.id, scene.id),
         with: {
             scenario: true
         }

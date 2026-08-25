@@ -1,6 +1,5 @@
 import { tables } from "#server/utils/drizzle.ts";
 import { createError } from 'h3';
-import {eq} from "drizzle-orm";
 
 export default defineEventHandler(async (event) => {
     const session = await auth.api.getSession({
@@ -14,12 +13,7 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    const id = parseInt(getRouterParam(event, 'id'))
+    const id = parseIdParam(event)
 
-    const result = await useDrizzle()
-        .delete(tables.tokensTable)
-        .where(eq(tables.tokensTable.id, id))
-        .returning()
-
-    return result
+    return deleteOwnedRow(tables.tokensTable, id, session.user.id, 'Token não encontrado.')
 })

@@ -2,6 +2,9 @@
 import {ref, reactive, computed, onMounted, onUnmounted, watchEffect, watch} from 'vue'
 import type {Attribute, SceneToken} from "#server/db/schema.ts"
 import {useMenuActions} from "~~/composables/useMenuActions"
+import {useCanvasZoom} from "~~/composables/useCanvasZoom"
+import {usePreloadedImage, useImageMap} from "~~/composables/useImagePreloader"
+import {useTokenTransform} from "~~/composables/useTokenTransform"
 
 import {
   Stage as VStage,
@@ -15,7 +18,6 @@ import {
 
 import TokensWindow from "~/components/TokensWindow.vue"
 import FixedWindow from "~/components/FixedWIndow.vue"
-import MenubarIcon from "~/components/MenubarIcon.vue";
 import ScenariosWindow from "~/components/ScenariosWindow.vue";
 
 definePageMeta({
@@ -27,58 +29,18 @@ const {register, unregister} = useMenuActions()
 
 const params = useRoute().params
 const {data: currentScene} = useFetch(`/api/v1/scenes/${params.id}`)
-const sceneZoom = ref(100) // 100 representa 100% (escala 1)
-
-// Converte a porcentagem para a escala do Konva (ex: 100% -> 1, 50% -> 0.5)
-const stageScale = computed(() => sceneZoom.value / 100)
-
-// Funções dos botões
-const zoomIn = () => {
-  sceneZoom.value = Math.min(500, sceneZoom.value + 10) // Máximo de 500%
-}
-
-const zoomOut = () => {
-  sceneZoom.value = Math.max(10, sceneZoom.value - 10) // Mínimo de 10%
-}
-
-const resetZoom = () => {
-  sceneZoom.value = 100
-}
-
-// Atalho de Ctrl + Roda do Mouse (Wheel) sobre o canvas
-const handleWheel = (e: any) => {
-  const evt = e.evt
-  if (evt.ctrlKey) {
-    evt.preventDefault() // Impende o zoom padrão da página do navegador
-
-    const zoomStep = 10
-    if (evt.deltaY < 0) {
-      sceneZoom.value = Math.min(500, sceneZoom.value + zoomStep)
-    } else {
-      sceneZoom.value = Math.max(10, sceneZoom.value - zoomStep)
-    }
-  }
-}
-
-// Watch opcional caso queira garantir que o input seja numérico e seguro
-watch(sceneZoom, (newVal) => {
-  // Se o usuário digitar algo inválido, força limites básicos
-  if (isNaN(newVal) || newVal <= 0) {
-    sceneZoom.value = 100
-  }
-})
+const { zoom: sceneZoom, scale: stageScale, zoomIn, zoomOut, resetZoom, handleWheel } = useCanvasZoom()
 
 const isTokenWindowOpen = ref(false)
 const isScenarioWindowOpen = ref(false)
-const nameBgImage = ref<HTMLImageElement | null>(null)
-const bgImageObj = ref<HTMLImageElement | null>(null)
-const tokenImages = reactive<Record<number, HTMLImageElement | null>>({})
+const { image: nameBgImage, load: loadNameBgImage } = usePreloadedImage()
+const { image: bgImageObj, load: loadBgImage } = usePreloadedImage()
+const { images: tokenImages, ensureLoaded: ensureTokenImageLoaded } = useImageMap()
 const isDeleteTokenAlertOpen = ref(false)
 const activeClass = ref('all-tokens')
 
 register('salvar', async () => {
-  console.log('Salvando...')
-  saveTokenChanges(selectedTokenId.value!)
+  await saveSceneTokens()
 })
 
 register('novo-token', () => {
@@ -113,14 +75,7 @@ watch(() => currentScene.value, (newScene) => {
 }, { immediate: true, deep: true })
 
 watchEffect(() => {
-  const url = currentScene.value?.scenario?.image
-  if (url) {
-    const img = new Image()
-    img.src = url
-    img.onload = () => {
-      bgImageObj.value = img
-    }
-  }
+  loadBgImage(currentScene.value?.scenario?.image)
 })
 
 // Sincronizar tokens do servidor com tokens locais
@@ -133,15 +88,7 @@ watch(() => currentScene.value?.tokens, (newTokens) => {
 // Carregar imagens dos tokens
 watch(() => localTokens.value, (newTokens) => {
   if (!newTokens) return;
-  newTokens.forEach(token => {
-    if (!tokenImages[token.id] && token.image) {
-      const img = new Image()
-      img.src = token.image
-      img.onload = () => {
-        tokenImages[token.id] = img
-      }
-    }
-  })
+  newTokens.forEach(token => ensureTokenImageLoaded(token.id, token.image))
 }, {immediate: true, deep: true})
 
 // Configuração atualizada do Stage para aplicar o scaleX e scaleY
@@ -164,6 +111,8 @@ const scene = computed(() => ({
 // Usar localTokens em vez de currentScene.value?.tokens
 const tokens = computed(() => localTokens.value ?? [])
 
+const selectedToken = computed(() => localTokens.value.find(t => t.id === selectedTokenId.value) ?? null)
+
 const tokensSortedForCanvas = computed(() => {
   const allTokens = [...localTokens.value]
   if (selectedTokenId.value) {
@@ -185,12 +134,12 @@ const duplicateToken = () => {
 }
 
 const centerToken = () => {
-  const selectedToken = tokensSortedForCanvas.value.find(t => t.id === selectedTokenId.value)
-  if (selectedToken) {
-    const centerX = selectedToken.width / 2
-    const centerY = selectedToken.height / 2
-    selectedToken.x = scene.value.width / 2 - centerX
-    selectedToken.y = scene.value.height / 2 - centerY
+  const token = tokensSortedForCanvas.value.find(t => t.id === selectedTokenId.value)
+  if (token) {
+    const centerX = token.width / 2
+    const centerY = token.height / 2
+    token.x = scene.value.width / 2 - centerX
+    token.y = scene.value.height / 2 - centerY
   }
 }
 
@@ -209,7 +158,6 @@ const tokenGroups = computed(() => {
         y: token.y,
         draggable: true,
         opacity: (token.opacity ?? 100) / 100,
-        // REMOVIDO: rotation: token.rotation || 0,
       },
 
       imageConfig: {
@@ -230,7 +178,9 @@ const tokenGroups = computed(() => {
   })
 })
 
-const saveTokenChanges = async () => {
+// Única fonte de verdade para persistir os tokens da cena: sempre envia o array
+// completo atual de localTokens, usada por save/adicionar/apagar token.
+const saveSceneTokens = async () => {
   try {
     const response = await fetch(`/api/v1/scenes/${params.id}/tokens`, {
       method: 'POST',
@@ -240,11 +190,11 @@ const saveTokenChanges = async () => {
       body: JSON.stringify(localTokens.value),
     });
 
-    if (response.ok) {
-      console.log('Token atualizado com sucesso!');
+    if (!response.ok) {
+      console.error('Erro ao salvar tokens da cena.')
     }
   } catch (error) {
-    console.error('Erro ao salvar token:', error);
+    console.error('Erro ao salvar tokens da cena:', error);
   }
 };
 
@@ -266,32 +216,11 @@ const addToken = async (token: Omit<Token, "tags"> & { x?: number; y?: number; }
     opacity: 100
   }
 
-  const response = await fetch(`/api/v1/scenes/${params.id}/tokens`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(sceneToken),
-  })
-  if (response.ok) {
-    const res = await response.json()
-    console.log(res.tokens.at(-1))
+  localTokens.value = [...localTokens.value, sceneToken]
+  ensureTokenImageLoaded(sceneToken.id, sceneToken.image)
 
-    // Adicionar o novo token ao array local
-    const newToken = res.tokens.at(-1) as SceneToken
-    localTokens.value = [...localTokens.value, newToken]
-    console.log(localTokens.value)
-    // Carregar a imagem do novo token imediatamente
-    if (newToken.image) {
-      const img = new Image()
-      img.src = newToken.image
-      img.onload = () => {
-        tokenImages[newToken.id] = img
-      }
-    }
-
-    isTokenWindowOpen.value = false
-  }
+  await saveSceneTokens()
+  isTokenWindowOpen.value = false
 }
 
 const setScenario = async (scenario) => {
@@ -315,11 +244,7 @@ const setScenario = async (scenario) => {
 }
 
 onMounted(() => {
-  const nameBg = new Image()
-  nameBg.src = '/assets/name_background.png'
-  nameBg.onload = () => {
-    nameBgImage.value = nameBg
-  }
+  loadNameBgImage('/assets/name_background.png')
 })
 
 // ==========================================
@@ -352,58 +277,7 @@ const handleStageClick = (e: any) => {
   }
 };
 
-const handleTransformEnd = (e: any, tokenId: number) => {
-  const node = e.target // A imagem que o transformer acabou de modificar
-  const targetToken = localTokens.value.find(t => t.id === tokenId)
-  if (!targetToken) return
-
-  const scaleX = node.scaleX()
-  const scaleY = node.scaleY()
-
-  // 1. Calcula o novo tamanho real absoluto
-  const newWidth = Math.max(20, node.width() * Math.abs(scaleX))
-  const newHeight = Math.max(20, node.height() * Math.abs(scaleY))
-
-  // 2. Preserva o sinal do espelhamento (flip)
-  const currentSignX = scaleX < 0 ? -1 : 1
-  const currentSignY = scaleY < 0 ? -1 : 1
-
-  targetToken.scaleX = (targetToken.scaleX < 0 ? -1 : 1) * currentSignX
-  targetToken.scaleY = (targetToken.scaleY < 0 ? -1 : 1) * currentSignY
-
-  // 3. Salva a rotação lendo diretamente da IMAGEM
-  targetToken.rotation = node.rotation()
-
-  // Limpa a escala visual temporária gerada pelo Transformer
-  node.scaleX(targetToken.scaleX)
-  node.scaleY(targetToken.scaleY)
-
-  // 4. Atualiza as dimensões
-  targetToken.width = newWidth
-  targetToken.height = newHeight
-
-  // 5. Compensa a posição do Grupo
-  const groupNode = node.getParent()
-  if (groupNode) {
-    // Pegamos a nova posição que o Transformer calculou para a imagem
-    const centerX = groupNode.x() + node.x()
-    const centerY = groupNode.y() + node.y()
-
-    // Movemos o grupo para compensar o novo centro
-    targetToken.x = centerX - (newWidth / 2)
-    targetToken.y = centerY - (newHeight / 2)
-  }
-}
-
-const handleDragEnd = (e: any, tokenId: number) => {
-  const targetToken = localTokens.value.find(t => t.id === tokenId)
-  if (!targetToken) return
-
-  // e.target aqui é o Group
-  const pos = e.target.position() // ou absolutePosition() se precisar
-  targetToken.x = pos.x
-  targetToken.y = pos.y
-}
+const { handleTransformEnd, handleDragEnd, hFlipToken: flipTokenHorizontally, vFlipToken: flipTokenVertically, resetTokenRotation: resetSelectedTokenRotation } = useTokenTransform(localTokens, stageRef, transformerRef)
 
 const handleDeleteToken = async () => {
   if (!selectedTokenId.value) return
@@ -422,17 +296,8 @@ const handleDeleteToken = async () => {
   }
 
   // Persiste no backend (envie o array completo atualizado)
-  try {
-    const response = await fetch(`/api/v1/scenes/${params.id}/tokens`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(localTokens.value),
-    })
-    isDeleteTokenAlertOpen.value = false
-  } catch (err) {
-    console.error('Erro ao deletar token:', err)
-    // opcional: reverter o localTokens se falhar
-  }
+  await saveSceneTokens()
+  isDeleteTokenAlertOpen.value = false
 }
 
 const handleDeleteTokenAlertWindow = () => {
@@ -480,14 +345,9 @@ const menuState = reactive({
   y: 0
 });
 
-const activeItem = ref(null);
-
 const openMenu = (e, item) => {
-  console.log(e);
   const event = e.evt;
   event.preventDefault();
-  // Track context data (e.g., which item was right-clicked)
-  activeItem.value = item;
 
   // Assign mouse coordinates
   menuState.x = event.clientX;
@@ -495,57 +355,9 @@ const openMenu = (e, item) => {
   menuState.show = true;
 };
 
-const hFlipToken = () => {
-  const selectedToken = localTokens.value.find(t => t.id === selectedTokenId.value)
-  if (selectedToken) {
-    selectedToken.scaleX = (selectedToken.scaleX ?? 1) * -1;
-
-    // Atualiza o nó visualmente de imediato no Konva
-    const stageNode = stageRef.value.getNode();
-    const node = stageNode.findOne(`#token-${selectedTokenId.value}`);
-    if (node) {
-      node.scaleX(selectedToken.scaleX);
-      stageNode.batchDraw();
-    }
-  }
-}
-
-const vFlipToken = () => {
-  const selectedToken = localTokens.value.find(t => t.id === selectedTokenId.value)
-  if (selectedToken) {
-    selectedToken.scaleY = (selectedToken.scaleY ?? 1) * -1;
-
-    const stageNode = stageRef.value.getNode();
-    const node = stageNode.findOne(`#token-${selectedTokenId.value}`);
-    if (node) {
-      node.scaleY(selectedToken.scaleY);
-      stageNode.batchDraw();
-    }
-  }
-}
-
-const resetTokenRotation = () => {
-  const selectedToken = localTokens.value.find(t => t.id === selectedTokenId.value)
-  if (selectedToken) {
-    // Atualiza no estado para que a gravação do token saiba que zerou
-    selectedToken.rotation = 0;
-
-    // Força a atualização visual na IMAGEM e alinha o Transformer
-    const stageNode = stageRef.value.getNode();
-    if (stageNode) {
-      const imageNode = stageNode.findOne(`#token-${selectedTokenId.value}`);
-      if (imageNode) {
-        imageNode.rotation(0);
-        stageNode.batchDraw();
-
-        // Força a caixa de contorno do Transformer a se redesenhar alinhada
-        if (transformerRef.value) {
-          transformerRef.value.getNode().forceUpdate();
-        }
-      }
-    }
-  }
-}
+const hFlipToken = () => flipTokenHorizontally(selectedTokenId.value!)
+const vFlipToken = () => flipTokenVertically(selectedTokenId.value!)
+const resetTokenRotation = () => resetSelectedTokenRotation(selectedTokenId.value!)
 // ==========================================
 // REDIMENSIONAMENTO DO CANVAS
 // ==========================================
@@ -668,14 +480,14 @@ const onHandleMouseLeave = (e: any) => {
                   <button :disabled="!selectedTokenId" @click.prevent="duplicateToken" class="disabled">Duplicar</button>
                   <button :disabled="!selectedTokenId" @click.prevent="centerToken" class="disabled">Centralizar</button>
                 </div>
-                <div class="information">
+                <div class="information" v-if="selectedToken">
                   <dl>
                     <dt>Tamanho</dt>
-                    <dd>{{ Math.trunc(localTokens.at(-1).width) }}x{{ Math.trunc(localTokens.at(-1).height) }}</dd>
+                    <dd>{{ Math.trunc(selectedToken.width) }}x{{ Math.trunc(selectedToken.height) }}</dd>
                     <dt>Tags</dt>
-                    <dd>{{ localTokens.at(-1).tags }}</dd>
+                    <dd>{{ selectedToken.tags }}</dd>
                     <dt>Posição</dt>
-                    <dd>X: {{ localTokens.at(-1).x }}, Y: {{ localTokens.at(-1).y }}</dd>
+                    <dd>X: {{ selectedToken.x }}, Y: {{ selectedToken.y }}</dd>
                   </dl>
                 </div>
               </aside>
@@ -705,7 +517,8 @@ const onHandleMouseLeave = (e: any) => {
   </fixed-window>
   <Teleport to="#button-bar">
     <button class="button-bar-button">
-      <MenubarIcon
+      <Icon
+          size="sm"
           style="padding: 4px; box-sizing: border-box"
           name="Tokens"
           icon="tokens"
@@ -713,7 +526,8 @@ const onHandleMouseLeave = (e: any) => {
       />
     </button>
     <button class="button-bar-button">
-      <MenubarIcon
+      <Icon
+          size="sm"
           style="padding: 4px; box-sizing: border-box"
           name="Cenário"
           icon="scenario"
@@ -721,11 +535,12 @@ const onHandleMouseLeave = (e: any) => {
       />
     </button>
     <button class="button-bar-button">
-      <MenubarIcon
+      <Icon
+          size="sm"
           style="padding: 4px; box-sizing: border-box"
           name="Salvar"
           icon="save"
-          @click="saveTokenChanges"
+          @click="saveSceneTokens"
       />
     </button>
   </Teleport>

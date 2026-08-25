@@ -1,10 +1,12 @@
 <script setup lang="ts">
-defineProps(['icon', 'name'])
+withDefaults(defineProps<{ icon: string; name?: string; size?: 'sm' | 'lg' }>(), {
+  size: 'lg',
+})
 </script>
 <template>
-  <a class="icon">
+  <a class="icon" :class="`icon--${size}`">
     <img :src="`/assets/icons/${icon}.png`" :alt="name" />
-    <span class="icon-name">{{name}}</span>
+    <span class="icon-name">{{ name }}</span>
   </a>
 </template>
 <style lang="css" scoped>
@@ -16,16 +18,33 @@ defineProps(['icon', 'name'])
   cursor: pointer;
   text-decoration: none;
   color: var(--text-color);
-  img {
-    width: 3rem;
-    height: 3rem;
-  }
-  span {
-    font-size: 1rem;
-  }
 }
-.icon:hover .icon-name {
+
+.icon--lg img {
+  width: 3rem;
+  height: 3rem;
+}
+.icon--lg span {
+  font-size: 1rem;
+}
+.icon--lg:hover .icon-name {
   color: white;
   background-color: darkblue;
+}
+
+.icon--sm {
+  padding: 0.2rem;
+  border: 1px solid transparent;
+}
+.icon--sm img {
+  width: 2rem;
+  height: 2rem;
+}
+.icon--sm span {
+  font-size: 0.7rem;
+}
+.icon--sm:hover {
+  border: 1px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
 }
 </style>
