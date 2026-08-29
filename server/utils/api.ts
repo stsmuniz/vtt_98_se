@@ -146,8 +146,10 @@ export async function createUploadableResource(event: any, options: UploadableRe
     if (options.hasImage && file) {
         const fileExtension = file.filename.split('.').pop()
         const uniqueFileName = `${Date.now()}.${fileExtension}`
-        await useStorage('uploads').setItemRaw(`${options.storagePrefix}:${uniqueFileName}`, file.data)
-        values.image = `/${options.storagePrefix}/${uniqueFileName}`
+        const stored = await storeImage(options.storagePrefix!, uniqueFileName, file.data)
+        values.image = stored.url
+        values.width = stored.width
+        values.height = stored.height
     }
 
     return db.insert(options.table).values(values).returning()
@@ -203,8 +205,10 @@ export async function updateUploadableResource(event: any, options: UploadableRe
     if (options.hasImage && file) {
         const fileExtension = file.filename.split('.').pop()
         const uniqueFileName = `${Date.now()}.${fileExtension}`
-        await useStorage('uploads').setItemRaw(`${options.storagePrefix}:${uniqueFileName}`, file.data)
-        updateData.image = `/${options.storagePrefix}/${uniqueFileName}`
+        const stored = await storeImage(options.storagePrefix!, uniqueFileName, file.data)
+        updateData.image = stored.url
+        updateData.width = stored.width
+        updateData.height = stored.height
     }
 
     if (options.transformUpdate) {

@@ -9,12 +9,6 @@ export default defineNuxtConfig({
   nitro: {
     experimental: {
       websocket: true
-    },
-    storage: {
-      uploads: {
-        driver: 'fs',
-        base: './public'
-      }
     }
   },
   vite: {

@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@vercel/blob": "^2.8.0",
     "98.css": "^0.1.21",
     "bcrypt-ts": "^9.0.2",
     "better-auth": "^1.6.29",
@@ -17,6 +18,7 @@
     "konva": "^10.3.0",
     "nuxt": "^4.5.2",
     "postgres": "^3.4.9",
+    "sharp": "^0.35.4",
     "vue": "^3.5.40",
     "vue-konva": "^3.4.0",
     "vue-router": "^5.2.0",

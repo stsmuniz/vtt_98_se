@@ -6,6 +6,7 @@ export function usePreloadedImage(): { image: Ref<HTMLImageElement | null>; load
     function load(url?: string | null) {
         if (!url) return
         const img = new Image()
+        img.crossOrigin = 'anonymous'
         img.src = url
         img.onload = () => {
             image.value = img
@@ -21,6 +22,7 @@ export function useImageMap() {
     function ensureLoaded(id: string | number, url?: string | null) {
         if (!url || images[id]) return
         const img = new Image()
+        img.crossOrigin = 'anonymous'
         img.src = url
         img.onload = () => {
             images[id] = img
