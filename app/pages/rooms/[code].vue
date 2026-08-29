@@ -40,6 +40,18 @@ const passwordError = ref('')
 
 const isGm = computed(() => room.value?.role === 'gm')
 
+// Distingue "room.value alterado a partir de uma resposta do servidor" (fetch ou WebSocket)
+// de "localTokens alterado por uma edição local do usuário" — evita que reaplicar um snapshot
+// vindo do servidor dispare de volta uma transmissão via WebSocket (loop infinito). Ver o
+// watcher de `localTokens` na seção PERSISTÊNCIA.
+let isApplyingRemoteUpdate = false
+
+function setRoom(next: any) {
+  isApplyingRemoteUpdate = true
+  room.value = next
+  nextTick(() => { isApplyingRemoteUpdate = false })
+}
+
 async function loadRoom(password?: string) {
   try {
     const response = await fetch(`/api/rooms/${code}/join`, {
@@ -59,16 +71,76 @@ async function loadRoom(password?: string) {
       return
     }
 
-    room.value = await response.json()
+    setRoom(await response.json())
     isPasswordWindowOpen.value = false
     passwordError.value = ''
+    lastPassword.value = password
+    connectRoomSocket()
   } catch (error) {
     console.error('Erro ao carregar a sala:', error)
   }
 }
 
+// ==========================================
+// SINCRONIZAÇÃO EM TEMPO REAL (WebSocket)
+// ==========================================
+// Replica, ao vivo, as mudanças feitas pelo dono da sala para todos os visitantes conectados
+// nesta mesma sala: edições de token (`snapshot:live`, ver o watcher de `localTokens` mais
+// abaixo) trafegam sem tocar no banco, enquanto mudanças salvas (`room:update`, disparado
+// pelos endpoints PATCH/PUT de `/api/v1/rooms/:id`) refletem o estado persistido.
+
+const lastPassword = ref<string | undefined>(undefined)
+let roomSocket: WebSocket | null = null
+let roomSocketReconnectTimer: ReturnType<typeof setTimeout> | null = null
+
+function connectRoomSocket() {
+  if (typeof window === 'undefined') return
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  roomSocket = new WebSocket(`${protocol}//${window.location.host}/api/rooms/${code}/ws`)
+
+  roomSocket.addEventListener('open', () => {
+    if (lastPassword.value) {
+      roomSocket?.send(JSON.stringify({ type: 'auth', password: lastPassword.value }))
+    }
+  })
+
+  roomSocket.addEventListener('message', (event) => {
+    try {
+      const data = JSON.parse(event.data)
+      if (data.type === 'room:update' && data.room) {
+        setRoom({ ...room.value, ...data.room })
+      } else if (data.type === 'snapshot:live' && data.snapshot) {
+        setRoom({ ...room.value, snapshot: data.snapshot })
+      } else if (data.type === 'room:closed') {
+        console.error('A sala foi encerrada pelo dono.')
+      }
+    } catch (error) {
+      console.error('Erro ao processar mensagem da sala:', error)
+    }
+  })
+
+  roomSocket.addEventListener('close', () => {
+    roomSocket = null
+    roomSocketReconnectTimer = setTimeout(connectRoomSocket, 2000)
+  })
+}
+
+function disconnectRoomSocket() {
+  if (roomSocketReconnectTimer) {
+    clearTimeout(roomSocketReconnectTimer)
+    roomSocketReconnectTimer = null
+  }
+  roomSocket?.close()
+  roomSocket = null
+}
+
 onMounted(() => {
   loadRoom()
+})
+
+onUnmounted(() => {
+  disconnectRoomSocket()
 })
 
 // ==========================================
@@ -299,6 +371,21 @@ function buildSnapshotPayload() {
   }
 }
 
+function sendLiveSnapshot() {
+  if (roomSocket?.readyState !== WebSocket.OPEN) return
+  roomSocket.send(JSON.stringify({ type: 'snapshot:live', snapshot: buildSnapshotPayload() }))
+}
+
+// Transmite qualquer edição local de tokens (arrastar, redimensionar, girar, duplicar,
+// remover, adicionar, editar atributos) para os visitantes assim que ela acontece — sem
+// gravar no banco. A gravação só ocorre quando o dono clica em "Salvar" (`saveRoomSnapshot`).
+// O guard de `isApplyingRemoteUpdate` evita reenviar um snapshot que acabou de chegar do
+// próprio servidor (via `setRoom`), o que causaria um loop infinito de mensagens.
+watch(localTokens, () => {
+  if (!isGm.value || isApplyingRemoteUpdate) return
+  sendLiveSnapshot()
+}, { deep: true })
+
 async function saveRoomSnapshot() {
   if (!room.value) return
   try {
@@ -308,7 +395,7 @@ async function saveRoomSnapshot() {
       body: JSON.stringify({ snapshot: buildSnapshotPayload() }),
     })
     if (response.ok) {
-      room.value = { ...(await response.json()), role: 'gm' }
+      setRoom({ ...(await response.json()), role: 'gm' })
     } else {
       console.error('Erro ao salvar a sala.')
     }
@@ -321,7 +408,7 @@ const isDeleteTokenAlertOpen = ref(false)
 const handleDeleteTokenAlertWindow = () => { isDeleteTokenAlertOpen.value = true }
 const closeDeleteAlert = () => { isDeleteTokenAlertOpen.value = false }
 
-const handleDeleteToken = async () => {
+const handleDeleteToken = () => {
   if (!selectedTokenId.value) return
 
   const tokenId = selectedTokenId.value
@@ -335,7 +422,6 @@ const handleDeleteToken = async () => {
     transformerRef.value.getNode().nodes([])
   }
 
-  await saveRoomSnapshot()
   if (isTokenConfigWindowOpen) {
     isTokenConfigWindowOpen.value = false
   }
@@ -374,7 +460,7 @@ function closeTokenAttributesWindow() {
   pendingToken.value = null
 }
 
-async function onTokenAttributesConfirmed(attributes: SceneAttribute[]) {
+function onTokenAttributesConfirmed(attributes: SceneAttribute[]) {
   const token = pendingToken.value
   if (!token) return
 
@@ -400,7 +486,6 @@ async function onTokenAttributesConfirmed(attributes: SceneAttribute[]) {
   ensureTokenImageLoaded(roomToken.id, roomToken.image)
 
   closeTokenAttributesWindow()
-  await saveRoomSnapshot()
 }
 
 // ==========================================
@@ -418,7 +503,7 @@ async function changeRoomScene(scene: any) {
       body: JSON.stringify({ sceneId: scene.id }),
     })
     if (response.ok) {
-      room.value = { ...(await response.json()), role: 'gm' }
+      setRoom({ ...(await response.json()), role: 'gm' })
       selectedTokenId.value = null
     } else {
       console.error('Erro ao trocar a cena da sala.')

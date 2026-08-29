@@ -1,5 +1,5 @@
 import { tables } from "#server/utils/drizzle.ts";
-import { buildRoomSnapshotFromScene } from "#server/utils/resources.ts";
+import { buildRoomSnapshotFromScene, publicRoomResource } from "#server/utils/resources.ts";
 import { and, eq } from "drizzle-orm";
 import { createError } from "h3";
 
@@ -53,7 +53,7 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    return db.query.roomsTable.findFirst({
+    const updatedRoom = await db.query.roomsTable.findFirst({
         where: eq(tables.roomsTable.id, room.id),
         with: {
             sourceScene: {
@@ -63,4 +63,10 @@ export default defineEventHandler(async (event) => {
             }
         }
     })
+
+    if (updatedRoom) {
+        broadcastRoomUpdate(updatedRoom.code, publicRoomResource(updatedRoom))
+    }
+
+    return updatedRoom
 })

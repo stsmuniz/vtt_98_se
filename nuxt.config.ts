@@ -7,6 +7,9 @@ export default defineNuxtConfig({
     '~/assets/css/fonts.css'
   ],
   nitro: {
+    experimental: {
+      websocket: true
+    },
     storage: {
       uploads: {
         driver: 'fs',

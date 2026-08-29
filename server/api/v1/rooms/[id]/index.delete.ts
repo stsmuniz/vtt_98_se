@@ -15,5 +15,10 @@ export default defineEventHandler(async (event) => {
 
     const id = parseIdParam(event)
 
-    return deleteOwnedRow(tables.roomsTable, id, session.user.id, 'Sala não encontrada.')
+    const deletedRows = await deleteOwnedRow(tables.roomsTable, id, session.user.id, 'Sala não encontrada.')
+
+    const [deletedRoom] = deletedRows
+    if (deletedRoom) broadcastRoomClosed(deletedRoom.code)
+
+    return deletedRows
 })

@@ -33,6 +33,15 @@ export const sceneResourceCollection = (scenes: any[]): SceneResourceResponse[] 
  * `visibility`/`currentValue` (seeded from the attribute's base `value`). Used both when a
  * room is created from a scene and when a GM switches a room to a different scene mid-session.
  */
+/**
+ * Strips the (hashed) password before a room is sent to WebSocket peers, which include
+ * unauthenticated visitors — unlike the owner-only HTTP responses, this must never leak it.
+ */
+export function publicRoomResource(room: Record<string, unknown>) {
+    const { password, ...rest } = room
+    return rest
+}
+
 export function buildRoomSnapshotFromScene(scene: {
     id: number
     width: number

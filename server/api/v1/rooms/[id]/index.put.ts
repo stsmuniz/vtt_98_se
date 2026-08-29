@@ -1,8 +1,9 @@
 import { tables } from "#server/utils/drizzle.ts";
+import { publicRoomResource } from "#server/utils/resources.ts";
 import { hashSync } from "bcrypt-ts";
 
-export default defineEventHandler((event) => {
-    return updateUploadableResource(event, {
+export default defineEventHandler(async (event) => {
+    const room = await updateUploadableResource(event, {
         table: tables.roomsTable,
         fields: [
             { name: 'name', type: 'string' },
@@ -18,4 +19,8 @@ export default defineEventHandler((event) => {
             }
         },
     })
+
+    broadcastRoomUpdate(room.code, publicRoomResource(room))
+
+    return room
 })
