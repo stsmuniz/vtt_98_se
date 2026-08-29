@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
         },
     })
 
-    broadcastRoomUpdate(room.code, publicRoomResource(room))
+    await broadcastRoomUpdate(room.code, publicRoomResource(room))
 
     return room
 })

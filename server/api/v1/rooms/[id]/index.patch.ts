@@ -65,7 +65,7 @@ export default defineEventHandler(async (event) => {
     })
 
     if (updatedRoom) {
-        broadcastRoomUpdate(updatedRoom.code, publicRoomResource(updatedRoom))
+        await broadcastRoomUpdate(updatedRoom.code, publicRoomResource(updatedRoom))
     }
 
     return updatedRoom

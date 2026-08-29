@@ -18,8 +18,8 @@ function getRoomCodeFromPeer(peer: any): string | null {
 
 // Envia ao peer o rascunho ao vivo da sala (mudanças de token ainda não salvas pelo dono),
 // caso exista, para que ele não fique preso no último estado salvo até a próxima edição.
-function sendCurrentLiveSnapshot(peer: any, code: string) {
-    const liveSnapshot = getRoomLiveSnapshot(code)
+async function sendCurrentLiveSnapshot(peer: any, code: string) {
+    const liveSnapshot = await getRoomLiveSnapshot(code)
     if (liveSnapshot) {
         peer.send(JSON.stringify({ type: 'snapshot:live', snapshot: liveSnapshot }))
     }
@@ -57,7 +57,7 @@ export default defineWebSocketHandler({
 
         if (!room.password || isOwner) {
             addRoomPeer(code, peer)
-            sendCurrentLiveSnapshot(peer, code)
+            await sendCurrentLiveSnapshot(peer, code)
             return
         }
 
@@ -67,7 +67,7 @@ export default defineWebSocketHandler({
         }, AUTH_TIMEOUT_MS)
     },
 
-    message(peer, message) {
+    async message(peer, message) {
         let data: any
         try {
             data = message.json()
@@ -87,14 +87,16 @@ export default defineWebSocketHandler({
             peer.context.authorized = true
             const code = peer.context.roomCode as string
             addRoomPeer(code, peer)
-            sendCurrentLiveSnapshot(peer, code)
+            await sendCurrentLiveSnapshot(peer, code)
             return
         }
 
         if (data?.type === 'snapshot:live' && peer.context.isOwner && data.snapshot) {
             const code = peer.context.roomCode as string
-            setRoomLiveSnapshot(code, data.snapshot)
-            broadcastSnapshotLive(code, data.snapshot, peer)
+            await Promise.all([
+                setRoomLiveSnapshot(code, data.snapshot),
+                broadcastSnapshotLive(code, data.snapshot, peer),
+            ])
         }
     },
 

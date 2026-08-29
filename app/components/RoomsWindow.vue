@@ -18,9 +18,10 @@ defineEmits(['close-window', 'setScenarioToScene'])
       <edit-room-window :room="item" @close-window="close"/>
     </template>
     <template #extra-actions-before-close="{ item }">
-      <button
-          :disabled="!item"
-          @click="navigateTo('/rooms/' + item.code, {open: {target: '_blank'}})">Entrar na sala</button>
+      <NuxtLink v-if="item" :to="'/rooms/' + item.code" target="_blank" external>
+        <button type="button">Entrar na sala</button>
+      </NuxtLink>
+      <button v-else type="button" disabled>Entrar na sala</button>
     </template>
   </resource-list-window>
 </template>

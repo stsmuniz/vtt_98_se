@@ -34,6 +34,14 @@ npx drizzle-kit migrate --config drizzle.config.ts    # apply pending migrations
 
 When you change `server/db/schema.ts`, keep `server/db/schema.cjs` in sync manually — they are not generated from one another. `auth-schema.ts` at the repo root is a stray artifact from the better-auth CLI schema generator (unused by app code, but kept in sync with the `user`/`session`/`account`/`verification` tables for reference).
 
+### Realtime room sync (Upstash Redis)
+
+`server/utils/roomHub.ts` coordinates the live WebSocket state for rooms (`server/routes/api/rooms/[code]/ws.ts`). Vercel runs multiple serverless instances of the same function, each with its own memory, so an in-memory `Map` of connected peers only ever sees the peers that landed on that instance — a room's owner and a visitor can easily connect to different instances, and an HTTP request (the PATCH/PUT/DELETE handlers in `server/api/v1/rooms/[id]/**`) almost certainly runs on yet another instance. `server/utils/redis.ts` exports `redis` (`Redis.fromEnv()`, REST-based, from `@upstash/redis`), used two ways in `roomHub.ts`:
+- The live (unsaved) snapshot draft is stored in Redis (`room:<code>:live-snapshot`, with a TTL as a safety net) instead of an in-memory map, so a peer landing on any instance sees the current draft.
+- Cross-instance broadcast uses Redis pub/sub (`room:<code>:events`): each instance still keeps its own connected `Peer` objects in a local `Map` (peer sockets can't be serialized into Redis) and subscribes to a room's channel only while it has local peers for that room; publishing a message reaches every subscribed instance, which then relays it to its own local peers. Local delivery (same instance) still happens directly/synchronously — the Redis round trip is only what reaches other instances.
+
+`.env` needs `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` (same names `Redis.fromEnv()` expects), also set in the Vercel project's environment variables (Production, Preview, and Development).
+
 ## Architecture
 
 ### Nuxt layout
@@ -62,7 +70,7 @@ Core entities and ownership:
 - `tokensTable` — reusable token templates (name, image, size, tags, attributes), owned by `userId`.
 - `scenariosTable` — a reusable background/map (image, size, tags), owned by `userId`.
 - `scenesTable` — a specific arrangement of tokens on top of a `scenariosTable` (`scenarioId` FK), owned by `userId`. Stores `tokens` (a JSON array of `SceneToken`, i.e. per-scene token instances copied from a token template) and `startingPosition` as JSON columns.
-- `roomsTable` / `roomPlayersTable` — live play sessions: a room snapshots a scene (`snapshot: RoomSceneSnapshot` JSON, copied from a source scene) plus live `initiative` order, and has players with a `RoomPlayerRole` (`owner`/`gm`/`player`/`spectator`). **Note:** these tables exist in the schema and there's a stub page at `app/pages/rooms/index.vue`, but there are no `server/api/v1/rooms/**` endpoints yet — this feature is not wired up end-to-end.
+- `roomsTable` / `roomPlayersTable` — live play sessions: a room snapshots a scene (`snapshot: RoomSceneSnapshot` JSON, copied from a source scene) plus live `initiative` order, and has players with a `RoomPlayerRole` (`owner`/`gm`/`player`/`spectator`). Rooms are CRUD'd via `server/api/v1/rooms/**` and played from the public, no-account page `app/pages/rooms/[code].vue`, which joins via `server/api/rooms/[code]/join.post.ts` (password check, if any) and then opens a WebSocket at `server/routes/api/rooms/[code]/ws.ts` for live sync — see the Redis section below for how that scales across serverless instances.
 
 Ownership is enforced per-row via `userId`/`userId` columns, not via a separate ACL — most read/update/delete queries filter `where(and(eq(table.id, id), eq(table.userId, session.user.id)))`. Follow this pattern for new routes rather than checking ownership after the fact.
 
