@@ -583,7 +583,7 @@ async function changeRoomScene(scene: any) {
 // AÇÕES DO MENU / ATALHOS
 // ==========================================
 
-const { register, unregister } = useMenuActions()
+const { register, unregister, setMenuBarVisible } = useMenuActions()
 
 register('salvar', async () => {
   if (isGm.value) await saveRoomSnapshot()
@@ -593,9 +593,16 @@ register('novo-token', () => {
   if (isGm.value) isTokenPickerOpen.value = true
 })
 
+// Visitantes não têm ações de menu disponíveis nesta página — a menubar só
+// faz sentido para o dono da sala (GM).
+watchEffect(() => {
+  setMenuBarVisible(isGm.value)
+})
+
 onUnmounted(() => {
   unregister('salvar')
   unregister('novo-token')
+  setMenuBarVisible(true)
 })
 
 const handleKeyDown = (e: KeyboardEvent) => {

@@ -2,13 +2,13 @@
   <NuxtLayout>
     <NuxtPage />
   </NuxtLayout>
-  <LoadingWindow v-if="isLoadingWindowActive" :message="loadingWindowMessage" image="loading" />
+  <LoadingWindow v-if="isLoadingWindowActive" :message="loadingWindowMessage" :image="loadingWindowImage" />
 </template>
 <script setup lang="ts">
 import LoadingWindow from '~/components/LoadingWindow.vue'
 import { useLoadingWindow } from '~~/composables/useLoadingWindow'
 
-const { isActive: isLoadingWindowActive, message: loadingWindowMessage } = useLoadingWindow()
+const { isActive: isLoadingWindowActive, message: loadingWindowMessage, image: loadingWindowImage } = useLoadingWindow()
 </script>
 <style lang="css">
 body {

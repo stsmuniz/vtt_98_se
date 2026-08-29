@@ -77,7 +77,7 @@ const deleteItem = async () => {
       })
       isDeleteAlert.value = false
       await refresh()
-    }, `Apagando ${props.resourceArticle} ${props.resourceLabel}...`)
+    }, `Apagando ${props.resourceArticle} ${props.resourceLabel}...`, 'delete')
   } finally {
     isProcessing.value = false
   }
@@ -98,7 +98,7 @@ const duplicateItem = async () => {
       })
 
       await closeFormWindows()
-    }, `Duplicando ${props.resourceArticle} ${props.resourceLabel}...`)
+    }, `Duplicando ${props.resourceArticle} ${props.resourceLabel}...`, 'copy')
   } catch (error) {
     console.error(`Erro ao duplicar ${props.resourceArticle} ${props.resourceLabel}:`, error)
   } finally {

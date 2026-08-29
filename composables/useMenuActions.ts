@@ -4,6 +4,7 @@ export function useMenuActions() {
     const menu = inject<{
         register: (name: string, handler: (payload?: any) => void | Promise<void>) => void
         unregister: (name: string) => void
+        setMenuBarVisible: (visible: boolean) => void
     }>('menuActions')
 
     if (!menu) {

@@ -11,7 +11,7 @@
         </div>
       </div>
 
-      <nav class="window-menu-bar" @click.stop>
+      <nav class="window-menu-bar" v-if="menuBarVisible" @click.stop>
         <div class="window-menu">
           <!-- ===================== MENU ARQUIVO ===================== -->
           <div class="menu-root">
@@ -40,17 +40,6 @@
             <button class="menu-btn">Janela</button>
             <div class="dropdown">
               <div class="menu-item" @mousedown.prevent="onAction('tela-cheia')">Tela Cheia</div>
-              <div class="menu-item" @mousedown.prevent="onAction('janela-item-1')">menu item</div>
-              <div class="menu-item" @mousedown.prevent="onAction('janela-item-2')">menu item</div>
-            </div>
-          </div>
-
-          <!-- ===================== MENU AJUDA ===================== -->
-          <div class="menu-root">
-            <button class="menu-btn">Ajuda</button>
-            <div class="dropdown">
-              <div class="menu-item" @mousedown.prevent="onAction('manual')">Manual</div>
-              <div class="menu-item" @mousedown.prevent="onAction('sobre')">Sobre</div>
             </div>
           </div>
         </div>
@@ -76,7 +65,7 @@
 <script lang="ts" setup>
 import {authClient} from '~~/lib/auth-client'
 import {useLoadingWindow} from '~~/composables/useLoadingWindow'
-import {provide, reactive} from 'vue'
+import {provide, reactive, ref} from 'vue'
 
 const { withLoading } = useLoadingWindow()
 
@@ -88,6 +77,7 @@ const session = authClient.useSession()
 type MenuActionHandler = (payload?: any) => void | Promise<void>
 
 const menuActions = reactive<Record<string, MenuActionHandler>>({})
+const menuBarVisible = ref(true)
 
 /**
  * Permite que qualquer componente filho registre handlers.
@@ -104,10 +94,15 @@ function unregisterAction(name: string) {
   delete menuActions[name]
 }
 
+function setMenuBarVisible(visible: boolean) {
+  menuBarVisible.value = visible
+}
+
 provide('menuActions', {
   register: registerAction,
   unregister: unregisterAction,
   actions: menuActions,
+  setMenuBarVisible,
 })
 
 // Função central que o layout chama

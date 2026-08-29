@@ -2,12 +2,16 @@
  * Estado global da LoadingWindow. Usa useState para que qualquer form/janela do app
  * compartilhe o mesmo overlay bloqueante ao consultar o banco de dados.
  */
+export type LoadingWindowImage = 'loading' | 'copy' | 'delete'
+
 export function useLoadingWindow() {
     const isActive = useState<boolean>('loading-window-active', () => false)
     const message = useState<string>('loading-window-message', () => 'Carregando...')
+    const image = useState<LoadingWindowImage>('loading-window-image', () => 'loading')
 
-    const show = (msg = 'Carregando...') => {
+    const show = (msg = 'Carregando...', img: LoadingWindowImage = 'loading') => {
         message.value = msg
+        image.value = img
         isActive.value = true
     }
 
@@ -15,8 +19,8 @@ export function useLoadingWindow() {
         isActive.value = false
     }
 
-    async function withLoading<T>(fn: () => Promise<T>, msg = 'Carregando...'): Promise<T> {
-        show(msg)
+    async function withLoading<T>(fn: () => Promise<T>, msg = 'Carregando...', img: LoadingWindowImage = 'loading'): Promise<T> {
+        show(msg, img)
         try {
             return await fn()
         } finally {
@@ -24,5 +28,5 @@ export function useLoadingWindow() {
         }
     }
 
-    return { isActive, message, show, hide, withLoading }
+    return { isActive, message, image, show, hide, withLoading }
 }
