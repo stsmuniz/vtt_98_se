@@ -17,3 +17,4 @@ export type User = typeof schema.user.$inferSelect
 export type Token = typeof schema.tokensTable.$inferSelect
 export type Scenario = typeof schema.scenariosTable.$inferSelect
 export type Scene = typeof schema.scenesTable.$inferSelect
+export type Room = typeof schema.roomsTable.$inferSelect

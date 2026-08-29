@@ -137,13 +137,15 @@ const roomsTable = sqliteTable('rooms', {
   id: int('id').primaryKey({ autoIncrement: true }),
   code: text('code').notNull().unique(),
   name: text('name').notNull(),
-  ownerId: text('owner_id')
+  password: text('password'),
+  tags: text('tags', { mode: 'json' }),
+  userId: text('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
-  sourceSceneId: int('source_scene_id').references(() => scenesTable.id, {
+  sceneId: int('scene_id').references(() => scenesTable.id, {
     onDelete: 'set null',
   }),
-  snapshot: text('snapshot', { mode: 'json' }).notNull(),
+  snapshot: text('snapshot', { mode: 'json' }),
   initiative: text('initiative', { mode: 'json' }).default(sql`'[]'`),
   isOpen: int('is_open', { mode: 'boolean' }).notNull().default(true),
   createdAt: int('created_at', { mode: 'timestamp_ms' })

@@ -11,6 +11,7 @@ export type Attribute = {
 export type SceneAttribute = Attribute & {
     visibility?: 'visible' | 'hidden'
     currentValue?: string
+    maxValue?: string
 }
 
 export type SceneToken = {
@@ -189,13 +190,14 @@ export const roomsTable = sqliteTable('rooms', {
     id: int('id').primaryKey({ autoIncrement: true }),
     code: text('code').notNull().unique(),
     name: text('name').notNull(),
-    ownerId: text('owner_id')
+    password: text('password'),
+    tags: text('tags', { mode: 'json' }).$type<string[]>(),
+    userId: text('user_id')
         .notNull()
         .references(() => user.id, { onDelete: 'cascade' }),
-    sourceSceneId: int('source_scene_id')
+    sceneId: int('scene_id')
         .references(() => scenesTable.id, { onDelete: 'set null' }),
     snapshot: text('snapshot', { mode: 'json' })
-        .notNull()
         .$type<RoomSceneSnapshot>(),
     initiative: text('initiative', { mode: 'json' })
         .$type<SceneInitiativeEntry[]>()
@@ -280,11 +282,11 @@ export const scenesRelations = relations(scenesTable, ({ one, many }) => ({
 
 export const roomsRelations = relations(roomsTable, ({ one, many }) => ({
     owner: one(user, {
-        fields: [roomsTable.ownerId],
+        fields: [roomsTable.userId],
         references: [user.id],
     }),
     sourceScene: one(scenesTable, {
-        fields: [roomsTable.sourceSceneId],
+        fields: [roomsTable.sceneId],
         references: [scenesTable.id],
     }),
     players: many(roomPlayersTable),

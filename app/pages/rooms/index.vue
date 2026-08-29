@@ -142,7 +142,7 @@
             <img :src="s.image" alt="" style="width:120px; height:64px; object-fit:cover; border-radius:4px;"/>
             <div style="flex:1">
               <div style="font-weight:600">{{ s.name }}</div>
-              <div style="font-size:12px;">{{ s.width }}×{{ s.height }}</div>
+              <div>{{ s.width }}×{{ s.height }}</div>
             </div>
             <button @click.prevent="selectScene(s)"
                     style="padding:6px 10px; border-radius:4px; background:#0b7; color:#012; border:none; cursor:pointer;">
@@ -173,8 +173,8 @@
                    style="width:60px; height:90px; object-fit:contain; border-radius:4px; background:#000;"/>
               <div style="flex:1">
                 <div style="font-weight:600">{{ t.name }}</div>
-                <div style="font-size:12px;">x: {{ Math.round(t.x) }}, y: {{ Math.round(t.y) }}</div>
-                <div style="font-size:12px;">Atributos: {{ t.showAttributes ? 'visíveis' : 'ocultos' }}</div>
+                <div>x: {{ Math.round(t.x) }}, y: {{ Math.round(t.y) }}</div>
+                <div>Atributos: {{ t.showAttributes ? 'visíveis' : 'ocultos' }}</div>
               </div>
               <button @click.prevent="toggleTokenAttributes(t.id)"
                       style="padding:6px 10px; border-radius:4px; background:#0b7; color:#012; border:none; cursor:pointer;">
@@ -203,13 +203,13 @@
         </div>
       </div>
       <div class="window-body">
-        <p style="font-size: 12px; font-weight: bold;">Adicionar token</p>
+        <p style="font-weight: bold;">Adicionar token</p>
         <ul style="list-style:none; padding:0; margin:0 0 12px 0; display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
           <li v-for="p in availableTokens" :key="p.id"
               style="display:flex; flex-direction:column; align-items:center; gap:6px; padding:6px; background:#111; border-radius:6px;">
             <img :src="p.image" alt=""
                  style="width:100%; height:80px; object-fit:contain; background:#000; border-radius:4px;"/>
-            <div style="font-size:12px; color:#fff">{{ p.name }}</div>
+            <div style="color:#fff">{{ p.name }}</div>
             <button @click.prevent="addToken(p)"
                     style="padding:6px 8px; border-radius:4px; background:#0b7; color:#012; border:none; cursor:pointer;">
               Adicionar
@@ -1029,7 +1029,6 @@ nav .menu-bar.icons li a {
   align-items: center;
   width: 48px;
   height: 52px;
-  font-size: 14px;
 
   &:hover {
     width: 46px;
@@ -1051,7 +1050,6 @@ nav .menu-bar li a {
   color: black;
   text-decoration: none;
   padding: 8px;
-  font-size: 12px;
   cursor: pointer;
 
   &:hover {

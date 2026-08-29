@@ -24,9 +24,6 @@ withDefaults(defineProps<{ icon: string; name?: string; size?: 'sm' | 'lg' }>(),
   width: 3rem;
   height: 3rem;
 }
-.icon--lg span {
-  font-size: 1rem;
-}
 .icon--lg:hover .icon-name {
   color: white;
   background-color: darkblue;
@@ -39,9 +36,6 @@ withDefaults(defineProps<{ icon: string; name?: string; size?: 'sm' | 'lg' }>(),
 .icon--sm img {
   width: 2rem;
   height: 2rem;
-}
-.icon--sm span {
-  font-size: 0.7rem;
 }
 .icon--sm:hover {
   border: 1px solid;

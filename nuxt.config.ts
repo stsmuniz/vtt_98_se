@@ -3,7 +3,8 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: false },
   css: [
-    '98.css'
+    '98.css',
+    '~/assets/css/fonts.css'
   ],
   nitro: {
     storage: {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-defineEmits(['close-window'])
+defineProps<{ selectSceneForRoom?: boolean | string }>()
+defineEmits(['close-window', 'selectSceneForRoom'])
 
 const openEditorWindow = (item: any) => {
   navigateTo(`/dashboard/scenes/${item?.id}`)
@@ -29,6 +30,9 @@ const openEditorWindow = (item: any) => {
     </template>
     <template #extra-actions-before-close="{ item }">
       <button :disabled="!item" @click="openEditorWindow(item)">Abrir no editor</button>
+    </template>
+    <template v-if="selectSceneForRoom" #extra-actions-after-insert="{ item }">
+      <button :disabled="!item" @click="$emit('selectSceneForRoom', item)">Selecionar para a sala</button>
     </template>
   </ResourceListWindow>
 </template>

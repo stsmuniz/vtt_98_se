@@ -62,7 +62,7 @@ Core entities and ownership:
 - `scenesTable` — a specific arrangement of tokens on top of a `scenariosTable` (`scenarioId` FK), owned by `userId`. Stores `tokens` (a JSON array of `SceneToken`, i.e. per-scene token instances copied from a token template) and `startingPosition` as JSON columns.
 - `roomsTable` / `roomPlayersTable` — live play sessions: a room snapshots a scene (`snapshot: RoomSceneSnapshot` JSON, copied from a source scene) plus live `initiative` order, and has players with a `RoomPlayerRole` (`owner`/`gm`/`player`/`spectator`). **Note:** these tables exist in the schema and there's a stub page at `app/pages/rooms/index.vue`, but there are no `server/api/v1/rooms/**` endpoints yet — this feature is not wired up end-to-end.
 
-Ownership is enforced per-row via `userId`/`ownerId` columns, not via a separate ACL — most read/update/delete queries filter `where(and(eq(table.id, id), eq(table.userId, session.user.id)))`. Follow this pattern for new routes rather than checking ownership after the fact.
+Ownership is enforced per-row via `userId`/`userId` columns, not via a separate ACL — most read/update/delete queries filter `where(and(eq(table.id, id), eq(table.userId, session.user.id)))`. Follow this pattern for new routes rather than checking ownership after the fact.
 
 Several JSON-typed columns exist for denormalized nested data (`tokens`, `attributes`, `tags`, `snapshot`, `initiative`, `startingPosition`) — these are plain typed JS objects/arrays serialized by Drizzle's `{ mode: "json" }`, not separate related tables. When editing scene/room tokens, you're mutating a JSON blob in one row, not a child table.
 

@@ -45,8 +45,6 @@ onUnmounted(() => window.removeEventListener('click', closeMenu));
 :deep(li) {
   padding: 8px 12px;
   cursor: pointer;
-  font-family: "Pixelated MS Sans Serif", sans-serif;
-  font-size: 0.75rem;
 }
 
 :deep(li:hover) {

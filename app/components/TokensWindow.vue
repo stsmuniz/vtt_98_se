@@ -1,5 +1,7 @@
 <script setup lang="ts">
-defineProps<{ addTokenToScene?: boolean | string }>()
+withDefaults(defineProps<{ addTokenToScene?: boolean | string; addButtonLabel?: string }>(), {
+  addButtonLabel: 'Adicionar na cena',
+})
 defineEmits(['close-window', 'addTokenToScene'])
 </script>
 <template>
@@ -19,7 +21,7 @@ defineEmits(['close-window', 'addTokenToScene'])
       <EditTokenWindow :token="item" @close-window="close"/>
     </template>
     <template v-if="addTokenToScene" #extra-actions-after-insert="{ item }">
-      <button @click="$emit('addTokenToScene', item)">Adicionar na cena</button>
+      <button :disabled="!item" @click="$emit('addTokenToScene', item)">{{ addButtonLabel }}</button>
     </template>
   </ResourceListWindow>
 </template>

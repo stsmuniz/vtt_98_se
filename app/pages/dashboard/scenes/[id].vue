@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import {ref, reactive, computed, onMounted, onUnmounted, watchEffect, watch} from 'vue'
-import type {Attribute, SceneToken} from "#server/db/schema.ts"
+import type {SceneToken} from "#server/db/schema.ts"
 import {useMenuActions} from "~~/composables/useMenuActions"
 import {useCanvasZoom} from "~~/composables/useCanvasZoom"
 import {usePreloadedImage, useImageMap} from "~~/composables/useImagePreloader"
@@ -53,9 +52,6 @@ onUnmounted(() => {
   unregister('novo-token')
 })
 
-// ==========================================
-// REFERÊNCIAS DO CANVAS E SELEÇÃO
-// ==========================================
 const stageRef = ref(null)
 const transformerRef = ref(null)
 const selectedTokenId = ref<number | null>(null) // Guarda qual token está selecionado
@@ -113,28 +109,32 @@ const tokens = computed(() => localTokens.value ?? [])
 
 const selectedToken = computed(() => localTokens.value.find(t => t.id === selectedTokenId.value) ?? null)
 
-const tokensSortedForCanvas = computed(() => {
-  const allTokens = [...localTokens.value]
-  if (selectedTokenId.value) {
-    const index = allTokens.findIndex(t => t.id === selectedTokenId.value)
-    if (index !== -1) {
-      const [selected] = allTokens.splice(index, 1)
-      allTokens.push(selected) // Coloca o selecionado por último para renderizar por cima
-    }
+const selectToken = (id: number | null) => {
+  if (id === null) {
+    selectedTokenId.value = null
+    return
   }
-  return allTokens
-})
+  selectedTokenId.value = id
+  const index = localTokens.value.findIndex(t => t.id === id)
+  if (index > 0) {
+    const [token] = localTokens.value.splice(index, 1)
+    localTokens.value.unshift(token)
+  }
+}
 
 const duplicateToken = () => {
-  const newToken = {...tokensSortedForCanvas.value.at(-1)}
+  const token = selectedToken.value
+  if (!token) return
+  const newToken = {...token}
   newToken.id = Date.now()
   newToken.x += 10
   newToken.y += 10
-  localTokens.value.push(newToken)
+  localTokens.value.unshift(newToken)
+  selectToken(newToken.id)
 }
 
 const centerToken = () => {
-  const token = tokensSortedForCanvas.value.find(t => t.id === selectedTokenId.value)
+  const token = selectedToken.value
   if (token) {
     const centerX = token.width / 2
     const centerY = token.height / 2
@@ -144,7 +144,7 @@ const centerToken = () => {
 }
 
 const tokenGroups = computed(() => {
-  return tokensSortedForCanvas.value.map(token => {
+  return [...localTokens.value].reverse().map(token => {
     const width = token.width || 100
     const height = token.height || 100
     const centerX = width / 2
@@ -216,7 +216,8 @@ const addToken = async (token: Omit<Token, "tags"> & { x?: number; y?: number; }
     opacity: 100
   }
 
-  localTokens.value = [...localTokens.value, sceneToken]
+  localTokens.value = [sceneToken, ...localTokens.value]
+  selectToken(sceneToken.id)
   ensureTokenImageLoaded(sceneToken.id, sceneToken.image)
 
   await saveSceneTokens()
@@ -252,8 +253,9 @@ onMounted(() => {
 // ==========================================
 
 // 1. Monitora mudanças na seleção para conectar o Transformer
-watch(selectedTokenId, (newId) => {
+watch(selectedTokenId, async (newId) => {
   if (!transformerRef.value) return;
+  await nextTick();
   const transformerNode = transformerRef.value.getNode();
 
   if (!newId) {
@@ -263,7 +265,7 @@ watch(selectedTokenId, (newId) => {
 
   const stageNode = stageRef.value.getNode();
   // Busca a IMAGEM do token selecionado pelo ID, não o grupo
-  const selectedNode = stageNode.findOne(`#token-${newId}`);
+  const selectedNode = stageNode?.findOne(`#token-${newId}`);
   if (selectedNode) {
     transformerNode.nodes([selectedNode]);
   }
@@ -273,7 +275,7 @@ watch(selectedTokenId, (newId) => {
 const handleStageClick = (e: any) => {
   // Se clicou no Stage vazio ou na imagem de fundo, desseleciona
   if (e.target === e.target.getStage() || e.target.attrs.id === 'scene') {
-    selectedTokenId.value = null;
+    selectToken(null);
   }
 };
 
@@ -464,7 +466,7 @@ const onHandleMouseLeave = (e: any) => {
                         v-for="token in tokens"
                         :key="token.id"
                         :class="{ selected: selectedTokenId === token.id }"
-                        @click="selectedTokenId = token.id"
+                        @click="selectToken(token.id)"
                     >
                       <img :src="token.image" :alt="token.name">
                       <span>{{ token.name }}</span>
@@ -516,7 +518,7 @@ const onHandleMouseLeave = (e: any) => {
     />
   </fixed-window>
   <Teleport to="#button-bar">
-    <button class="button-bar-button">
+    <button class="dice-selector-button">
       <Icon
           size="sm"
           style="padding: 4px; box-sizing: border-box"
@@ -525,7 +527,7 @@ const onHandleMouseLeave = (e: any) => {
           @click="isTokenWindowOpen = true"
       />
     </button>
-    <button class="button-bar-button">
+    <button class="dice-selector-button">
       <Icon
           size="sm"
           style="padding: 4px; box-sizing: border-box"
@@ -534,7 +536,7 @@ const onHandleMouseLeave = (e: any) => {
           @click="isScenarioWindowOpen = true"
       />
     </button>
-    <button class="button-bar-button">
+    <button class="dice-selector-button">
       <Icon
           size="sm"
           style="padding: 4px; box-sizing: border-box"
@@ -571,8 +573,8 @@ const onHandleMouseLeave = (e: any) => {
             v-for="tokenGroup in tokenGroups"
             :key="tokenGroup.id"
             :config="tokenGroup.groupConfig"
-            @mousedown="selectedTokenId = tokenGroup.id"
-            @touchstart="selectedTokenId = tokenGroup.id"
+            @mousedown="selectToken(tokenGroup.id)"
+            @touchstart="selectToken(tokenGroup.id)"
             @dragend="(e) => handleDragEnd(e, tokenGroup.id)"
             @contextmenu="(e) => openMenu(e, 'Target Box Alpha')"
         >
@@ -607,7 +609,7 @@ const onHandleMouseLeave = (e: any) => {
           <label for="zoom">Zoom:</label>
           <!-- v-model.number garante que o valor seja tratado como número -->
           <input type="text" id="zoom" v-model.number="sceneZoom" class="scene-zoom-input" />
-          <span style="font-size: 11px; margin-right: 4px;">%</span>
+          <span style="margin-right: 4px;">%</span>
           <button @click="zoomOut">-</button>
           <button @click="zoomIn">+</button>
           <button @click="resetZoom">Restaurar</button>
@@ -629,7 +631,7 @@ const onHandleMouseLeave = (e: any) => {
   height: 100%;
 }
 
-.button-bar-button {
+.dice-selector-button {
   box-shadow: none;
   padding: 0;
   min-width: 4rem;

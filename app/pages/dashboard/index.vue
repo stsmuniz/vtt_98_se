@@ -20,6 +20,21 @@
       @close-window="isSceneWindowOpen = false">
     <scenes-window @close-window="isSceneWindowOpen = false"/>
   </fixed-window>
+  <fixed-window
+      title="Salas"
+      icon="desktop"
+      v-if="isRoomWindowOpen"
+      @close-window="isRoomWindowOpen = false">
+    <rooms-window @close-window="isRoomWindowOpen = false"/>
+  </fixed-window>
+  <floating-window
+      title="Rolador de dados"
+      icon="dices/d20"
+      v-if="isDiceRollerWindowOpen"
+      @close-window="isDiceRollerWindowOpen = false"
+  >
+    <dice-roller />
+  </floating-window>
   <div class="dashboard-main-window">
     <aside class="sidebar">
       <h3>Dashboard</h3>
@@ -30,14 +45,15 @@
       <Icon name="Token" icon="tokens" @click="openTokenWindow"/>
       <Icon name="Cenário" icon="scenario" @click="openScenarioWindow"/>
       <Icon name="Cena" icon="scenes" @click="openSceneWindow"/>
+      <Icon name="Sala" icon="desktop" @click="openRoomWindow"/>
+      <Icon name="Dados" icon="dices/d20" @click="isDiceRollerWindowOpen = true"/>
     </section>
   </div>
 </template>
 <script setup lang="ts">
-import TokensWindow from "@/components/TokensWindow.vue";
-import ScenariosWindow from "@/components/ScenariosWindow.vue";
 import FixedWindow from "@/components/FixedWIndow.vue";
-import Icon from "~/components/Icon.vue";
+import FloatingWindow from "~/components/FloatingWindow.vue";
+
 definePageMeta({
   layout: 'dashboard',
   middleware: 'auth',
@@ -46,6 +62,8 @@ definePageMeta({
 const isTokenWindowOpen = ref(false)
 const isScenarioWindowOpen = ref(false)
 const isSceneWindowOpen = ref(false)
+const isRoomWindowOpen = ref(false)
+const isDiceRollerWindowOpen = ref(false)
 
 const openTokenWindow = () => {
   isTokenWindowOpen.value = true
@@ -57,6 +75,10 @@ const openScenarioWindow = () => {
 
 const openSceneWindow = () => {
   isSceneWindowOpen.value = true
+}
+
+const openRoomWindow = () => {
+  isRoomWindowOpen.value = true
 }
 </script>
 <style lang="css" scoped>
@@ -75,18 +97,15 @@ aside.sidebar {
     gap: 2rem;
     aside.sidebar {
       display: block;
-      font-family: "Geist Pixel", sans-serif;
       background: url('/assets/backgrounds/directory.jpg') no-repeat top left;
       background-size: 125%;
       padding: 0;
       width: 20vw;
       h3 {
-        font-size: 2rem;
         margin: 2rem;
       }
       .description {
         margin: 2rem;
-        font-size: 1.4rem;
       }
     }
   }

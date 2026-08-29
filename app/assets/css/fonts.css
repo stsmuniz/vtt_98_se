@@ -1,0 +1,79 @@
+@font-face {
+  font-family: "Terminal Grotesque";
+  src: url("/fonts/terminal-grotesque.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Perfect DOS VGA 437";
+  src: url("/fonts/Perfect.DOS.VGA.437.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Munro";
+  src: url("/fonts/munro.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+/* Sobrescreve a fonte e o tamanho padrão do 98.css em todo o sistema */
+html,
+body {
+  font-family: "Terminal Grotesque", "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 14px;
+}
+
+.title-bar,
+.window,
+button,
+input,
+label,
+legend,
+li[role="tab"],
+option,
+select,
+table,
+textarea,
+ul.tree-view {
+  font-family: "Munro", "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 14px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Terminal Grotesque", "Pixelated MS Sans Serif", Arial, sans-serif;
+}
+
+h1 {
+  font-size: 2rem;
+}
+
+h2 {
+  font-size: 1.75rem;
+}
+
+h3 {
+  font-size: 1.5rem;
+}
+
+h4 {
+  font-size: 1.25rem;
+}
+
+h5 {
+  font-size: 1.1rem;
+}
+
+h6 {
+  font-size: 1rem;
+}

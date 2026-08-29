@@ -3,6 +3,7 @@ import { reactive, onMounted } from 'vue'
 import { useTagManager } from '~~/composables/useTagManager'
 import { useAttributeManager } from '~~/composables/useAttributeManager'
 import { useImageUpload } from '~~/composables/useImageUpload'
+import type {input} from "better-auth";
 
 const props = withDefaults(defineProps<{
   mode: 'insert' | 'edit'
@@ -13,10 +14,13 @@ const props = withDefaults(defineProps<{
   hasImage?: boolean
   requireImageOnInsert?: boolean
   hasAttributes?: boolean
+  omitImage: false | boolean
   initial?: {
     name?: string
     tags?: string[] | null
     attributes?: { name: string; value: number }[] | null
+    password?: string | null
+    isOpen?: boolean | null
     image?: string | null
     width?: number
     height?: number
@@ -35,15 +39,17 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits(['close-window'])
 
-const form = reactive({ name: '' })
-
+const form = reactive({ name: '' , password: '', isOpen: false})
 const { tags, tagToInsert, addTag, removeTag, setTags } = useTagManager()
 const { attributes, attributeToInsert, attributeValueToInsert, addAttribute, removeAttribute, setAttributes } = useAttributeManager()
 const { imageFile, imagePreviewUrl, imageWidth, imageHeight, handleImageUpload, setExistingImage } = useImageUpload()
+const newPassword = ref('')
 
 onMounted(() => {
   if (props.mode === 'edit' && props.initial) {
     form.name = props.initial.name ?? ''
+    form.password = props.initial.password ?? ''
+    form.isOpen = props.initial.isOpen ?? false
     setTags(props.initial.tags)
     if (props.hasAttributes) setAttributes(props.initial.attributes)
     if (props.hasImage) setExistingImage(props.initial.image, props.initial.width, props.initial.height)
@@ -76,6 +82,14 @@ async function handleSubmit() {
 
   const formData = new FormData()
   formData.append('name', form.name)
+
+  if (newPassword.value) {
+    formData.append('password', newPassword.value)
+  }
+
+  if (form.isOpen !== undefined) {
+    formData.append('isOpen', String(form.isOpen))
+  }
 
   if (props.hasImage) {
     formData.append('width', String(imageWidth.value))
@@ -129,6 +143,21 @@ async function handleSubmit() {
               name="name"
               id="name" style="width: 100%;"
           >
+        </div>
+        <div class="field-row" v-if="props.mode === 'edit' && props.initial?.password !== null && props.initial?.password !== undefined && props.initial?.password !== ''">
+          <label for="name">Password: </label>
+          <input
+              v-model="newPassword"
+              type="password"
+              name="password"
+              id="password" style="width: 100%;"
+              placeholder="********"
+          >
+        </div>
+        <div v-if="props.initial?.isOpen !== null && props.initial?.isOpen !== undefined && props.mode === 'edit'"
+             class="field-row">
+          <input type="checkbox" id="is-open" v-model="form.isOpen" />
+          <label for="is-open">Sala Aberta: </label>
         </div>
         <div class="field-row" style="display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.5rem;">
           <label>Tags: </label>
@@ -197,7 +226,7 @@ async function handleSubmit() {
         </div>
         <slot name="extra-fields"/>
       </div>
-      <div v-if="hasImage" class="image">
+      <div v-if="hasImage && !omitImage" class="image">
         <div class="field-row">
           <label for="image">Imagem: </label>
           <input

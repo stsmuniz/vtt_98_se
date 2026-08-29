@@ -107,7 +107,6 @@ section {
 .login-window .window-body, .alert-window .window-body {
   display: grid;
   grid-template-columns: auto 1fr;
-  font-size: 12px;
   gap: 2rem;
 }
 
@@ -134,12 +133,10 @@ section {
 
 .login-form label {
   min-width: 25%;
-  font-size: 12px;
 }
 
 .login-form input {
   min-width: 80%;
-  font-size: 12px;
 }
 
 .buttons {

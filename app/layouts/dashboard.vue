@@ -128,7 +128,7 @@ function closeMenus() {
   if (!activeEl) return;
 
   // Verifica se o elemento ativo é um campo de texto/formulário
-  const isInputFocused = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl.tagName) || activeEl.isContentEditable;
+  const isInputFocused = ['INPUT', 'TEXTAREA', 'SELECT', 'LABEL'].includes(activeEl.tagName) || activeEl.isContentEditable;
 
   // Só remove o foco se NÃO for um campo de texto
   if (!isInputFocused) {
@@ -227,7 +227,6 @@ body {
   background: transparent;
   border: 1px solid transparent;
   padding: 0px 8px;
-  font-size: 12px;
   cursor: pointer;
   color: #000;
   min-width: 40px;
@@ -268,12 +267,10 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 4px 20px 4px 16px;
-  font-size: 12px;
   color: #000;
   cursor: pointer;
   white-space: nowrap;
   position: relative;
-  font-family: "Pixelated MS Sans Serif", sans-serif;
 }
 
 .menu-item:hover {
@@ -283,7 +280,6 @@ body {
 
 .menu-item .arrow {
   margin-left: 24px;
-  font-size: 10px;
 }
 
 .submenu {

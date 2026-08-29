@@ -3,7 +3,7 @@ import { createError, getHeader, getRouterParam, readBody, readMultipartFormData
 
 export type ResourceFieldSpec = {
     name: string
-    type: 'number' | 'json' | 'string'
+    type: 'number' | 'json' | 'string' | 'boolean'
 }
 
 function coerceField(spec: ResourceFieldSpec, raw: unknown, isJsonSource: boolean): unknown {
@@ -13,6 +13,9 @@ function coerceField(spec: ResourceFieldSpec, raw: unknown, isJsonSource: boolea
     if (spec.type === 'json') {
         if (isJsonSource) return raw ?? []
         return raw ? JSON.parse(raw as string) : []
+    }
+    if (spec.type === 'boolean') {
+        return isJsonSource ? Boolean(raw) : raw === 'true'
     }
     return raw ?? ''
 }
@@ -79,6 +82,7 @@ type UploadableResourceOptions = {
     hasImage?: boolean
     storagePrefix?: string
     requireImageOnCreate?: boolean
+    transformUpdate?: (updateData: Record<string, unknown>, rawFields: Record<string, string>) => void | Promise<void>
 }
 
 /**
@@ -149,6 +153,20 @@ export async function createUploadableResource(event: any, options: UploadableRe
     return db.insert(options.table).values(values).returning()
 }
 
+export const generateRoomCode = async (): Promise<string> => {
+    const allowedCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+    const roomCode = Array.from({ length: 6 }, () => allowedCharacters.charAt(Math.floor(Math.random() * allowedCharacters.length)))
+
+    const isRoomCodeTaken = await useDrizzle().query.roomsTable.findFirst({
+        where: (rooms, { eq }) => eq(rooms.code, roomCode.join(''))
+    });
+
+    if (isRoomCodeTaken) return generateRoomCode()
+
+    return roomCode.join('')
+}
+
 /**
  * PUT update handler shared by scenarios/tokens: multipart body, optional image replacement.
  * Scoped to the owning user, fixing the missing-ownership-check (IDOR) present in the
@@ -187,6 +205,10 @@ export async function updateUploadableResource(event: any, options: UploadableRe
         const uniqueFileName = `${Date.now()}.${fileExtension}`
         await useStorage('uploads').setItemRaw(`${options.storagePrefix}:${uniqueFileName}`, file.data)
         updateData.image = `/${options.storagePrefix}/${uniqueFileName}`
+    }
+
+    if (options.transformUpdate) {
+        await options.transformUpdate(updateData, rawFields)
     }
 
     const [row] = await useDrizzle()

@@ -32,7 +32,6 @@ defineEmits(['close-window'])
 .window-body {
   display: flex;
   flex-direction: column;
-  font-size: 12px;
   gap: 2rem;
   margin: 0.125rem;
   padding: 0.25rem;
