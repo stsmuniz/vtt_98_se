@@ -2,10 +2,12 @@
 import {TabContent} from "vue3-form-wizard";
 import {reactive} from "vue";
 import {useTagManager} from "~~/composables/useTagManager.ts";
+import {useLoadingWindow} from "~~/composables/useLoadingWindow";
 
 defineProps<{ tagSuggestions?: string[] }>()
 const emit = defineEmits(['close-window'])
 const { tags, tagToInsert, addTag, removeTag } = useTagManager()
+const { withLoading } = useLoadingWindow()
 const form = reactive({ name: '' , password: '', isOpen: false, tags: [''], sceneId: null as number | null})
 const selectedScene = ref<number | null>(null)
 
@@ -35,19 +37,21 @@ const addRoom = async () => {
   }
 
   try {
-    const result = await $fetch('/api/v1/rooms', {
-      headers: {
-        authorization: 'Bearer ' + (localStorage.getItem('token') || ''),
-      },
-      method: 'POST',
-      body: {
-        name: form.name,
-        password: form.password,
-        tags: form.tags,
-        sceneId: form.sceneId,
-      },
-    })
-    emit('close-window')
+    await withLoading(async () => {
+      await $fetch('/api/v1/rooms', {
+        headers: {
+          authorization: 'Bearer ' + (localStorage.getItem('token') || ''),
+        },
+        method: 'POST',
+        body: {
+          name: form.name,
+          password: form.password,
+          tags: form.tags,
+          sceneId: form.sceneId,
+        },
+      })
+      emit('close-window')
+    }, 'Criando sala...')
   } catch (error) {
     console.error('Erro ao adicionar sala:', error)
     alert('Falha ao adicionar sala.')

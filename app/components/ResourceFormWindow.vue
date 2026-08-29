@@ -3,6 +3,7 @@ import { reactive, onMounted } from 'vue'
 import { useTagManager } from '~~/composables/useTagManager'
 import { useAttributeManager } from '~~/composables/useAttributeManager'
 import { useImageUpload } from '~~/composables/useImageUpload'
+import { useLoadingWindow } from '~~/composables/useLoadingWindow'
 import type {input} from "better-auth";
 
 const props = withDefaults(defineProps<{
@@ -43,7 +44,9 @@ const form = reactive({ name: '' , password: '', isOpen: false})
 const { tags, tagToInsert, addTag, removeTag, setTags } = useTagManager()
 const { attributes, attributeToInsert, attributeValueToInsert, addAttribute, removeAttribute, setAttributes } = useAttributeManager()
 const { imageFile, imagePreviewUrl, imageWidth, imageHeight, handleImageUpload, setExistingImage } = useImageUpload()
+const { withLoading } = useLoadingWindow()
 const newPassword = ref('')
+const isSubmitting = ref(false)
 
 onMounted(() => {
   if (props.mode === 'edit' && props.initial) {
@@ -110,29 +113,35 @@ async function handleSubmit() {
   }
 
   const url = props.mode === 'insert' ? props.endpoint : `${props.endpoint}/${props.id}`
+  const action = props.mode === 'insert' ? 'salvar' : 'atualizar'
 
+  isSubmitting.value = true
   try {
-    const result = await $fetch.raw(url, {
-      method: props.mode === 'insert' ? 'POST' : 'PUT',
-      headers: {
-        authorization: 'Bearer ' + (localStorage.getItem('token') || ''),
-      },
-      body: formData,
-    })
+    await withLoading(async () => {
+      const result = await $fetch.raw(url, {
+        method: props.mode === 'insert' ? 'POST' : 'PUT',
+        headers: {
+          authorization: 'Bearer ' + (localStorage.getItem('token') || ''),
+        },
+        body: formData,
+      })
 
-    if (result.ok) {
-      emit('close-window')
-    }
+      if (result.ok) {
+        emit('close-window')
+      }
+    }, `${action === 'salvar' ? 'Salvando' : 'Atualizando'} ${props.resourceArticle} ${props.resourceLabel}...`)
   } catch (error) {
-    const action = props.mode === 'insert' ? 'salvar' : 'atualizar'
     console.error(`Erro ao ${action} ${props.resourceArticle} ${props.resourceLabel}:`, error)
     alert(`Falha ao ${action} ${props.resourceArticle} ${props.resourceLabel}.`)
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
 
 <template>
   <form @submit.prevent="handleSubmit" enctype="multipart/form-data">
+    <fieldset :disabled="isSubmitting" class="form-fieldset">
     <div class="form-content">
       <div class="form-fields">
         <div class="field-row">
@@ -255,10 +264,17 @@ async function handleSubmit() {
       <button type="submit">OK</button>
       <button type="button" @click.prevent="$emit('close-window')">Cancelar</button>
     </div>
+    </fieldset>
   </form>
 </template>
 
 <style lang="css" scoped>
+.form-fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
 .form-content {
   display: flex;
   gap: 1rem;

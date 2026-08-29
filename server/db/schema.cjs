@@ -1,33 +1,33 @@
 const { relations, sql } = require('drizzle-orm')
-const { index, int, sqliteTable, text, unique } = require('drizzle-orm/sqlite-core')
+const { boolean, index, integer, jsonb, pgTable, serial, text, timestamp, unique } = require('drizzle-orm/pg-core')
 
-const user = sqliteTable('user', {
+const user = pgTable('user', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
-  emailVerified: int('email_verified', { mode: 'boolean' })
+  emailVerified: boolean('email_verified')
     .default(false)
     .notNull(),
   image: text('image'),
-  createdAt: int('created_at', { mode: 'timestamp_ms' })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+  createdAt: timestamp('created_at', { mode: 'date' })
+    .defaultNow()
     .notNull(),
-  updatedAt: int('updated_at', { mode: 'timestamp_ms' })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+  updatedAt: timestamp('updated_at', { mode: 'date' })
+    .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
 })
 
-const session = sqliteTable(
+const session = pgTable(
   'session',
   {
     id: text('id').primaryKey(),
-    expiresAt: int('expires_at', { mode: 'timestamp_ms' }).notNull(),
+    expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
     token: text('token').notNull().unique(),
-    createdAt: int('created_at', { mode: 'timestamp_ms' })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    createdAt: timestamp('created_at', { mode: 'date' })
+      .defaultNow()
       .notNull(),
-    updatedAt: int('updated_at', { mode: 'timestamp_ms' })
+    updatedAt: timestamp('updated_at', { mode: 'date' })
       .$onUpdate(() => new Date())
       .notNull(),
     ipAddress: text('ip_address'),
@@ -39,7 +39,7 @@ const session = sqliteTable(
   (table) => [index('session_userId_idx').on(table.userId)],
 )
 
-const account = sqliteTable(
+const account = pgTable(
   'account',
   {
     id: text('id').primaryKey(),
@@ -51,123 +51,123 @@ const account = sqliteTable(
     accessToken: text('access_token'),
     refreshToken: text('refresh_token'),
     idToken: text('id_token'),
-    accessTokenExpiresAt: int('access_token_expires_at', {
-      mode: 'timestamp_ms',
+    accessTokenExpiresAt: timestamp('access_token_expires_at', {
+      mode: 'date',
     }),
-    refreshTokenExpiresAt: int('refresh_token_expires_at', {
-      mode: 'timestamp_ms',
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', {
+      mode: 'date',
     }),
     scope: text('scope'),
     password: text('password'),
-    createdAt: int('created_at', { mode: 'timestamp_ms' })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    createdAt: timestamp('created_at', { mode: 'date' })
+      .defaultNow()
       .notNull(),
-    updatedAt: int('updated_at', { mode: 'timestamp_ms' })
+    updatedAt: timestamp('updated_at', { mode: 'date' })
       .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [index('account_userId_idx').on(table.userId)],
 )
 
-const verification = sqliteTable(
+const verification = pgTable(
   'verification',
   {
     id: text('id').primaryKey(),
     identifier: text('identifier').notNull(),
     value: text('value').notNull(),
-    expiresAt: int('expires_at', { mode: 'timestamp_ms' }).notNull(),
-    createdAt: int('created_at', { mode: 'timestamp_ms' })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
+    createdAt: timestamp('created_at', { mode: 'date' })
+      .defaultNow()
       .notNull(),
-    updatedAt: int('updated_at', { mode: 'timestamp_ms' })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    updatedAt: timestamp('updated_at', { mode: 'date' })
+      .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [index('verification_identifier_idx').on(table.identifier)],
 )
 
-const tokensTable = sqliteTable('tokens', {
-  id: int('id').primaryKey({ autoIncrement: true }),
+const tokensTable = pgTable('tokens', {
+  id: serial('id').primaryKey(),
   name: text('name').notNull(),
   image: text('image').notNull(),
-  width: int('width').notNull(),
-  height: int('height').notNull(),
-  tags: text('tags', { mode: 'json' }),
-  attributes: text('attributes', { mode: 'json' }),
+  width: integer('width').notNull(),
+  height: integer('height').notNull(),
+  tags: jsonb('tags'),
+  attributes: jsonb('attributes'),
   userId: text('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
 })
 
-const scenariosTable = sqliteTable('scenarios', {
-  id: int('id').primaryKey({ autoIncrement: true }),
+const scenariosTable = pgTable('scenarios', {
+  id: serial('id').primaryKey(),
   name: text('name').notNull(),
   image: text('image').notNull(),
-  width: int('width').notNull(),
-  height: int('height').notNull(),
-  tags: text('tags', { mode: 'json' }),
+  width: integer('width').notNull(),
+  height: integer('height').notNull(),
+  tags: jsonb('tags'),
   userId: text('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
 })
 
-const scenesTable = sqliteTable('scenes', {
-  id: int('id').primaryKey({ autoIncrement: true }),
+const scenesTable = pgTable('scenes', {
+  id: serial('id').primaryKey(),
   name: text('name').notNull(),
-  scenarioId: int('scenario_id')
+  scenarioId: integer('scenario_id')
     .notNull()
     .references(() => scenariosTable.id, { onDelete: 'cascade' }),
   userId: text('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
-  width: int('width').notNull(),
-  height: int('height').notNull(),
-  tags: text('tags', { mode: 'json' }),
-  tokens: text('tokens', { mode: 'json' }),
-  startingPosition: text('starting_position', { mode: 'json' }),
-  createdAt: int('created_at', { mode: 'timestamp_ms' })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
-  updatedAt: int('updated_at', { mode: 'timestamp_ms' })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+  width: integer('width').notNull(),
+  height: integer('height').notNull(),
+  tags: jsonb('tags'),
+  tokens: jsonb('tokens'),
+  startingPosition: jsonb('starting_position'),
+  createdAt: timestamp('created_at', { mode: 'date' })
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' })
+    .defaultNow()
     .$onUpdate(() => new Date()),
 })
 
-const roomsTable = sqliteTable('rooms', {
-  id: int('id').primaryKey({ autoIncrement: true }),
+const roomsTable = pgTable('rooms', {
+  id: serial('id').primaryKey(),
   code: text('code').notNull().unique(),
   name: text('name').notNull(),
   password: text('password'),
-  tags: text('tags', { mode: 'json' }),
+  tags: jsonb('tags'),
   userId: text('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
-  sceneId: int('scene_id').references(() => scenesTable.id, {
+  sceneId: integer('scene_id').references(() => scenesTable.id, {
     onDelete: 'set null',
   }),
-  snapshot: text('snapshot', { mode: 'json' }),
-  initiative: text('initiative', { mode: 'json' }).default(sql`'[]'`),
-  isOpen: int('is_open', { mode: 'boolean' }).notNull().default(true),
-  createdAt: int('created_at', { mode: 'timestamp_ms' })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
-  updatedAt: int('updated_at', { mode: 'timestamp_ms' })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+  snapshot: jsonb('snapshot'),
+  initiative: jsonb('initiative').default([]),
+  isOpen: boolean('is_open').notNull().default(true),
+  createdAt: timestamp('created_at', { mode: 'date' })
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' })
+    .defaultNow()
     .$onUpdate(() => new Date()),
 })
 
-const roomPlayersTable = sqliteTable(
+const roomPlayersTable = pgTable(
   'room_players',
   {
-    id: int('id').primaryKey({ autoIncrement: true }),
-    roomId: int('room_id')
+    id: serial('id').primaryKey(),
+    roomId: integer('room_id')
       .notNull()
       .references(() => roomsTable.id, { onDelete: 'cascade' }),
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     role: text('role').notNull(),
-    joinedAt: int('joined_at', { mode: 'timestamp_ms' })
-      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
+    joinedAt: timestamp('joined_at', { mode: 'date' })
+      .defaultNow(),
   },
   (table) => ({
     unq: unique().on(table.roomId, table.userId),

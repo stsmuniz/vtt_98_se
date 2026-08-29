@@ -1,11 +1,20 @@
-import Database from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
+import postgres from 'postgres'
+import { drizzle } from 'drizzle-orm/postgres-js'
 import * as schema from '../db/schema'
 
-// caminho do arquivo .sqlite (ex: "./data/vtt.db" ou o valor do .env)
-const sqlite = new Database(process.env.DATABASE_URL || './sqlite.db')
+// conecta no Postgres do Supabase via conexão direta (host derivado de SUPABASE_URL)
+const supabaseHost = new URL(process.env.SUPABASE_URL!).hostname
 
-const db = drizzle(sqlite, { schema })
+const client = postgres({
+    host: `db.${supabaseHost}`,
+    port: 5432,
+    database: 'postgres',
+    username: 'postgres',
+    password: process.env.SUPABASE_PASSWORD!,
+    ssl: 'require',
+})
+
+const db = drizzle(client, { schema })
 
 export function useDrizzle() {
     return db

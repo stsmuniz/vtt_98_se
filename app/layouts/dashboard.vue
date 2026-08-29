@@ -75,7 +75,10 @@
 
 <script lang="ts" setup>
 import {authClient} from '~~/lib/auth-client'
+import {useLoadingWindow} from '~~/composables/useLoadingWindow'
 import {provide, reactive} from 'vue'
+
+const { withLoading } = useLoadingWindow()
 
 const session = authClient.useSession()
 
@@ -151,13 +154,13 @@ registerAction('dashboard', () => navigateTo('/dashboard'))
 registerAction('logout', handleLogout)
 
 async function handleLogout() {
-  await authClient.signOut({
+  await withLoading(() => authClient.signOut({
     fetchOptions: {
       onSuccess: () => {
         navigateTo('/login')
       },
     },
-  })
+  }), 'Saindo...')
 }
 
 </script>

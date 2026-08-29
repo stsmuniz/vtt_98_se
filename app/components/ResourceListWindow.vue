@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useTagFilter } from '~~/composables/useTagFilter'
+import { useLoadingWindow } from '~~/composables/useLoadingWindow'
 import FixedWindow from '~/components/FixedWIndow.vue'
 import AlertWindow from '~/components/AlertWindow.vue'
 
@@ -20,12 +21,20 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits(['close-window'])
 
-const { data: items, refresh } = await useFetch<any[]>(props.endpoint, {
+const { withLoading, show: showLoadingWindow, hide: hideLoadingWindow } = useLoadingWindow()
+
+const { data: items, refresh, pending } = useFetch<any[]>(props.endpoint, {
   method: 'GET',
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  lazy: true,
 })
+
+watch(pending, (isPending) => {
+  if (isPending) showLoadingWindow(`Carregando ${props.sectionTitle}...`)
+  else hideLoadingWindow()
+}, { immediate: true })
 
 const { tags, selectedTag, toggleTagFilter, filteredItems } = useTagFilter(items)
 
@@ -34,6 +43,7 @@ const isInsertWindowOpen = ref(false)
 const isEditWindowOpen = ref(false)
 const isDeleteAlert = ref(false)
 const isDuplicateAlert = ref(false)
+const isProcessing = ref(false)
 
 const resourceLabelCap = props.resourceLabel.charAt(0).toUpperCase() + props.resourceLabel.slice(1)
 
@@ -56,31 +66,43 @@ const closeFormWindows = async () => {
 
 const deleteItem = async () => {
   if (!selectedItem.value) return
-  await $fetch(`${props.endpoint}/${selectedItem.value.id}`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  })
-  isDeleteAlert.value = false
-  await refresh()
+  isProcessing.value = true
+  try {
+    await withLoading(async () => {
+      await $fetch(`${props.endpoint}/${selectedItem.value.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      isDeleteAlert.value = false
+      await refresh()
+    }, `Apagando ${props.resourceArticle} ${props.resourceLabel}...`)
+  } finally {
+    isProcessing.value = false
+  }
 }
 
 const duplicateItem = async () => {
   if (!selectedItem.value) return
 
+  isProcessing.value = true
   try {
-    const payload = JSON.parse(JSON.stringify(selectedItem.value))
-    delete payload.id
+    await withLoading(async () => {
+      const payload = JSON.parse(JSON.stringify(selectedItem.value))
+      delete payload.id
 
-    await $fetch(props.endpoint, {
-      method: 'POST',
-      body: payload
-    })
+      await $fetch(props.endpoint, {
+        method: 'POST',
+        body: payload
+      })
 
-    await closeFormWindows()
+      await closeFormWindows()
+    }, `Duplicando ${props.resourceArticle} ${props.resourceLabel}...`)
   } catch (error) {
     console.error(`Erro ao duplicar ${props.resourceArticle} ${props.resourceLabel}:`, error)
+  } finally {
+    isProcessing.value = false
   }
 }
 </script>
@@ -161,14 +183,14 @@ const duplicateItem = async () => {
       </div>
     </section>
     <aside class="window-sidebar">
-      <button :disabled="!selectedItem" @click="openEditWindow()">Editar</button>
-      <button :disabled="!selectedItem" @click="openDeleteAlert()">Apagar</button>
-      <button :disabled="!selectedItem" @click="openDuplicateAlert()">Duplicar</button>
+      <button :disabled="!selectedItem || isProcessing" @click="openEditWindow()">Editar</button>
+      <button :disabled="!selectedItem || isProcessing" @click="openDeleteAlert()">Apagar</button>
+      <button :disabled="!selectedItem || isProcessing" @click="openDuplicateAlert()">Duplicar</button>
       <slot name="extra-actions-before-close" :item="selectedItem"/>
-      <button @click="$emit('close-window')">Fechar</button>
-      <button>Buscar</button>
-      <button>Ajuda</button>
-      <button @click="openInsertWindow()">{{ insertButtonLabel }}</button>
+      <button :disabled="isProcessing" @click="$emit('close-window')">Fechar</button>
+      <button :disabled="isProcessing">Buscar</button>
+      <button :disabled="isProcessing">Ajuda</button>
+      <button :disabled="isProcessing" @click="openInsertWindow()">{{ insertButtonLabel }}</button>
       <slot name="extra-actions-after-insert" :item="selectedItem"/>
     </aside>
   </div>

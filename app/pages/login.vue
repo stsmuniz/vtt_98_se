@@ -28,19 +28,19 @@
               </div>
               <div class="field-row">
                 <label for="email">E-mail</label>
-                <input v-model="form.email" type="email" name="email" id="email">
+                <input v-model="form.email" type="email" name="email" id="email" :disabled="isSubmitting">
               </div>
               <div class="field-row">
                 <label for="password">Senha</label>
-                <input v-model="form.password" type="password" name="password" id="password">
+                <input v-model="form.password" type="password" name="password" id="password" :disabled="isSubmitting">
               </div>
             </div>
             <div class="buttons">
-              <button id="submit-login-form" type="submit">
+              <button id="submit-login-form" type="submit" :disabled="isSubmitting">
                 OK
               </button>
               <NuxtLink to="/register">
-                <button id="register">
+                <button id="register" type="button" :disabled="isSubmitting">
                   Registrar
                 </button>
               </NuxtLink>
@@ -54,8 +54,11 @@
 <script setup lang="ts">
 import AlertWindow from "../components/AlertWindow.vue";
 import {authClient} from "~~/lib/auth-client.ts";
+import {useLoadingWindow} from "~~/composables/useLoadingWindow";
 
 const err = ref<string|null>(null)
+const isSubmitting = ref(false)
+const { withLoading } = useLoadingWindow()
 
 const submitForm = async () => {
   err.value = null
@@ -65,20 +68,25 @@ const submitForm = async () => {
     return
   }
 
-  const {data, error} = await authClient.signIn.email({
-    email: form.email,
-    password: form.password,
-  }, {
-    onRequest: (ctx) => {
-      console.log(ctx)
-    },
-    onSuccess: (ctx) => {
-      navigateTo('/dashboard')
-    },
-    onError: (ctx) => {
-      err.value = ctx.error.message
-    }
-  });
+  isSubmitting.value = true
+  try {
+    await withLoading(() => authClient.signIn.email({
+      email: form.email,
+      password: form.password,
+    }, {
+      onRequest: (ctx) => {
+        console.log(ctx)
+      },
+      onSuccess: (ctx) => {
+        navigateTo('/dashboard')
+      },
+      onError: (ctx) => {
+        err.value = ctx.error.message
+      }
+    }), 'Entrando...')
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 const clearError = () => {

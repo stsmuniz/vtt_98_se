@@ -17,20 +17,22 @@ npm run preview    # preview a production build locally
 
 There is no lint or test setup configured in this repo — do not assume `npm run lint`/`npm test` exist.
 
-### Database (Drizzle + SQLite)
+### Database (Drizzle + Supabase Postgres)
 
-The schema lives at `server/db/schema.ts`. There are two Drizzle configs:
+The schema lives at `server/db/schema.ts` (pg-core). There are two Drizzle configs:
 - `drizzle.config.ts` (TS, points at `server/db/schema.ts`) — used for normal `drizzle-kit` TS workflows.
 - `drizzle.config.cjs` (CJS, points at `server/db/schema.cjs`) — used by the `.cjs` tooling/scripts.
+
+Both configs connect directly to the Supabase Postgres instance (port 5432, database `postgres`, user `postgres`), deriving the host as `db.<SUPABASE_URL hostname>` and using `SUPABASE_PASSWORD` for the password — this avoids URL-encoding pitfalls from special characters in the password rather than parsing a connection string. `SUPABASE_DIRECT_CONNECTION_STRING` in `.env` is an equivalent connection string but is not used by app code.
 
 Common drizzle-kit commands (run against whichever config matches the file you changed):
 ```bash
 npx drizzle-kit generate --config drizzle.config.ts   # generate a migration from schema.ts changes
-npx drizzle-kit push --config drizzle.config.ts       # push schema directly to the sqlite db
+npx drizzle-kit migrate --config drizzle.config.ts    # apply pending migrations to the Supabase db
 ```
-`DATABASE_URL` (in `.env`) points at the SQLite file (defaults to `./sqlite.db` if unset). `scripts/list-tables.cjs` / `.js` are quick one-off scripts to dump table names from the db file.
+`.env` needs `SUPABASE_URL`, `SUPABASE_PASSWORD` (and `SUPABASE_KEY`, `SUPABASE_DIRECT_CONNECTION_STRING` for reference/other tooling). `scripts/list-tables.cjs` / `.js` are quick one-off scripts to dump table names from `information_schema.tables` (run with `node --env-file=.env scripts/list-tables.js`).
 
-When you change `server/db/schema.ts`, keep `server/db/schema.cjs` in sync manually — they are not generated from one another.
+When you change `server/db/schema.ts`, keep `server/db/schema.cjs` in sync manually — they are not generated from one another. `auth-schema.ts` at the repo root is a stray artifact from the better-auth CLI schema generator (unused by app code, but kept in sync with the `user`/`session`/`account`/`verification` tables for reference).
 
 ## Architecture
 
@@ -48,7 +50,7 @@ Nitro auto-imports everything exported from `server/utils/*` (e.g. `auth`, `useD
 
 ### Auth
 
-- `better-auth` (`server/utils/auth.ts`) is configured with the Drizzle adapter over the same SQLite db, using the `user`/`session`/`account`/`verification` tables in `server/db/schema.ts`. Email/password auth is enabled.
+- `better-auth` (`server/utils/auth.ts`) is configured with the Drizzle adapter (`provider: "pg"`) over the same Supabase Postgres db, using the `user`/`session`/`account`/`verification` tables in `server/db/schema.ts`. Email/password auth is enabled.
 - `server/api/auth/[...all].ts` mounts the better-auth handler for all `/api/auth/*` routes.
 - `server/middleware/auth.ts` is a global Nitro middleware that rejects any `/api/v1/*` request with no valid session (401). Individual `server/api/v1/**` handlers additionally re-check `session.user` themselves in most cases — this is defensive duplication, not a bug; keep doing it when adding new v1 routes since the shared middleware alone shouldn't be relied on as the only guard in a handler that also needs `session.user.id` for row ownership.
 - Client-side: `lib/auth-client.ts` creates the better-auth Vue client (hardcoded `baseURL: "http://localhost:3000"`). `app/middleware/auth.ts` is a Nuxt route middleware (`definePageMeta({ middleware: 'auth' })`) that redirects to `/login` when there's no client session.

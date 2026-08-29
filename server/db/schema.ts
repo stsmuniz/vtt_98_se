@@ -1,5 +1,5 @@
 import { relations, sql } from 'drizzle-orm'
-import { index, int, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core'
+import { boolean, index, integer, jsonb, pgTable, serial, text, timestamp, unique } from 'drizzle-orm/pg-core'
 
 export type TokenStatus = 'normal' | 'machucado' | 'morrendo'
 
@@ -53,33 +53,33 @@ export type RoomSceneSnapshot = {
 
 export type RoomPlayerRole = 'owner' | 'gm' | 'player' | 'spectator'
 
-export const user = sqliteTable('user', {
+export const user = pgTable('user', {
     id: text('id').primaryKey(),
     name: text('name').notNull(),
     email: text('email').notNull().unique(),
-    emailVerified: int('email_verified', { mode: 'boolean' })
+    emailVerified: boolean('email_verified')
         .default(false)
         .notNull(),
     image: text('image'),
-    createdAt: int('created_at', { mode: 'timestamp_ms' })
-        .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    createdAt: timestamp('created_at', { mode: 'date' })
+        .defaultNow()
         .notNull(),
-    updatedAt: int('updated_at', { mode: 'timestamp_ms' })
-        .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    updatedAt: timestamp('updated_at', { mode: 'date' })
+        .defaultNow()
         .$onUpdate(() => new Date())
         .notNull(),
 })
 
-export const session = sqliteTable(
+export const session = pgTable(
     'session',
     {
         id: text('id').primaryKey(),
-        expiresAt: int('expires_at', { mode: 'timestamp_ms' }).notNull(),
+        expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
         token: text('token').notNull().unique(),
-        createdAt: int('created_at', { mode: 'timestamp_ms' })
-            .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+        createdAt: timestamp('created_at', { mode: 'date' })
+            .defaultNow()
             .notNull(),
-        updatedAt: int('updated_at', { mode: 'timestamp_ms' })
+        updatedAt: timestamp('updated_at', { mode: 'date' })
             .$onUpdate(() => new Date())
             .notNull(),
         ipAddress: text('ip_address'),
@@ -91,7 +91,7 @@ export const session = sqliteTable(
     (table) => [index('session_userId_idx').on(table.userId)],
 )
 
-export const account = sqliteTable(
+export const account = pgTable(
     'account',
     {
         id: text('id').primaryKey(),
@@ -103,126 +103,126 @@ export const account = sqliteTable(
         accessToken: text('access_token'),
         refreshToken: text('refresh_token'),
         idToken: text('id_token'),
-        accessTokenExpiresAt: int('access_token_expires_at', {
-            mode: 'timestamp_ms',
+        accessTokenExpiresAt: timestamp('access_token_expires_at', {
+            mode: 'date',
         }),
-        refreshTokenExpiresAt: int('refresh_token_expires_at', {
-            mode: 'timestamp_ms',
+        refreshTokenExpiresAt: timestamp('refresh_token_expires_at', {
+            mode: 'date',
         }),
         scope: text('scope'),
         password: text('password'),
-        createdAt: int('created_at', { mode: 'timestamp_ms' })
-            .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+        createdAt: timestamp('created_at', { mode: 'date' })
+            .defaultNow()
             .notNull(),
-        updatedAt: int('updated_at', { mode: 'timestamp_ms' })
+        updatedAt: timestamp('updated_at', { mode: 'date' })
             .$onUpdate(() => new Date())
             .notNull(),
     },
     (table) => [index('account_userId_idx').on(table.userId)],
 )
 
-export const verification = sqliteTable(
+export const verification = pgTable(
     'verification',
     {
         id: text('id').primaryKey(),
         identifier: text('identifier').notNull(),
         value: text('value').notNull(),
-        expiresAt: int('expires_at', { mode: 'timestamp_ms' }).notNull(),
-        createdAt: int('created_at', { mode: 'timestamp_ms' })
-            .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+        expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
+        createdAt: timestamp('created_at', { mode: 'date' })
+            .defaultNow()
             .notNull(),
-        updatedAt: int('updated_at', { mode: 'timestamp_ms' })
-            .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+        updatedAt: timestamp('updated_at', { mode: 'date' })
+            .defaultNow()
             .$onUpdate(() => new Date())
             .notNull(),
     },
     (table) => [index('verification_identifier_idx').on(table.identifier)],
 )
 
-export const tokensTable = sqliteTable('tokens', {
-    id: int('id').primaryKey({ autoIncrement: true }),
+export const tokensTable = pgTable('tokens', {
+    id: serial('id').primaryKey(),
     name: text('name').notNull(),
     image: text('image').notNull(),
-    width: int('width').notNull(),
-    height: int('height').notNull(),
-    tags: text('tags', { mode: 'json' }).$type<string[]>(),
-    attributes: text('attributes', { mode: 'json' }).$type<Attribute[]>(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    tags: jsonb('tags').$type<string[]>(),
+    attributes: jsonb('attributes').$type<Attribute[]>(),
     userId: text('user_id')
         .notNull()
         .references(() => user.id, { onDelete: 'cascade' }),
 })
 
-export const scenariosTable = sqliteTable('scenarios', {
-    id: int('id').primaryKey({ autoIncrement: true }),
+export const scenariosTable = pgTable('scenarios', {
+    id: serial('id').primaryKey(),
     name: text('name').notNull(),
     image: text('image').notNull(),
-    width: int('width').notNull(),
-    height: int('height').notNull(),
-    tags: text('tags', { mode: 'json' }).$type<string[]>(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    tags: jsonb('tags').$type<string[]>(),
     userId: text('user_id')
         .notNull()
         .references(() => user.id, { onDelete: 'cascade' }),
 })
 
-export const scenesTable = sqliteTable('scenes', {
-    id: int('id').primaryKey({ autoIncrement: true }),
+export const scenesTable = pgTable('scenes', {
+    id: serial('id').primaryKey(),
     name: text('name').notNull(),
-    scenarioId: int('scenario_id')
+    scenarioId: integer('scenario_id')
         .notNull()
         .references(() => scenariosTable.id, { onDelete: 'cascade' }),
     userId: text('user_id')
         .notNull()
         .references(() => user.id, { onDelete: 'cascade' }),
-    width: int('width').notNull(),
-    height: int('height').notNull(),
-    tags: text('tags', { mode: 'json' }).$type<string[]>(),
-    tokens: text('tokens', { mode: 'json' }).$type<SceneToken[]>(),
-    startingPosition: text('starting_position', { mode: 'json' })
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    tags: jsonb('tags').$type<string[]>(),
+    tokens: jsonb('tokens').$type<SceneToken[]>(),
+    startingPosition: jsonb('starting_position')
         .$type<{ x: number; y: number } | null>(),
-    createdAt: int('created_at', { mode: 'timestamp_ms' })
-        .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
-    updatedAt: int('updated_at', { mode: 'timestamp_ms' })
-        .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    createdAt: timestamp('created_at', { mode: 'date' })
+        .defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date' })
+        .defaultNow()
         .$onUpdate(() => new Date()),
 })
 
-export const roomsTable = sqliteTable('rooms', {
-    id: int('id').primaryKey({ autoIncrement: true }),
+export const roomsTable = pgTable('rooms', {
+    id: serial('id').primaryKey(),
     code: text('code').notNull().unique(),
     name: text('name').notNull(),
     password: text('password'),
-    tags: text('tags', { mode: 'json' }).$type<string[]>(),
+    tags: jsonb('tags').$type<string[]>(),
     userId: text('user_id')
         .notNull()
         .references(() => user.id, { onDelete: 'cascade' }),
-    sceneId: int('scene_id')
+    sceneId: integer('scene_id')
         .references(() => scenesTable.id, { onDelete: 'set null' }),
-    snapshot: text('snapshot', { mode: 'json' })
+    snapshot: jsonb('snapshot')
         .$type<RoomSceneSnapshot>(),
-    initiative: text('initiative', { mode: 'json' })
+    initiative: jsonb('initiative')
         .$type<SceneInitiativeEntry[]>()
-        .default(sql`'[]'`),
-    isOpen: int('is_open', { mode: 'boolean' }).notNull().default(true),
-    createdAt: int('created_at', { mode: 'timestamp_ms' })
-        .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
-    updatedAt: int('updated_at', { mode: 'timestamp_ms' })
-        .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+        .default([]),
+    isOpen: boolean('is_open').notNull().default(true),
+    createdAt: timestamp('created_at', { mode: 'date' })
+        .defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date' })
+        .defaultNow()
         .$onUpdate(() => new Date()),
 })
 
-export const roomPlayersTable = sqliteTable(
+export const roomPlayersTable = pgTable(
     'room_players',
     {
-        id: int('id').primaryKey({ autoIncrement: true }),
-        roomId: int('room_id')
+        id: serial('id').primaryKey(),
+        roomId: integer('room_id')
             .notNull()
             .references(() => roomsTable.id, { onDelete: 'cascade' }),
         userId: text('user_id')
             .notNull()
             .references(() => user.id, { onDelete: 'cascade' }),
         role: text('role').notNull().$type<RoomPlayerRole>(),
-        joinedAt: int('joined_at', { mode: 'timestamp_ms' })
-            .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
+        joinedAt: timestamp('joined_at', { mode: 'date' })
+            .defaultNow(),
     },
     (table) => ({
         unq: unique().on(table.roomId, table.userId),

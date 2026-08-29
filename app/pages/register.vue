@@ -29,27 +29,27 @@
               </div>
               <div class="field-row">
                 <label for="name">Seu Nome</label>
-                <input v-model="form.name" type="text" name="name" id="name">
+                <input v-model="form.name" type="text" name="name" id="name" :disabled="isSubmitting">
               </div>
               <div class="field-row">
                 <label for="email">E-mail</label>
-                <input v-model="form.email" type="email" name="email" id="email">
+                <input v-model="form.email" type="email" name="email" id="email" :disabled="isSubmitting">
               </div>
               <div class="field-row">
                 <label for="password">Senha</label>
-                <input v-model="form.password" type="password" name="password" id="password">
+                <input v-model="form.password" type="password" name="password" id="password" :disabled="isSubmitting">
               </div>
               <div class="field-row">
                 <label for="password">Confirme Senha</label>
-                <input v-model="form.passwordConfirm" type="password" name="password-confirm" id="password-confirm">
+                <input v-model="form.passwordConfirm" type="password" name="password-confirm" id="password-confirm" :disabled="isSubmitting">
               </div>
             </div>
             <div class="buttons">
-              <button id="submit-login-form" type="submit">
+              <button id="submit-login-form" type="submit" :disabled="isSubmitting">
                 OK
               </button>
               <NuxtLink to="/login">
-                <button id="register">
+                <button id="register" type="button" :disabled="isSubmitting">
                   Entrar
                 </button>
               </NuxtLink>
@@ -62,7 +62,11 @@
 </template>
 <script setup lang="ts">
 import { authClient } from "@@/lib/auth-client.ts";
+import { useLoadingWindow } from "~~/composables/useLoadingWindow";
+
 const err = ref<string|null>(null)
+const isSubmitting = ref(false)
+const { withLoading } = useLoadingWindow()
 
 const submitForm = async () => {
 
@@ -78,21 +82,26 @@ const submitForm = async () => {
     return
   }
 
-  const { data, error } = await authClient.signUp.email({
-    name: form.name,
-    email: form.email,
-    password: form.password,
-  }, {
-    onRequest: (ctx) => {
-      console.log(ctx)
-    },
-    onSuccess: (ctx) => {
-        navigateTo('/login')
-    },
-    onError: (ctx) => {
-      err.value = ctx.error.message
-    }
-  });
+  isSubmitting.value = true
+  try {
+    await withLoading(() => authClient.signUp.email({
+      name: form.name,
+      email: form.email,
+      password: form.password,
+    }, {
+      onRequest: (ctx) => {
+        console.log(ctx)
+      },
+      onSuccess: (ctx) => {
+          navigateTo('/login')
+      },
+      onError: (ctx) => {
+        err.value = ctx.error.message
+      }
+    }), 'Registrando...')
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 const clearError = () => {

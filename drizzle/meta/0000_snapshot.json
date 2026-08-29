@@ -1,278 +1,108 @@
 {
-  "version": "6",
-  "dialect": "sqlite",
-  "id": "f1ff8ff7-882d-44a2-959f-72108cf8f49b",
+  "id": "1ff38a72-baac-47d9-a128-49a759b4f96f",
   "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
   "tables": {
-    "user": {
-      "name": "user",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "email": {
-          "name": "email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "email_verified": {
-          "name": "email_verified",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
-        },
-        "image": {
-          "name": "image",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
-        }
-      },
-      "indexes": {
-        "user_email_unique": {
-          "name": "user_email_unique",
-          "columns": [
-            "email"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "session": {
-      "name": "session",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "token": {
-          "name": "token",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "ip_address": {
-          "name": "ip_address",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "user_agent": {
-          "name": "user_agent",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "session_token_unique": {
-          "name": "session_token_unique",
-          "columns": [
-            "token"
-          ],
-          "isUnique": true
-        },
-        "session_userId_idx": {
-          "name": "session_userId_idx",
-          "columns": [
-            "user_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "session_user_id_user_id_fk": {
-          "name": "session_user_id_user_id_fk",
-          "tableFrom": "session",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "account": {
+    "public.account": {
       "name": "account",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "account_id": {
           "name": "account_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "provider_id": {
           "name": "provider_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "user_id": {
           "name": "user_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "access_token": {
           "name": "access_token",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "refresh_token": {
           "name": "refresh_token",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "id_token": {
           "name": "id_token",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "access_token_expires_at": {
           "name": "access_token_expires_at",
-          "type": "integer",
+          "type": "timestamp",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "refresh_token_expires_at": {
           "name": "refresh_token_expires_at",
-          "type": "integer",
+          "type": "timestamp",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "scope": {
           "name": "scope",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "password": {
           "name": "password",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
-          "type": "integer",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+          "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "integer",
+          "type": "timestamp",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         }
       },
       "indexes": {
         "account_userId_idx": {
           "name": "account_userId_idx",
           "columns": [
-            "user_id"
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
           ],
-          "isUnique": false
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -292,135 +122,64 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "verification": {
-      "name": "verification",
+    "public.room_players": {
+      "name": "room_players",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "text",
+          "type": "serial",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
-        "identifier": {
-          "name": "identifier",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "value": {
-          "name": "value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "expires_at": {
-          "name": "expires_at",
+        "room_id": {
+          "name": "room_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
-        }
-      },
-      "indexes": {
-        "verification_identifier_idx": {
-          "name": "verification_identifier_idx",
-          "columns": [
-            "identifier"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "tokens": {
-      "name": "tokens",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "image": {
-          "name": "image",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "width": {
-          "name": "width",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "height": {
-          "name": "height",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "tags": {
-          "name": "tags",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "attributes": {
-          "name": "attributes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": true
         },
         "user_id": {
           "name": "user_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "joined_at": {
+          "name": "joined_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
         }
       },
       "indexes": {},
       "foreignKeys": {
-        "tokens_user_id_user_id_fk": {
-          "name": "tokens_user_id_user_id_fk",
-          "tableFrom": "tokens",
+        "room_players_room_id_rooms_id_fk": {
+          "name": "room_players_room_id_rooms_id_fk",
+          "tableFrom": "room_players",
+          "tableTo": "rooms",
+          "columnsFrom": [
+            "room_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "room_players_user_id_user_id_fk": {
+          "name": "room_players_user_id_user_id_fk",
+          "tableFrom": "room_players",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
@@ -433,60 +192,189 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
+      "uniqueConstraints": {
+        "room_players_room_id_user_id_unique": {
+          "name": "room_players_room_id_user_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "room_id",
+            "user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "scenarios": {
-      "name": "scenarios",
+    "public.rooms": {
+      "name": "rooms",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         },
         "name": {
           "name": "name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
-        "image": {
-          "name": "image",
+        "password": {
+          "name": "password",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "width": {
-          "name": "width",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "height": {
-          "name": "height",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": false
         },
         "tags": {
           "name": "tags",
-          "type": "text",
+          "type": "jsonb",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "user_id": {
           "name": "user_id",
           "type": "text",
           "primaryKey": false,
+          "notNull": true
+        },
+        "scene_id": {
+          "name": "scene_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "snapshot": {
+          "name": "snapshot",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "initiative": {
+          "name": "initiative",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'[]'::jsonb"
+        },
+        "is_open": {
+          "name": "is_open",
+          "type": "boolean",
+          "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "rooms_user_id_user_id_fk": {
+          "name": "rooms_user_id_user_id_fk",
+          "tableFrom": "rooms",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "rooms_scene_id_scenes_id_fk": {
+          "name": "rooms_scene_id_scenes_id_fk",
+          "tableFrom": "rooms",
+          "tableTo": "scenes",
+          "columnsFrom": [
+            "scene_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "rooms_code_unique": {
+          "name": "rooms_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.scenarios": {
+      "name": "scenarios",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "width": {
+          "name": "width",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tags": {
+          "name": "tags",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         }
       },
       "indexes": {},
@@ -507,89 +395,81 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "scenes": {
+    "public.scenes": {
       "name": "scenes",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
+          "notNull": true
         },
         "name": {
           "name": "name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "scenario_id": {
           "name": "scenario_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "user_id": {
           "name": "user_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "width": {
           "name": "width",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "height": {
           "name": "height",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "tags": {
           "name": "tags",
-          "type": "text",
+          "type": "jsonb",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "tokens": {
           "name": "tokens",
-          "type": "text",
+          "type": "jsonb",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "starting_position": {
           "name": "starting_position",
-          "type": "text",
+          "type": "jsonb",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
-          "type": "integer",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false,
-          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+          "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "integer",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false,
-          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+          "default": "now()"
         }
       },
       "indexes": {},
@@ -623,194 +503,168 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "rooms": {
-      "name": "rooms",
+    "public.session": {
+      "name": "session",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
+          "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
+          "notNull": true
         },
-        "code": {
-          "name": "code",
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token": {
+          "name": "token",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "owner_id": {
-          "name": "owner_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "source_scene_id": {
-          "name": "source_scene_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "snapshot": {
-          "name": "snapshot",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "initiative": {
-          "name": "initiative",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": "'[]'"
-        },
-        "is_open": {
-          "name": "is_open",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": true
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
-          "type": "integer",
+          "type": "timestamp",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+          "notNull": true,
+          "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "integer",
+          "type": "timestamp",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
-        }
-      },
-      "indexes": {
-        "rooms_code_unique": {
-          "name": "rooms_code_unique",
-          "columns": [
-            "code"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "rooms_owner_id_user_id_fk": {
-          "name": "rooms_owner_id_user_id_fk",
-          "tableFrom": "rooms",
-          "tableTo": "user",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "notNull": true
         },
-        "rooms_source_scene_id_scenes_id_fk": {
-          "name": "rooms_source_scene_id_scenes_id_fk",
-          "tableFrom": "rooms",
-          "tableTo": "scenes",
-          "columnsFrom": [
-            "source_scene_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "room_players": {
-      "name": "room_players",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "room_id": {
-          "name": "room_id",
-          "type": "integer",
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "user_id": {
           "name": "user_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "joined_at": {
-          "name": "joined_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+          "notNull": true
         }
       },
       "indexes": {
-        "room_players_room_id_user_id_unique": {
-          "name": "room_players_room_id_user_id_unique",
+        "session_userId_idx": {
+          "name": "session_userId_idx",
           "columns": [
-            "room_id",
-            "user_id"
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
           ],
-          "isUnique": true
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
-        "room_players_room_id_rooms_id_fk": {
-          "name": "room_players_room_id_rooms_id_fk",
-          "tableFrom": "room_players",
-          "tableTo": "rooms",
+        "session_user_id_user_id_fk": {
+          "name": "session_user_id_user_id_fk",
+          "tableFrom": "session",
+          "tableTo": "user",
           "columnsFrom": [
-            "room_id"
+            "user_id"
           ],
           "columnsTo": [
             "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "session_token_unique": {
+          "name": "session_token_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.tokens": {
+      "name": "tokens",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
         },
-        "room_players_user_id_user_id_fk": {
-          "name": "room_players_user_id_user_id_fk",
-          "tableFrom": "room_players",
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "width": {
+          "name": "width",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tags": {
+          "name": "tags",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attributes": {
+          "name": "attributes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "tokens_user_id_user_id_fk": {
+          "name": "tokens_user_id_user_id_fk",
+          "tableFrom": "tokens",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
@@ -824,17 +678,153 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user": {
+      "name": "user",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email_verified": {
+          "name": "email_verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "user_email_unique": {
+          "name": "user_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.verification": {
+      "name": "verification",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "identifier": {
+          "name": "identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "verification_identifier_idx": {
+          "name": "verification_identifier_idx",
+          "columns": [
+            {
+              "expression": "identifier",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
-  "views": {},
   "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
   "_meta": {
+    "columns": {},
     "schemas": {},
-    "tables": {},
-    "columns": {}
-  },
-  "internal": {
-    "indexes": {}
+    "tables": {}
   }
 }

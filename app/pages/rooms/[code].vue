@@ -267,19 +267,83 @@ const selectToken = (id: number | null) => {
 
 const selectedToken = computed(() => localTokens.value.find(t => t.id === selectedTokenId.value))
 
+// ==========================================
+// INTERPOLAÇÃO DE MOVIMENTO (somente visitantes)
+// ==========================================
+// O dono da sala arrasta os tokens diretamente (posição já é local, não precisa suavizar).
+// Já os visitantes recebem a posição pronta via `snapshot:live`, o que faria o token "teleportar"
+// de uma posição pra outra a cada atualização. Para dar uma sensação de movimento, cada token
+// visitante tem uma posição exibida (`displayPositions`) que persegue a posição alvo (`localTokens`)
+// suavemente, quadro a quadro, em vez de saltar direto pra ela.
+const displayPositions = reactive<Record<number, { x: number; y: number }>>({})
+let displayAnimationFrame: number | null = null
+
+function stepDisplayPositions() {
+  const smoothing = 0.18
+  const threshold = 0.5
+  let stillMoving = false
+
+  for (const token of localTokens.value) {
+    const pos = displayPositions[token.id]
+    if (!pos) continue
+
+    const dx = token.x - pos.x
+    const dy = token.y - pos.y
+
+    if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) {
+      pos.x = token.x
+      pos.y = token.y
+    } else {
+      pos.x += dx * smoothing
+      pos.y += dy * smoothing
+      stillMoving = true
+    }
+  }
+
+  displayAnimationFrame = stillMoving ? requestAnimationFrame(stepDisplayPositions) : null
+}
+
+function startDisplayAnimation() {
+  if (displayAnimationFrame === null) {
+    displayAnimationFrame = requestAnimationFrame(stepDisplayPositions)
+  }
+}
+
+watch(localTokens, (newTokens) => {
+  if (isGm.value || !newTokens) return
+
+  const currentIds = new Set(newTokens.map(token => token.id))
+  for (const id of Object.keys(displayPositions).map(Number)) {
+    if (!currentIds.has(id)) delete displayPositions[id]
+  }
+
+  for (const token of newTokens) {
+    if (!displayPositions[token.id]) {
+      displayPositions[token.id] = { x: token.x, y: token.y }
+    }
+  }
+
+  startDisplayAnimation()
+}, { immediate: true, deep: true })
+
+onUnmounted(() => {
+  if (displayAnimationFrame !== null) cancelAnimationFrame(displayAnimationFrame)
+})
+
 const tokenGroups = computed(() => {
   return [...localTokens.value].reverse().map(token => {
     const width = token.width || 100
     const height = token.height || 100
     const centerX = width / 2
     const centerY = height / 2
+    const position = isGm.value ? token : (displayPositions[token.id] ?? token)
 
     return {
       id: token.id,
 
       groupConfig: {
-        x: token.x,
-        y: token.y,
+        x: position.x,
+        y: position.y,
         draggable: isGm.value,
         opacity: (token.opacity ?? 100) / 100,
       },
