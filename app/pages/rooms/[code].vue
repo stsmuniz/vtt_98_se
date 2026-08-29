@@ -636,6 +636,17 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown)
 })
+
+
+function toggleFullScreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen()
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen()
+    }
+  }
+}
 </script>
 
 <template>
@@ -795,6 +806,9 @@ onUnmounted(() => {
             <button @click="resetZoom">Restaurar</button>
           </div>
         </div>
+      </div>
+      <div class="extra-buttons">
+        <button @click="toggleFullScreen">Tela Cheia</button>
       </div>
     </teleport>
   </template>
