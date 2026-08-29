@@ -81,6 +81,7 @@ type UploadableResourceOptions = {
     fields: ResourceFieldSpec[]
     hasImage?: boolean
     storagePrefix?: string
+    skipImageResize?: boolean
     requireImageOnCreate?: boolean
     transformUpdate?: (updateData: Record<string, unknown>, rawFields: Record<string, string>) => void | Promise<void>
 }
@@ -146,7 +147,7 @@ export async function createUploadableResource(event: any, options: UploadableRe
     if (options.hasImage && file) {
         const fileExtension = file.filename.split('.').pop()
         const uniqueFileName = `${Date.now()}.${fileExtension}`
-        const stored = await storeImage(options.storagePrefix!, uniqueFileName, file.data)
+        const stored = await storeImage(options.storagePrefix!, uniqueFileName, file.data, options.skipImageResize)
         values.image = stored.url
         values.width = stored.width
         values.height = stored.height
@@ -205,7 +206,7 @@ export async function updateUploadableResource(event: any, options: UploadableRe
     if (options.hasImage && file) {
         const fileExtension = file.filename.split('.').pop()
         const uniqueFileName = `${Date.now()}.${fileExtension}`
-        const stored = await storeImage(options.storagePrefix!, uniqueFileName, file.data)
+        const stored = await storeImage(options.storagePrefix!, uniqueFileName, file.data, options.skipImageResize)
         updateData.image = stored.url
         updateData.width = stored.width
         updateData.height = stored.height

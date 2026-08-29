@@ -5,6 +5,7 @@ export default defineEventHandler((event) => {
         table: tables.scenariosTable,
         hasImage: true,
         storagePrefix: 'scenarios',
+        skipImageResize: true,
         fields: [
             { name: 'width', type: 'number' },
             { name: 'height', type: 'number' },
