@@ -37,6 +37,15 @@ export default defineEventHandler(async (event) => {
     const session = await auth.api.getSession({ headers: event.headers })
     const isOwner = !!session?.user && session.user.id === room.userId
 
+    // Uma sala fechada (`isOpen: false`) só é acessível para o dono — visitantes ficam de fora
+    // até o dono reabri-la (ver o botão de abrir/fechar em app/pages/rooms/[code].vue).
+    if (!room.isOpen && !isOwner) {
+        throw createError({
+            statusCode: 403,
+            statusMessage: "Esta sala está fechada no momento.",
+        })
+    }
+
     // Um visitante autenticado por senha não tem sessão do better-auth, então a stream de
     // eventos ao vivo (events.get.ts) não consegue reconhecê-lo pelo cookie de sessão como faz
     // com o dono. Em vez de reenviar a senha (que não deve trafegar numa query string do

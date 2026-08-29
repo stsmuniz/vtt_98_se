@@ -37,6 +37,7 @@ const room = ref<any>(null)
 const isPasswordWindowOpen = ref(false)
 const isInitiativeWindowOpen = ref(false)
 const passwordError = ref('')
+const loadError = ref('')
 
 const isGm = computed(() => room.value?.role === 'gm')
 
@@ -66,7 +67,13 @@ async function loadRoom(password?: string) {
       return
     }
 
+    if (response.status === 403) {
+      loadError.value = 'Esta sala está fechada no momento.'
+      return
+    }
+
     if (!response.ok) {
+      loadError.value = 'Erro ao carregar a sala.'
       console.error('Erro ao carregar a sala.')
       return
     }
@@ -75,6 +82,7 @@ async function loadRoom(password?: string) {
     setRoom(data)
     isPasswordWindowOpen.value = false
     passwordError.value = ''
+    loadError.value = ''
     lastAccessToken.value = data.accessToken
     connectRoomEvents()
   } catch (error) {
@@ -594,7 +602,7 @@ async function changeRoomScene(scene: any) {
 // AÇÕES DO MENU / ATALHOS
 // ==========================================
 
-const { register, unregister, setMenuBarVisible } = useMenuActions()
+const { register, unregister, setMenuBarVisible, setStatusText } = useMenuActions()
 
 register('salvar', async () => {
   if (isGm.value) await saveRoomSnapshot()
@@ -610,11 +618,45 @@ watchEffect(() => {
   setMenuBarVisible(isGm.value)
 })
 
+// Mostra o estado da sala (aberta/fechada) na status bar do layout no lugar do "Dashboard" padrão.
+watchEffect(() => {
+  setStatusText(room.value ? `Sala ${room.value.isOpen ? 'Aberta' : 'Fechada'}` : 'Dashboard')
+})
+
 onUnmounted(() => {
   unregister('salvar')
   unregister('novo-token')
   setMenuBarVisible(true)
+  setStatusText('Dashboard')
 })
+
+// ==========================================
+// ABRIR / FECHAR SALA (somente GM)
+// ==========================================
+
+const isToggleRoomOpenAlertOpen = ref(false)
+const openToggleRoomOpenAlert = () => { isToggleRoomOpenAlertOpen.value = true }
+const closeToggleRoomOpenAlert = () => { isToggleRoomOpenAlertOpen.value = false }
+
+async function confirmToggleRoomOpen() {
+  if (!room.value) return
+  try {
+    const response = await fetch(`/api/v1/rooms/${room.value.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isOpen: !room.value.isOpen }),
+    })
+    if (response.ok) {
+      setRoom({ ...(await response.json()), role: 'gm' })
+    } else {
+      console.error('Erro ao mudar o estado da sala.')
+    }
+  } catch (error) {
+    console.error('Erro ao mudar o estado da sala:', error)
+  } finally {
+    isToggleRoomOpenAlertOpen.value = false
+  }
+}
 
 const handleKeyDown = (e: KeyboardEvent) => {
   if (!isGm.value) return
@@ -735,6 +777,16 @@ function toggleFullScreen() {
       Tem certeza que quer apagar este token?
     </alert-window>
 
+    <alert-window
+        v-if="isToggleRoomOpenAlertOpen"
+        :icon="room.isOpen ? 'restrict' : 'success'"
+        :title="room.isOpen ? 'Fechar Sala' : 'Abrir Sala'"
+        @alert-button-OK="confirmToggleRoomOpen"
+        :cancelAction="closeToggleRoomOpenAlert"
+    >
+      Tem certeza que quer {{ room.isOpen ? 'fechar' : 'abrir' }} a sala? {{ room.isOpen ? 'Visitantes não conseguirão mais entrar até que ela seja reaberta.' : 'Visitantes poderão entrar novamente.' }}
+    </alert-window>
+
     <Teleport to="#button-bar" v-if="isGm">
       <button class="dice-selector-button">
         <Icon size="sm" style="padding: 4px; box-sizing: border-box" name="Token" icon="tokens" @click="isTokenPickerOpen = true"/>
@@ -750,6 +802,15 @@ function toggleFullScreen() {
       </button>
       <button class="dice-selector-button">
         <Icon size="sm" style="padding: 4px; box-sizing: border-box" name="Iniciativa" icon="initiative" @click="isInitiativeWindowOpen = true"/>
+      </button>
+      <button class="dice-selector-button">
+        <Icon
+            size="sm"
+            style="padding: 4px; box-sizing: border-box"
+            :name="room.isOpen ? 'Fechar Sala' : 'Abrir Sala'"
+            :icon="room.isOpen ? 'success' : 'restrict'"
+            @click="openToggleRoomOpenAlert"
+        />
       </button>
     </Teleport>
 
@@ -806,9 +867,10 @@ function toggleFullScreen() {
             <button @click="resetZoom">Restaurar</button>
           </div>
         </div>
-      </div>
-      <div class="extra-buttons">
-        <button @click="toggleFullScreen">Tela Cheia</button>
+        <hr class="footer-separator"/>
+        <div class="extra-buttons">
+          <button @click="toggleFullScreen">Tela Cheia</button>
+        </div>
       </div>
     </teleport>
   </template>
@@ -817,6 +879,7 @@ function toggleFullScreen() {
       :error="passwordError"
       @submit="loadRoom"
   />
+  <p v-else-if="loadError" style="padding: 1rem;">{{ loadError }}</p>
   <p v-else style="padding: 1rem;">Carregando sala...</p>
 </template>
 
@@ -831,6 +894,20 @@ function toggleFullScreen() {
   box-shadow: none;
   padding: 0;
   min-width: 4rem;
+}
+
+.scene-footer {
+  display: flex;
+  align-items: center;
+}
+
+.footer-separator {
+  align-self: stretch;
+  width: 0;
+  margin: 2px 8px;
+  border: none;
+  border-left: 1px solid #808080;
+  border-right: 1px solid #ffffff;
 }
 
 .zoom-control-container {

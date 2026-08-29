@@ -27,6 +27,10 @@ export default defineEventHandler(async (event) => {
     const session = await auth.api.getSession({ headers: event.headers }).catch(() => null)
     const isOwner = !!session?.user && session.user.id === room.userId
 
+    if (!room.isOpen && !isOwner) {
+        throw createError({ statusCode: 403, statusMessage: 'Esta sala está fechada no momento.' })
+    }
+
     if (room.password && !isOwner) {
         const token = getQuery(event).token
         const grantedCode = typeof token === 'string' ? await redis.get(`room-access:${token}`) : null

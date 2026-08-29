@@ -5,6 +5,7 @@ export function useMenuActions() {
         register: (name: string, handler: (payload?: any) => void | Promise<void>) => void
         unregister: (name: string) => void
         setMenuBarVisible: (visible: boolean) => void
+        setStatusText: (text: string) => void
     }>('menuActions')
 
     if (!menu) {

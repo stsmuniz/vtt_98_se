@@ -53,7 +53,7 @@
       </div>
       <div class="status-bar">
         <p class="status-bar-field">Pressione F1 para ajuda</p>
-        <p class="status-bar-field">Dashboard</p>
+        <p class="status-bar-field">{{ statusText }}</p>
         <p class="status-bar-field">
           Usuário atual: {{ session.data?.user?.name || 'Desconhecido' }}
         </p>
@@ -78,6 +78,16 @@ type MenuActionHandler = (payload?: any) => void | Promise<void>
 
 const menuActions = reactive<Record<string, MenuActionHandler>>({})
 const menuBarVisible = ref(true)
+const statusText = ref('Dashboard')
+
+/**
+ * Permite que uma página sobrescreva o texto exibido na status bar (ex.: o
+ * estado da sala em app/pages/rooms/[code].vue). A página deve restaurar
+ * "Dashboard" (ou não fazer nada) ao ser desmontada.
+ */
+function setStatusText(text: string) {
+  statusText.value = text
+}
 
 /**
  * Permite que qualquer componente filho registre handlers.
@@ -103,6 +113,7 @@ provide('menuActions', {
   unregister: unregisterAction,
   actions: menuActions,
   setMenuBarVisible,
+  setStatusText,
 })
 
 // Função central que o layout chama
