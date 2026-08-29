@@ -40,9 +40,9 @@ const passwordError = ref('')
 
 const isGm = computed(() => room.value?.role === 'gm')
 
-// Distingue "room.value alterado a partir de uma resposta do servidor" (fetch ou WebSocket)
-// de "localTokens alterado por uma edição local do usuário" — evita que reaplicar um snapshot
-// vindo do servidor dispare de volta uma transmissão via WebSocket (loop infinito). Ver o
+// Distingue "room.value alterado a partir de uma resposta do servidor" (fetch ou evento ao
+// vivo) de "localTokens alterado por uma edição local do usuário" — evita que reaplicar um
+// snapshot vindo do servidor dispare de volta uma transmissão ao vivo (loop infinito). Ver o
 // watcher de `localTokens` na seção PERSISTÊNCIA.
 let isApplyingRemoteUpdate = false
 
@@ -71,41 +71,39 @@ async function loadRoom(password?: string) {
       return
     }
 
-    setRoom(await response.json())
+    const data = await response.json()
+    setRoom(data)
     isPasswordWindowOpen.value = false
     passwordError.value = ''
-    lastPassword.value = password
-    connectRoomSocket()
+    lastAccessToken.value = data.accessToken
+    connectRoomEvents()
   } catch (error) {
     console.error('Erro ao carregar a sala:', error)
   }
 }
 
 // ==========================================
-// SINCRONIZAÇÃO EM TEMPO REAL (WebSocket)
+// SINCRONIZAÇÃO EM TEMPO REAL (Server-Sent Events)
 // ==========================================
 // Replica, ao vivo, as mudanças feitas pelo dono da sala para todos os visitantes conectados
 // nesta mesma sala: edições de token (`snapshot:live`, ver o watcher de `localTokens` mais
-// abaixo) trafegam sem tocar no banco, enquanto mudanças salvas (`room:update`, disparado
-// pelos endpoints PATCH/PUT de `/api/v1/rooms/:id`) refletem o estado persistido.
+// abaixo) trafegam sem tocar no banco (via POST em /api/rooms/:code/live), enquanto mudanças
+// salvas (`room:update`, disparado pelos endpoints PATCH/PUT de `/api/v1/rooms/:id`) refletem
+// o estado persistido. O WebSocket original não funciona no Nitro/Vercel (sem suporte), então
+// a entrega servidor -> navegador usa Server-Sent Events, que só precisa de uma direção.
 
-const lastPassword = ref<string | undefined>(undefined)
-let roomSocket: WebSocket | null = null
-let roomSocketReconnectTimer: ReturnType<typeof setTimeout> | null = null
+const lastAccessToken = ref<string | undefined>(undefined)
+let roomEvents: EventSource | null = null
+let roomEventsReconnectTimer: ReturnType<typeof setTimeout> | null = null
 
-function connectRoomSocket() {
+function connectRoomEvents() {
   if (typeof window === 'undefined') return
 
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  roomSocket = new WebSocket(`${protocol}//${window.location.host}/api/rooms/${code}/ws`)
+  const url = new URL(`/api/rooms/${code}/events`, window.location.origin)
+  if (lastAccessToken.value) url.searchParams.set('token', lastAccessToken.value)
+  roomEvents = new EventSource(url)
 
-  roomSocket.addEventListener('open', () => {
-    if (lastPassword.value) {
-      roomSocket?.send(JSON.stringify({ type: 'auth', password: lastPassword.value }))
-    }
-  })
-
-  roomSocket.addEventListener('message', (event) => {
+  roomEvents.addEventListener('message', (event) => {
     try {
       const data = JSON.parse(event.data)
       if (data.type === 'room:update' && data.room) {
@@ -120,19 +118,25 @@ function connectRoomSocket() {
     }
   })
 
-  roomSocket.addEventListener('close', () => {
-    roomSocket = null
-    roomSocketReconnectTimer = setTimeout(connectRoomSocket, 2000)
+  // O EventSource já reconecta sozinho quando a conexão cai no meio (ex.: a função da Vercel
+  // atinge o tempo máximo de execução) — só precisamos recriar manualmente quando o navegador
+  // encerra a stream de vez (readyState CLOSED), o que acontece se a resposta inicial não for
+  // 2xx (ex.: token de acesso expirado).
+  roomEvents.addEventListener('error', () => {
+    if (roomEvents?.readyState === EventSource.CLOSED) {
+      roomEvents = null
+      roomEventsReconnectTimer = setTimeout(connectRoomEvents, 2000)
+    }
   })
 }
 
-function disconnectRoomSocket() {
-  if (roomSocketReconnectTimer) {
-    clearTimeout(roomSocketReconnectTimer)
-    roomSocketReconnectTimer = null
+function disconnectRoomEvents() {
+  if (roomEventsReconnectTimer) {
+    clearTimeout(roomEventsReconnectTimer)
+    roomEventsReconnectTimer = null
   }
-  roomSocket?.close()
-  roomSocket = null
+  roomEvents?.close()
+  roomEvents = null
 }
 
 onMounted(() => {
@@ -140,7 +144,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  disconnectRoomSocket()
+  disconnectRoomEvents()
 })
 
 // ==========================================
@@ -435,9 +439,16 @@ function buildSnapshotPayload() {
   }
 }
 
-function sendLiveSnapshot() {
-  if (roomSocket?.readyState !== WebSocket.OPEN) return
-  roomSocket.send(JSON.stringify({ type: 'snapshot:live', snapshot: buildSnapshotPayload() }))
+async function sendLiveSnapshot() {
+  try {
+    await fetch(`/api/rooms/${code}/live`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ snapshot: buildSnapshotPayload() }),
+    })
+  } catch (error) {
+    console.error('Erro ao transmitir alteração ao vivo:', error)
+  }
 }
 
 // Transmite qualquer edição local de tokens (arrastar, redimensionar, girar, duplicar,

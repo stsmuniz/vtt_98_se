@@ -6,11 +6,6 @@ export default defineNuxtConfig({
     '98.css',
     '~/assets/css/fonts.css'
   ],
-  nitro: {
-    experimental: {
-      websocket: true
-    }
-  },
   vite: {
     // O CSS do 98.css usa "@media (not(hover))" (sem espaço), que é sintaxe
     // inválida e o lightningcss (minificador padrão) rejeita no build de produção.

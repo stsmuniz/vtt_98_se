@@ -37,6 +37,13 @@ export default defineEventHandler(async (event) => {
     const session = await auth.api.getSession({ headers: event.headers })
     const isOwner = !!session?.user && session.user.id === room.userId
 
+    // Um visitante autenticado por senha não tem sessão do better-auth, então a stream de
+    // eventos ao vivo (events.get.ts) não consegue reconhecê-lo pelo cookie de sessão como faz
+    // com o dono. Em vez de reenviar a senha (que não deve trafegar numa query string do
+    // EventSource), emitimos aqui um token de acesso opaco e de curta duração, guardado no
+    // Redis, que a stream aceita no lugar da senha.
+    let accessToken: string | undefined
+
     if (room.password && !isOwner) {
         const body = await readBody<{ password?: string }>(event).catch(() => ({}))
         const providedPassword = body?.password
@@ -47,6 +54,9 @@ export default defineEventHandler(async (event) => {
                 statusMessage: "Senha incorreta.",
             })
         }
+
+        accessToken = crypto.randomUUID()
+        await redis.set(`room-access:${accessToken}`, code, { ex: 60 * 60 * 12 })
     }
 
     const { password, ...roomWithoutPassword } = room
@@ -54,5 +64,6 @@ export default defineEventHandler(async (event) => {
     return {
         ...roomWithoutPassword,
         role: isOwner ? 'gm' : 'player',
+        accessToken,
     }
 })
