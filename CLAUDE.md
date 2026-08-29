@@ -23,14 +23,14 @@ The schema lives at `server/db/schema.ts` (pg-core). There are two Drizzle confi
 - `drizzle.config.ts` (TS, points at `server/db/schema.ts`) — used for normal `drizzle-kit` TS workflows.
 - `drizzle.config.cjs` (CJS, points at `server/db/schema.cjs`) — used by the `.cjs` tooling/scripts.
 
-Both configs connect directly to the Supabase Postgres instance (port 5432, database `postgres`, user `postgres`), deriving the host as `db.<SUPABASE_URL hostname>` and using `SUPABASE_PASSWORD` for the password — this avoids URL-encoding pitfalls from special characters in the password rather than parsing a connection string. `SUPABASE_DIRECT_CONNECTION_STRING` in `.env` is an equivalent connection string but is not used by app code.
+Both configs — and the runtime connection in `server/utils/drizzle.ts` — connect through Supabase's connection pooler (Supavisor), not the direct connection: the direct host (`db.<ref>.supabase.co`) only resolves via IPv6, and Vercel Functions have no IPv6 egress, so a direct connection works locally (if your network has IPv6) but always fails in production with `ENOTFOUND`. The pooler host is regional and not derivable from `SUPABASE_URL` — it's stored explicitly in `SUPABASE_POOLER_HOST` (e.g. `aws-0-us-west-2.pooler.supabase.com`, found in the Supabase dashboard's "Connect" modal). The pooler user is `postgres.<project-ref>` (ref parsed from `SUPABASE_URL`'s hostname), not plain `postgres`. Runtime queries (`server/utils/drizzle.ts`) use transaction mode (port 6543); `drizzle-kit` migrations and `scripts/list-tables.*` use session mode (port 5432), since transaction-mode pooling doesn't support the session semantics migrations need. `SUPABASE_PASSWORD` is passed as a discrete field (not part of a connection string) to avoid URL-encoding pitfalls from special characters in the password. `SUPABASE_DIRECT_CONNECTION_STRING` in `.env` is kept for reference but not used by app code.
 
 Common drizzle-kit commands (run against whichever config matches the file you changed):
 ```bash
 npx drizzle-kit generate --config drizzle.config.ts   # generate a migration from schema.ts changes
 npx drizzle-kit migrate --config drizzle.config.ts    # apply pending migrations to the Supabase db
 ```
-`.env` needs `SUPABASE_URL`, `SUPABASE_PASSWORD` (and `SUPABASE_KEY`, `SUPABASE_DIRECT_CONNECTION_STRING` for reference/other tooling). `scripts/list-tables.cjs` / `.js` are quick one-off scripts to dump table names from `information_schema.tables` (run with `node --env-file=.env scripts/list-tables.js`).
+`.env` needs `SUPABASE_URL`, `SUPABASE_PASSWORD`, `SUPABASE_POOLER_HOST` (and `SUPABASE_KEY`, `SUPABASE_DIRECT_CONNECTION_STRING` for reference/other tooling). The same three vars must also be set in the Vercel project's environment variables (Production, Preview, and Development) for the deployed app and `vercel dev` to work. `scripts/list-tables.cjs` / `.js` are quick one-off scripts to dump table names from `information_schema.tables` (run with `node --env-file=.env scripts/list-tables.js`).
 
 When you change `server/db/schema.ts`, keep `server/db/schema.cjs` in sync manually — they are not generated from one another. `auth-schema.ts` at the repo root is a stray artifact from the better-auth CLI schema generator (unused by app code, but kept in sync with the `user`/`session`/`account`/`verification` tables for reference).
 
@@ -74,7 +74,7 @@ Resources (`scenes`, `scenarios`, `tokens`) follow the same REST shape: `index.g
 
 Create endpoints (`scenarios`, `tokens`, and `scenes` when duplicating) accept **either** `multipart/form-data` (new upload — image file required) or `application/json` (duplicate-from-existing — reuses an existing image URL, name gets a `" (Cópia)"` suffix) — branch on the `content-type` header, matching the existing handlers.
 
-Uploaded files are written via `useStorage('uploads')` (configured in `nuxt.config.ts` as an `fs` driver rooted at `./public`) under a resource-specific prefix (`scenarios:<file>`, `tokens:<file>`), which serves them back at `/scenarios/<file>` / `/tokens/<file>` under `public/`.
+Uploaded files go through `server/utils/imageStorage.ts`'s `storeImage()`: it resizes the image with `sharp` if either dimension exceeds 500px (preserving aspect ratio via `fit: 'inside'`), then uploads to Vercel Blob (`@vercel/blob`, reads `BLOB_READ_WRITE_TOKEN` automatically) under a resource-specific prefix (`scenarios/<file>`, `tokens/<file>`). The `image` column stores the full public Blob URL, and `width`/`height` are overwritten with the post-resize dimensions so they stay consistent with the stored file. (Older rows created before this migration still point at relative `/scenarios/<file>` paths served from `public/` — both forms coexist fine since `image` is just rendered via `<img :src>`.)
 
 `server/utils/resources.ts` holds response-shaping helpers (e.g. `sceneResource`) that flatten a Drizzle relational query result (`{ scenes: {...}, scenarios: {...} }`) into the API's response shape — add new shapers here rather than reshaping ad hoc in route handlers.
 

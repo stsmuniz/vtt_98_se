@@ -1,12 +1,12 @@
 import postgres from 'postgres'
 
-const supabaseHost = new URL(process.env.SUPABASE_URL).hostname
+const supabaseRef = new URL(process.env.SUPABASE_URL).hostname.split('.')[0]
 
 const sql = postgres({
-  host: `db.${supabaseHost}`,
+  host: process.env.SUPABASE_POOLER_HOST,
   port: 5432,
   database: 'postgres',
-  username: 'postgres',
+  username: `postgres.${supabaseRef}`,
   password: process.env.SUPABASE_PASSWORD,
   ssl: 'require',
 })
