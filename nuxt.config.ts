@@ -16,5 +16,13 @@ export default defineNuxtConfig({
         base: './public'
       }
     }
+  },
+  vite: {
+    // O CSS do 98.css usa "@media (not(hover))" (sem espaço), que é sintaxe
+    // inválida e o lightningcss (minificador padrão) rejeita no build de produção.
+    // O esbuild é mais tolerante e minifica sem erro.
+    build: {
+      cssMinify: 'esbuild'
+    }
   }
 })
