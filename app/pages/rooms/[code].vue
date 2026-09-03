@@ -871,6 +871,10 @@ function toggleFullScreen() {
         <div class="extra-buttons">
           <button @click="toggleFullScreen">Tela Cheia</button>
         </div>
+        <hr class="footer-separator"/>
+        <div class="extra-buttons">
+          <button @click="isDiceRollerWindowOpen = true">Rolar Dados</button>
+        </div>
       </div>
     </teleport>
   </template>
