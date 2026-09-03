@@ -1,6 +1,6 @@
 <template>
   <section>
-    <h1>VTT Prototype 98 SE</h1>
+    <h1>VTT 98 SE</h1>
     <p>A fatal exception {{ error.status }} ({{ error.statusText }}) has occured while trying to reach a resource. The
       current request will be terminated.</p>
     <p>* Press ALT + Left Arrow to go to the previous page.</p>

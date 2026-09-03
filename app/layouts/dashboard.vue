@@ -4,7 +4,7 @@
       <div class="title-bar">
         <div class="title-bar-text">
           <img src="/assets/icons/desktop_mini.png" style="padding-right: 4px;"/>
-          VTT Prototype 98 SE
+          VTT 98 SE
         </div>
         <div class="title-bar-controls">
           <button aria-label="Close"></button>

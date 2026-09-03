@@ -64,7 +64,7 @@
     </div>
     <dialog ref="helpDialogEl" class="window" style="border: 0;">
       <div class="title-bar">
-        <div class="title-bar-text">Sobre VTT Prototype</div>
+        <div class="title-bar-text">Sobre VTT 98 SE</div>
         <div class="title-bar-controls">
           <button aria-label="Close" @click="closeHelpDialog"></button>
         </div>
@@ -75,8 +75,8 @@
             <img src="/assets/icons/desktop.png"/>
           </div>
           <div>
-            <p>STSMUNIZ's VTT Prototype</p>
-            <p>VTT Prototype 98 Second Edition</p>
+            <p>STSMUNIZ's VTT 98 SE</p>
+            <p>VTT 98 Second Edition</p>
             <p>Copyright (?) 2026 STSMUNIZ</p>
             <p>Criado por <a href="https://github.com/stsmuniz" target="_blank">stsmuniz</a></p>
           </div>

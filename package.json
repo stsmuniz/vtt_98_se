@@ -10,11 +10,13 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@nuxt/content": "^3.16.0",
     "@upstash/redis": "^1.38.3",
     "@vercel/blob": "^2.8.0",
     "98.css": "^0.1.21",
     "bcrypt-ts": "^9.0.2",
     "better-auth": "^1.6.29",
+    "better-sqlite3": "^12.11.1",
     "drizzle-orm": "^0.45.2",
     "konva": "^10.3.0",
     "nuxt": "^4.5.2",

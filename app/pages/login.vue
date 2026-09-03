@@ -10,7 +10,7 @@
     </div>
     <div class="window login-window">
       <div class="title-bar">
-        <div class="title-bar-text">Boas vindas ao VTT Prototype 98 SE</div>
+        <div class="title-bar-text">Boas vindas ao VTT 98 SE</div>
         <div class="title-bar-controls">
           <button aria-label="Ajuda"><strong>?</strong></button>
         </div>
