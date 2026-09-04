@@ -41,6 +41,9 @@ useSeoMeta({
       <div class="media-container">
         <Lightbox
           src="/assets/screenshots/vtt_98_screenshot_7.png"
+          thumbnail="/assets/screenshots/vtt_98_screenshot_7.avif"
+          width="854"
+          height="406"
           alt="Tela inicial do sistema"
           title="VTT 98 SE - Tela inicial"
         />

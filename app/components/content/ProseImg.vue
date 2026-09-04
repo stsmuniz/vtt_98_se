@@ -12,5 +12,7 @@ defineProps<{
     :src="src"
     :alt="alt"
     :title="alt"
+    :width="width"
+    :height="height"
   />
 </template>

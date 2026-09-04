@@ -4,6 +4,9 @@ import { ref } from 'vue'
 const props = withDefaults(
   defineProps<{
     src: string
+    thumbnail?: string
+    width?: string | number
+    height?: string | number
     alt?: string
     title?: string
     caption?: string
@@ -12,6 +15,9 @@ const props = withDefaults(
     loading?: 'lazy' | 'eager'
   }>(),
   {
+    thumbnail: '',
+    width: undefined,
+    height: undefined,
     alt: '',
     title: '',
     caption: '',
@@ -89,8 +95,10 @@ defineExpose({
     >
       <slot>
         <img
-          :src="src"
+          :src="thumbnail || src"
           :alt="alt"
+          :width="width"
+          :height="height"
           :class="['lightbox-thumb', imgClass]"
           :loading="loading"
         />
