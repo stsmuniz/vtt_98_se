@@ -2,6 +2,18 @@
 definePageMeta({
   layout: 'website'
 })
+
+useSeoMeta({
+  title: 'VTT 98 SE - Virtual Tabletop Retrô para RPG de Mesa',
+  ogTitle: 'VTT 98 SE - Virtual Tabletop Retrô para RPG de Mesa',
+  description: 'Mesa virtual gratuita e leve para RPG de mesa com visual nostálgico de Windows 98, suporte a tokens, mapas e sincronização em tempo real.',
+  ogDescription: 'Mesa virtual gratuita e leve para RPG de mesa com visual nostálgico de Windows 98, suporte a tokens, mapas e sincronização em tempo real.',
+  ogImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  twitterCard: 'summary_large_image',
+  twitterTitle: 'VTT 98 SE - Virtual Tabletop Retrô para RPG de Mesa',
+  twitterDescription: 'Mesa virtual gratuita e leve para RPG de mesa com visual nostálgico de Windows 98, suporte a tokens, mapas e sincronização em tempo real.',
+  twitterImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+})
 </script>
 <template>
   <article class="page-content home-page">

@@ -56,6 +56,18 @@ import AlertWindow from "../components/AlertWindow.vue";
 import {authClient} from "~~/lib/auth-client.ts";
 import {useLoadingWindow} from "~~/composables/useLoadingWindow";
 
+useSeoMeta({
+  title: 'Entrar - VTT 98 SE',
+  ogTitle: 'Entrar - VTT 98 SE',
+  description: 'Conecte-se ao VTT 98 SE para acessar suas salas e mesas de RPG de mesa virtuais.',
+  ogDescription: 'Conecte-se ao VTT 98 SE para acessar suas salas e mesas de RPG de mesa virtuais.',
+  ogImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  twitterCard: 'summary_large_image',
+  twitterTitle: 'Entrar - VTT 98 SE',
+  twitterDescription: 'Conecte-se ao VTT 98 SE para acessar suas salas e mesas de RPG de mesa virtuais.',
+  twitterImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+})
+
 const err = ref<string|null>(null)
 const isSubmitting = ref(false)
 const { withLoading } = useLoadingWindow()

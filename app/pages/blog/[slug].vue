@@ -10,8 +10,16 @@ const { data: post } = await useAsyncData(`blog-${route.path}`, () =>
 )
 
 useSeoMeta({
-  title: post.value?.title,
-  description: post.value?.description
+  title: () => post.value ? `${post.value.title} - VTT 98 SE` : 'Artigo - VTT 98 SE',
+  ogTitle: () => post.value ? `${post.value.title} - VTT 98 SE` : 'Artigo - VTT 98 SE',
+  description: () => post.value?.description || 'Notas de atualização e bastidores do desenvolvimento do VTT 98 SE.',
+  ogDescription: () => post.value?.description || 'Notas de atualização e bastidores do desenvolvimento do VTT 98 SE.',
+  ogType: 'article',
+  ogImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  twitterCard: 'summary_large_image',
+  twitterTitle: () => post.value ? `${post.value.title} - VTT 98 SE` : 'Artigo - VTT 98 SE',
+  twitterDescription: () => post.value?.description || 'Notas de atualização e bastidores do desenvolvimento do VTT 98 SE.',
+  twitterImage: '/assets/screenshots/vtt_98_screenshot_7.png',
 })
 </script>
 <template>

@@ -6,6 +6,18 @@ definePageMeta({
 const { data: posts } = await useAsyncData('blog-list', () =>
   queryCollection('blog').order('date', 'DESC').all()
 )
+
+useSeoMeta({
+  title: 'Blog - VTT 98 SE',
+  ogTitle: 'Blog - VTT 98 SE',
+  description: 'Acompanhe novidades, notas de atualização e bastidores do desenvolvimento do VTT 98 SE.',
+  ogDescription: 'Acompanhe novidades, notas de atualização e bastidores do desenvolvimento do VTT 98 SE.',
+  ogImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  twitterCard: 'summary_large_image',
+  twitterTitle: 'Blog - VTT 98 SE',
+  twitterDescription: 'Acompanhe novidades, notas de atualização e bastidores do desenvolvimento do VTT 98 SE.',
+  twitterImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+})
 </script>
 <template>
   <article class="page-content blog-page">

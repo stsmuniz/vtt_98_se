@@ -5,6 +5,18 @@ definePageMeta({
   layout: 'website'
 })
 
+useSeoMeta({
+  title: 'Apoie o VTT 98 SE - Contribua com o Projeto',
+  ogTitle: 'Apoie o VTT 98 SE - Contribua com o Projeto',
+  description: 'Ajude a manter os servidores ativos, apoie os custos operacionais via Pix e confira o roadmap de funcionalidades do VTT 98 SE.',
+  ogDescription: 'Ajude a manter os servidores ativos, apoie os custos operacionais via Pix e confira o roadmap de funcionalidades do VTT 98 SE.',
+  ogImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  twitterCard: 'summary_large_image',
+  twitterTitle: 'Apoie o VTT 98 SE - Contribua com o Projeto',
+  twitterDescription: 'Ajude a manter os servidores ativos, apoie os custos operacionais via Pix e confira o roadmap de funcionalidades do VTT 98 SE.',
+  twitterImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+})
+
 const chavePix = '198de8e9-ed9f-4f73-8a18-5045bb98436c'
 const copied = ref(false)
 

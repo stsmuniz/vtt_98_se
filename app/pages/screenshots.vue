@@ -2,6 +2,18 @@
 definePageMeta({
   layout: 'website'
 })
+
+useSeoMeta({
+  title: 'Galeria de Telas - VTT 98 SE',
+  ogTitle: 'Galeria de Telas - VTT 98 SE',
+  description: 'Conheça as principais interfaces e ferramentas do VTT 98 SE: salas de jogo em tempo real, gerenciador de cenas, biblioteca de tokens, rolador de dados e iniciativa.',
+  ogDescription: 'Conheça as principais interfaces e ferramentas do VTT 98 SE: salas de jogo em tempo real, gerenciador de cenas, biblioteca de tokens, rolador de dados e iniciativa.',
+  ogImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  twitterCard: 'summary_large_image',
+  twitterTitle: 'Galeria de Telas - VTT 98 SE',
+  twitterDescription: 'Conheça as principais interfaces e ferramentas do VTT 98 SE: salas de jogo em tempo real, gerenciador de cenas, biblioteca de tokens, rolador de dados e iniciativa.',
+  twitterImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+})
 </script>
 <template>
   <article class="page-content screenshots-page">
