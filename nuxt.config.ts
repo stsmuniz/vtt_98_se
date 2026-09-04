@@ -3,7 +3,8 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: false },
   modules: [
-      '@nuxt/content'
+    '@nuxt/content',
+    '@vercel/analytics'
   ],
   app: {
     head: {
