@@ -10,6 +10,8 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@grafana/faro-web-sdk": "^2.11.0",
+    "@grafana/faro-web-tracing": "^2.11.0",
     "@nuxt/content": "^3.16.0",
     "@upstash/redis": "^1.38.3",
     "@vercel/blob": "^2.8.0",
@@ -28,6 +30,7 @@
     "vue3-form-wizard": "^1.1.1"
   },
   "devDependencies": {
+    "@grafana/faro-rollup-plugin": "^0.12.0",
     "drizzle-kit": "^0.31.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.2.2"
