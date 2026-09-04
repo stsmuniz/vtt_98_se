@@ -6,10 +6,10 @@
     <main class="main-section">
       <slot/>
     </main>
-    <footer>
+    <footer class="website-footer">
       <div class="footer-badges">
         <a href="https://supabase.com" target="_blank" rel="noopener noreferrer">
-          <svg width="88" height="31" viewBox="0 0 88 31" xmlns="http://w3.org" style="image-rendering: pixelated; shape-rendering: crispEdges;">
+          <svg width="88" height="31" viewBox="0 0 88 31" xmlns="http://www.w3.org/2000/svg" style="image-rendering: pixelated; shape-rendering: crispEdges;">
             <!-- Outer Border -->
             <rect width="88" height="31" fill="#000000"/>
             <rect x="1" y="1" width="86" height="29" fill="#FFFFFF"/>
@@ -28,7 +28,7 @@
           </svg>
         </a>
         <a href="https://nuxt.com" target="_blank" rel="noopener noreferrer">
-          <svg width="88" height="31" viewBox="0 0 88 31" xmlns="http://w3.org" style="image-rendering: pixelated; shape-rendering: crispEdges;">
+          <svg width="88" height="31" viewBox="0 0 88 31" xmlns="http://www.w3.org/2000/svg" style="image-rendering: pixelated; shape-rendering: crispEdges;">
             <rect width="88" height="31" fill="#000000"/>
             <rect x="1" y="1" width="86" height="29" fill="#00DC82"/>
             <rect x="2" y="2" width="84" height="27" fill="#00C58E"/>
@@ -45,7 +45,7 @@
           </svg>
         </a>
         <a href="https://postgresql.org" target="_blank" rel="noopener noreferrer">
-          <svg width="88" height="31" viewBox="0 0 88 31" xmlns="http://w3.org" style="image-rendering: pixelated; shape-rendering: crispEdges;">
+          <svg width="88" height="31" viewBox="0 0 88 31" xmlns="http://www.w3.org/2000/svg" style="image-rendering: pixelated; shape-rendering: crispEdges;">
             <!-- Borda Externa -->
             <rect width="88" height="31" fill="#000000"/>
             <rect x="1" y="1" width="86" height="29" fill="#FFFFFF"/>
@@ -75,7 +75,7 @@
           </svg>
         </a>
         <a href="https://vercel.com" target="_blank" rel="noopener noreferrer">
-          <svg width="88" height="31" viewBox="0 0 88 31" xmlns="http://w3.org" style="image-rendering: pixelated; shape-rendering: crispEdges;">
+          <svg width="88" height="31" viewBox="0 0 88 31" xmlns="http://www.w3.org/2000/svg" style="image-rendering: pixelated; shape-rendering: crispEdges;">
             <!-- Borda Externa -->
             <rect width="88" height="31" fill="#000000"/>
             <rect x="1" y="1" width="86" height="29" fill="#FFFFFF"/>
@@ -94,7 +94,7 @@
           </svg>
         </a>
         <a href="https://redis.io" target="_blank" rel="noopener noreferrer">
-          <svg width="88" height="31" viewBox="0 0 88 31" xmlns="http://w3.org" style="image-rendering: pixelated; shape-rendering: crispEdges;">
+          <svg width="88" height="31" viewBox="0 0 88 31" xmlns="http://www.w3.org/2000/svg" style="image-rendering: pixelated; shape-rendering: crispEdges;">
             <!-- Borda Externa -->
             <rect width="88" height="31" fill="#000000"/>
             <rect x="1" y="1" width="86" height="29" fill="#D82C20"/>
@@ -115,7 +115,7 @@
           </svg>
         </a>
         <a href="https://jdan.github.io/98.css/" target="_blank" rel="noopener noreferrer">
-          <svg width="88" height="31" viewBox="0 0 88 31" xmlns="http://w3.org" style="image-rendering: pixelated; shape-rendering: crispEdges;">
+          <svg width="88" height="31" viewBox="0 0 88 31" xmlns="http://www.w3.org/2000/svg" style="image-rendering: pixelated; shape-rendering: crispEdges;">
             <!-- Borda Externa -->
             <rect width="88" height="31" fill="#000000"/>
             <rect x="1" y="1" width="86" height="29" fill="#C0C0C0"/>
@@ -141,52 +141,106 @@
           </svg>
         </a>
       </div>
-      &copy; 2026 VTT 98 SE. Todos os direitos reservados. Criado por <NuxtLink to="https://github.com/stsmuniz" target="_blank">@stsmuniz</NuxtLink>.
+      <p class="copyright">
+        &copy; 2026 VTT 98 SE. Todos os direitos reservados. Criado por <NuxtLink to="https://github.com/stsmuniz" target="_blank" rel="noopener noreferrer">@stsmuniz</NuxtLink>.
+      </p>
     </footer>
   </div>
 </template>
 <style lang="css">
 .website-wrapper {
-  text-align: center;
   font-family: "Times New Roman", Times, serif;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  justify-content: space-around;
+  justify-content: space-between;
   align-items: center;
   margin: 0 auto;
-  width: 90%;
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-family: "Times New Roman", Times, serif;
-  }
-  .main-section {
-    flex: 1;
-  }
-  footer {
-    padding: 1rem;
-    .footer-badges {
-      display: flex;
-      gap: 8px;
-      justify-content: center;
-      align-items: center;
-      margin: 2rem auto;
-    }
-  }
+  width: 100%;
+  max-width: 860px;
+  padding: 1.5rem 1.25rem;
+  box-sizing: border-box;
+  font-size: 17px;
+  line-height: 1.6;
+  text-align: left;
 }
+
 @media screen and (min-width: 768px) {
   .website-wrapper {
-    width: 70%;
+    font-size: 19px;
+    padding: 2rem 2rem;
   }
 }
-@media screen and (min-width: 1024px) {
-  .website-wrapper {
-    width: 50%;
-  }
+
+.website-wrapper h1,
+.website-wrapper h2,
+.website-wrapper h3,
+.website-wrapper h4,
+.website-wrapper h5,
+.website-wrapper h6 {
+  font-family: "Times New Roman", Times, serif;
+  text-align: center;
+  line-height: 1.3;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.website-wrapper h1 {
+  font-size: 2.2rem;
+}
+
+.website-wrapper h2 {
+  font-size: 1.85rem;
+}
+
+.website-wrapper h3 {
+  font-size: 1.45rem;
+}
+
+.website-wrapper h4 {
+  font-size: 1.2rem;
+}
+
+.website-wrapper p {
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.main-section {
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.website-footer {
+  width: 100%;
+  padding: 2rem 0 0.5rem;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.footer-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  margin: 1.5rem auto;
+  max-width: 100%;
+}
+
+.footer-badges a {
+  display: inline-block;
+  line-height: 0;
+  transition: transform 0.1s ease-in-out;
+}
+
+.footer-badges a:hover {
+  transform: translateY(-2px);
+}
+
+.copyright {
+  font-size: 0.95rem;
+  margin-top: 1rem;
 }
 </style>
