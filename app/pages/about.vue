@@ -18,17 +18,17 @@ useSeoMeta({
 <template>
   <article class="page-content about-page">
     <header class="page-header">
-      <h2>Sobre o VTT 98 SE</h2>
+      <h1>Sobre o VTT 98 SE</h1>
     </header>
 
     <section class="content-section">
-      <h3>História e Motivação</h3>
+      <h2>História e Motivação</h2>
       <p>Muitas mesas virtuais modernas se tornaram ecossistemas pesados, repletos de automações de regras, compêndios pagos e interfaces poluídas. Embora sejam ótimas para alguns grupos, muitas vezes o mestre só precisa de uma tela simples para mostrar onde cada personagem está no mapa.</p>
       <p>O VTT 98 SE nasceu dessa necessidade real: criar uma ferramenta leve e ágil para jogar RPG online com o meu grupo de amigos, onde o foco está na narrativa e no apoio visual em tempo real, sem perder tempo configurando automações antes da sessão.</p>
     </section>
 
     <section class="content-section">
-      <h3>Filosofia do Sistema</h3>
+      <h2>Filosofia do Sistema</h2>
       <dl class="philosophy-list">
         <dt>Simplicidade:</dt>
         <dd>Cadastre seus cenários, suba seus tokens e jogue.</dd>
@@ -40,13 +40,13 @@ useSeoMeta({
     </section>
 
     <section class="content-section">
-      <h3>O Desenvolvedor</h3>
+      <h2>O Desenvolvedor</h2>
       <p>Desenvolvido por um entusiasta de RPG e programação que buscava unir a nostalgia das interfaces clássicas do final dos anos 90 com os padrões de arquitetura e performance da web atual.</p>
     </section>
 
     <section class="content-section">
-      <h3>Arquitetura &amp; Tecnologia</h3>
-      <p>Para os curiosos e desenvolvedores: sob a casca visual inspirada no Windows 98, o VTT 98 SE roda em uma arquitetura stateless moderna e otimizada:</p>
+      <h2>Arquitetura &amp; Tecnologia</h2>
+      <p>Para os curiosos e desenvolvedores: sob a casca visual inspirada no Windows 98, o VTT 98 SE roda em uma arquitetura moderna e otimizada. Os selos no rodapé desta página mostram, de forma bem-humorada, as peças reais por trás da nostalgia:</p>
 
       <div class="table-responsive">
         <table class="tech-table">
@@ -57,11 +57,11 @@ useSeoMeta({
             </tr>
             <tr>
               <th scope="row">Sincronização em Tempo Real</th>
-              <td>WebSockets &amp; Redis</td>
+              <td>Server-Sent Events (SSE) &amp; Redis Pub/Sub</td>
             </tr>
             <tr>
               <th scope="row">Backend &amp; API</th>
-              <td>API REST stateless com autenticação via JWT</td>
+              <td>API REST com autenticação via sessão (better-auth)</td>
             </tr>
             <tr>
               <th scope="row">Banco de Dados</th>

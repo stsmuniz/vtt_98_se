@@ -22,16 +22,16 @@ useSeoMeta({
 <template>
   <article class="page-content blog-page">
     <header class="page-header">
-      <h2>Blog</h2>
+      <h1>Blog</h1>
       <p class="subtitle">Notas de atualização e bastidores do desenvolvimento do VTT 98 SE.</p>
     </header>
 
     <section class="posts-list" aria-label="Lista de publicações">
       <article v-for="post in posts" :key="post.path" class="post-item">
         <header class="post-item-header">
-          <h3>
+          <h2>
             <NuxtLink :to="post.path">{{ post.title }}</NuxtLink>
-          </h3>
+          </h2>
           <time class="post-date" :datetime="post.date">Publicado em: {{ post.date }}</time>
         </header>
         <p class="post-description">{{ post.description }}</p>
@@ -66,18 +66,18 @@ useSeoMeta({
   border-bottom: none;
 }
 
-.post-item-header h3 {
+.post-item-header h2 {
   text-align: left;
   margin-top: 0;
   margin-bottom: 0.25rem;
 }
 
-.post-item-header h3 a {
+.post-item-header h2 a {
   color: #000080;
   text-decoration: underline;
 }
 
-.post-item-header h3 a:hover {
+.post-item-header h2 a:hover {
   color: #0000ee;
 }
 

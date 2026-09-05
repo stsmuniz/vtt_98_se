@@ -42,18 +42,30 @@
               <div class="menu-item" @mousedown.prevent="onAction('tela-cheia')">Tela Cheia</div>
             </div>
           </div>
+
+          <!-- ===================== MENU AJUDA ===================== -->
+          <div class="menu-root">
+            <button class="menu-btn">Ajuda</button>
+            <div class="dropdown">
+              <div class="menu-item" @mousedown.prevent="onAction('ajuda')">Manual do VTT 98 SE</div>
+            </div>
+          </div>
         </div>
       </nav>
       <div class="window-menu-big-buttons" id="button-bar"></div>
       <div class="window-body">
         <slot name="default"/>
       </div>
+      <HelpManualWindow
+          v-if="isHelpManualWindowOpen"
+          @close-window="isHelpManualWindowOpen = false"
+      />
       <div id="footer-menu">
 
       </div>
       <div class="status-bar">
         <p class="status-bar-field">Pressione F1 para ajuda</p>
-        <p class="status-bar-field">{{ statusText }}</p>
+        <p class="status-bar-field">{{ flashText ?? statusText }}</p>
         <p class="status-bar-field">
           Usuário atual: {{ session.data?.user?.name || 'Desconhecido' }}
         </p>
@@ -65,7 +77,7 @@
 <script lang="ts" setup>
 import {authClient} from '~~/lib/auth-client'
 import {useLoadingWindow} from '~~/composables/useLoadingWindow'
-import {provide, reactive, ref} from 'vue'
+import {onMounted, onUnmounted, provide, reactive, ref} from 'vue'
 
 const { withLoading } = useLoadingWindow()
 
@@ -79,6 +91,13 @@ type MenuActionHandler = (payload?: any) => void | Promise<void>
 const menuActions = reactive<Record<string, MenuActionHandler>>({})
 const menuBarVisible = ref(true)
 const statusText = ref('Dashboard')
+const flashText = ref<string | null>(null)
+let flashTimeout: ReturnType<typeof setTimeout> | null = null
+const isHelpManualWindowOpen = ref(false)
+
+function openHelpManual() {
+  isHelpManualWindowOpen.value = true
+}
 
 /**
  * Permite que uma página sobrescreva o texto exibido na status bar (ex.: o
@@ -87,6 +106,19 @@ const statusText = ref('Dashboard')
  */
 function setStatusText(text: string) {
   statusText.value = text
+}
+
+/**
+ * Mostra brevemente uma mensagem na status bar (ex.: confirmação de "salvo com
+ * sucesso" nos editores), sem sobrescrever permanentemente o statusText da página.
+ */
+function showStatusMessage(text: string, duration = 2000) {
+  if (flashTimeout) clearTimeout(flashTimeout)
+  flashText.value = text
+  flashTimeout = setTimeout(() => {
+    flashText.value = null
+    flashTimeout = null
+  }, duration)
 }
 
 /**
@@ -114,6 +146,8 @@ provide('menuActions', {
   actions: menuActions,
   setMenuBarVisible,
   setStatusText,
+  showStatusMessage,
+  openHelpManual,
 })
 
 // Função central que o layout chama
@@ -158,6 +192,25 @@ function toggleFullScreen() {
 registerAction('tela-cheia', toggleFullScreen)
 registerAction('dashboard', () => navigateTo('/dashboard'))
 registerAction('logout', handleLogout)
+registerAction('ajuda', openHelpManual)
+
+// Atalho global F1 = abrir o manual de ajuda (funciona em qualquer página que use este layout)
+function handleGlobalKeyDown(e: KeyboardEvent) {
+  if (e.key === 'F1') {
+    e.preventDefault()
+    openHelpManual()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleGlobalKeyDown)
+  document.body.classList.add('dashboard-desktop')
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalKeyDown)
+  document.body.classList.remove('dashboard-desktop')
+})
 
 async function handleLogout() {
   await withLoading(() => authClient.signOut({
@@ -179,11 +232,19 @@ body,
   height: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
 }
 
-body {
+/*
+ * O fundo teal e o overflow:hidden simulam a área de trabalho do Windows 98,
+ * mas só podem se aplicar enquanto este layout estiver montado — como estas
+ * regras miram html/body (fora da árvore do componente), "scoped" não as
+ * atinge, então a classe é adicionada/removida via onMounted/onUnmounted
+ * abaixo. Sem isso, elas vazam para o layout `website` após uma navegação
+ * client-side (SPA) para fora do dashboard.
+ */
+body.dashboard-desktop {
   background: teal;
+  overflow: hidden;
 }
 
 /* Garante que qualquer wrapper do Nuxt também herde */

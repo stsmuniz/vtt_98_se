@@ -7,16 +7,20 @@ import * as schema from '../db/schema'
 // Functions da Vercel não têm saída IPv6, então essa conexão nunca funcionaria em
 // produção. O pooler usa um host regional (SUPABASE_POOLER_HOST) e o usuário
 // "postgres.<ref>" em vez de "postgres".
-const supabaseRef = new URL(process.env.SUPABASE_URL!).hostname.split('.')[0]
-
-const client = postgres({
-    host: process.env.SUPABASE_POOLER_HOST!,
-    port: 6543,
-    database: 'postgres',
-    username: `postgres.${supabaseRef}`,
-    password: process.env.SUPABASE_PASSWORD!,
-    ssl: 'require',
-})
+//
+// Em dev local, se DATABASE_URL estiver definido (Postgres local via
+// docker-compose.yml), usa ele direto em vez do Supabase — útil quando a rede local
+// não alcança o Supabase.
+const client = process.env.DATABASE_URL
+    ? postgres(process.env.DATABASE_URL)
+    : postgres({
+        host: process.env.SUPABASE_POOLER_HOST!,
+        port: 6543,
+        database: 'postgres',
+        username: `postgres.${new URL(process.env.SUPABASE_URL!).hostname.split('.')[0]}`,
+        password: process.env.SUPABASE_PASSWORD!,
+        ssl: 'require',
+    })
 
 const db = drizzle(client, { schema })
 

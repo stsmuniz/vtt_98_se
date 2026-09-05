@@ -6,6 +6,8 @@ export function useMenuActions() {
         unregister: (name: string) => void
         setMenuBarVisible: (visible: boolean) => void
         setStatusText: (text: string) => void
+        showStatusMessage: (text: string, duration?: number) => void
+        openHelpManual: () => void
     }>('menuActions')
 
     if (!menu) {

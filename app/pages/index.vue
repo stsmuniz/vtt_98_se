@@ -3,6 +3,10 @@ definePageMeta({
   layout: 'website'
 })
 
+const { data: latestPost } = await useAsyncData('home-latest-post', () =>
+  queryCollection('blog').order('date', 'DESC').first()
+)
+
 useSeoMeta({
   title: 'VTT 98 SE - Virtual Tabletop Retrô para RPG de Mesa',
   ogTitle: 'VTT 98 SE - Virtual Tabletop Retrô para RPG de Mesa',
@@ -18,14 +22,26 @@ useSeoMeta({
 <template>
   <article class="page-content home-page">
     <header class="page-header">
-      <h2>VTT 98 SE</h2>
-      <p class="subtitle">Um virtual tabletop leve, sincronizado e sem complicação</p>
+      <h1>VTT 98 SE</h1>
+      <p class="subtitle">Um virtual tabletop gratuito, leve, sincronizado e sem complicação</p>
+      <div class="clippy-tip">
+        <img
+          src="/assets/gifs/clippit.gif"
+          alt="Clippit, o assistente virtual do Office 97"
+          class="clippy-gif"
+          width="80"
+          height="70"
+        />
+        <div class="clippy-balloon">
+          <p>Parece que você está vendo um site de 1998. Quer saber um segredo? Por baixo do visual, a tecnologia é de 2026.</p>
+        </div>
+      </div>
     </header>
 
     <section class="content-section">
-      <h3>O que é</h3>
+      <h2>O que é</h2>
       <p>
-        O VTT 98 SE é um sistema web gratuito para apoio visual em sessões de RPG de mesa e jogos de tabuleiro.
+        O VTT 98 SE é um sistema web <strong>100% gratuito</strong> para apoio visual em sessões de RPG de mesa e jogos de tabuleiro.
         Desenvolvido para rodar direto no seu navegador com a estética nostálgica das janelas do Windows 98 e a
         performance de tecnologias modernas.
       </p>
@@ -48,13 +64,16 @@ useSeoMeta({
           title="VTT 98 SE - Tela inicial"
         />
       </div>
+      <p class="see-more">
+        <NuxtLink to="/screenshots">Ver mais telas do sistema &rarr;</NuxtLink>
+      </p>
     </section>
 
     <section class="content-section">
-      <h3>Recursos Principais</h3>
+      <h2>Recursos Principais</h2>
       <dl class="features-list">
         <dt>Canvas Realtime</dt>
-        <dd>Posicione mapas de fundo e mova miniaturas com sincronização instantânea via WebSockets.</dd>
+        <dd>Posicione mapas de fundo e mova miniaturas com sincronização instantânea em tempo real.</dd>
         <dt>Gerenciador de Cenas</dt>
         <dd>Alterne rapidamente entre mapas, cenários de exploração e telas de descanso.</dd>
         <dt>Biblioteca de Tokens</dt>
@@ -66,8 +85,19 @@ useSeoMeta({
       </dl>
     </section>
 
+    <section v-if="latestPost" class="content-section news-section">
+      <h2>Últimas Novidades</h2>
+      <article class="news-item">
+        <h3><NuxtLink :to="latestPost.path">{{ latestPost.title }}</NuxtLink></h3>
+        <time class="news-date" :datetime="latestPost.date">{{ latestPost.date }}</time>
+        <p>{{ latestPost.description }}</p>
+        <NuxtLink to="/blog" class="see-more-link">Ver todas as novidades &rarr;</NuxtLink>
+      </article>
+    </section>
+
     <section class="content-section cta-section">
-      <h3>Pronto para começar sua sessão?</h3>
+      <h2>Pronto para começar sua sessão?</h2>
+      <p class="cta-free-note">Sem cartão de crédito, sem instalação. Crie sua conta gratuita agora.</p>
       <div class="cta-link-container">
         <NuxtLink to="/login" class="cta-link">Entrar no sistema</NuxtLink>
         <NuxtLink to="/register" class="cta-link cta-link-primary">Criar conta gratuita</NuxtLink>
@@ -77,6 +107,9 @@ useSeoMeta({
 </template>
 <style lang="css" scoped>
 .page-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
   margin-bottom: 1.5rem;
 }
@@ -87,8 +120,75 @@ useSeoMeta({
   margin-top: 0.25rem;
 }
 
+.clippy-tip {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin: 1rem auto 0;
+}
+
+.clippy-gif {
+  flex-shrink: 0;
+  image-rendering: pixelated;
+}
+
+.clippy-balloon {
+  position: relative;
+  background-color: #ffffcc;
+  border: 2px solid #000000;
+  border-radius: 12px;
+  padding: 0.6rem 0.9rem;
+  margin-left: 1rem;
+  margin-bottom: 0.5rem;
+  max-width: 260px;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+.clippy-balloon p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  text-align: left;
+  font-style: normal;
+}
+
+.clippy-balloon::before,
+.clippy-balloon::after {
+  content: "";
+  position: absolute;
+  bottom: 10px;
+  border-style: solid;
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+}
+
+.clippy-balloon::before {
+  left: -16px;
+  border-width: 8px 16px 8px 0;
+  border-right-color: #000000;
+}
+
+.clippy-balloon::after {
+  left: -12px;
+  border-width: 6px 12px 6px 0;
+  border-right-color: #ffffcc;
+}
+
+@media screen and (max-width: 480px) {
+  .clippy-balloon {
+    max-width: 180px;
+    font-size: 0.8rem;
+  }
+}
+
 .content-section {
   margin-bottom: 2rem;
+}
+
+.see-more {
+  text-align: center;
+  margin-top: 0.75rem;
 }
 
 .features-list {
@@ -132,9 +232,47 @@ useSeoMeta({
   width: 100%;
 }
 
+.news-section {
+  border-top: 1px dotted #808080;
+  padding-top: 1.5rem;
+}
+
+.news-item h3 {
+  text-align: left;
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+}
+
+.news-item h3 a {
+  color: #000080;
+  text-decoration: underline;
+}
+
+.news-item h3 a:hover {
+  color: #0000ee;
+}
+
+.news-date {
+  display: block;
+  font-size: 0.9rem;
+  color: #555555;
+  margin-bottom: 0.5rem;
+}
+
+.see-more-link {
+  color: #0000ee;
+  text-decoration: underline;
+  font-size: 0.95rem;
+}
+
 .cta-section {
   text-align: center;
   margin-top: 2.5rem;
+}
+
+.cta-free-note {
+  font-size: 0.95rem;
+  color: #333333;
 }
 
 .cta-link-container {

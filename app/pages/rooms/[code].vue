@@ -479,6 +479,7 @@ async function saveRoomSnapshot() {
     })
     if (response.ok) {
       setRoom({ ...(await response.json()), role: 'gm' })
+      showStatusMessage('Sala salva com sucesso!')
     } else {
       console.error('Erro ao salvar a sala.')
     }
@@ -602,7 +603,7 @@ async function changeRoomScene(scene: any) {
 // AÇÕES DO MENU / ATALHOS
 // ==========================================
 
-const { register, unregister, setMenuBarVisible, setStatusText } = useMenuActions()
+const { register, unregister, setMenuBarVisible, setStatusText, showStatusMessage, openHelpManual } = useMenuActions()
 
 register('salvar', async () => {
   if (isGm.value) await saveRoomSnapshot()
@@ -660,6 +661,14 @@ async function confirmToggleRoomOpen() {
 
 const handleKeyDown = (e: KeyboardEvent) => {
   if (!isGm.value) return
+
+  // Ctrl+S / Cmd+S salva a sala, mesmo com um campo de texto em foco (para não
+  // deixar a edição em andamento sem persistir e evitar o diálogo "Salvar" do navegador).
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault()
+    saveRoomSnapshot()
+    return
+  }
 
   const activeElement = document.activeElement as HTMLElement | null
   const isInputFocused = activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName)
@@ -811,6 +820,9 @@ function toggleFullScreen() {
             :icon="room.isOpen ? 'success' : 'restrict'"
             @click="openToggleRoomOpenAlert"
         />
+      </button>
+      <button class="dice-selector-button">
+        <Icon size="sm" style="padding: 4px; box-sizing: border-box" name="Ajuda" icon="help" @click="openHelpManual"/>
       </button>
     </Teleport>
 

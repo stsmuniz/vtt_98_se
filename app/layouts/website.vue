@@ -1,9 +1,11 @@
 <script setup lang="ts">
+const currentYear = new Date().getFullYear()
 </script>
 <template>
   <div class="website-wrapper">
+    <a href="#main-content" class="skip-link">Pular para o conteúdo</a>
     <website-header />
-    <main class="main-section">
+    <main id="main-content" class="main-section" tabindex="-1">
       <slot/>
     </main>
     <footer class="website-footer">
@@ -142,12 +144,25 @@
         </a>
       </div>
       <p class="copyright">
-        &copy; 2026 VTT 98 SE. Todos os direitos reservados. Criado por <NuxtLink to="https://github.com/stsmuniz" target="_blank" rel="noopener noreferrer">@stsmuniz</NuxtLink>.
+        &copy; {{ currentYear }} VTT 98 SE. Todos os direitos reservados. Criado por <NuxtLink to="https://github.com/stsmuniz" target="_blank" rel="noopener noreferrer">@stsmuniz</NuxtLink>.
       </p>
     </footer>
   </div>
 </template>
 <style lang="css">
+.skip-link {
+  align-self: flex-start;
+  color: #555555;
+  text-decoration: underline;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.skip-link:hover,
+.skip-link:focus {
+  color: #0000ee;
+}
+
 .website-wrapper {
   font-family: "Times New Roman", Times, serif;
   min-height: 100vh;

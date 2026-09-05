@@ -32,6 +32,10 @@ npx drizzle-kit migrate --config drizzle.config.ts    # apply pending migrations
 ```
 `.env` needs `SUPABASE_URL`, `SUPABASE_PASSWORD`, `SUPABASE_POOLER_HOST` (and `SUPABASE_KEY`, `SUPABASE_DIRECT_CONNECTION_STRING` for reference/other tooling). The same three vars must also be set in the Vercel project's environment variables (Production, Preview, and Development) for the deployed app and `vercel dev` to work. `scripts/list-tables.cjs` / `.js` are quick one-off scripts to dump table names from `information_schema.tables` (run with `node --env-file=.env scripts/list-tables.js`).
 
+#### Local Postgres (offline / no Supabase access)
+
+When the local network can't reach Supabase (pooler or direct), a local Postgres runs via `docker-compose.yml` (`postgres:16`, `localhost:5432`, db `vtt_rpg`, user/password `postgres`/`postgres`). Start it with `docker compose up -d` (requires Docker Desktop running). If `DATABASE_URL` is set in `.env` (already there, pointing at that local container), it takes priority over the `SUPABASE_*` vars everywhere a db connection is made: `drizzle.config.ts`/`.cjs`, `server/utils/drizzle.ts`, and `scripts/list-tables.js`/`.cjs` — all branch on `process.env.DATABASE_URL` first. Apply migrations to it the normal way (`npx drizzle-kit migrate --config drizzle.config.ts`). This only affects local dev: Vercel's env vars don't set `DATABASE_URL`, so production keeps using the Supabase pooler untouched. To go back to hitting Supabase locally, comment out/remove `DATABASE_URL` from `.env`.
+
 When you change `server/db/schema.ts`, keep `server/db/schema.cjs` in sync manually — they are not generated from one another. `auth-schema.ts` at the repo root is a stray artifact from the better-auth CLI schema generator (unused by app code, but kept in sync with the `user`/`session`/`account`/`verification` tables for reference).
 
 ### Realtime room sync (Server-Sent Events + Upstash Redis)

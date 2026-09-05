@@ -18,13 +18,13 @@ useSeoMeta({
 <template>
   <article class="page-content screenshots-page">
     <header class="page-header">
-      <h2>Galeria de Capturas de Tela</h2>
+      <h1>Galeria de Capturas de Tela</h1>
       <p class="subtitle">Conheça as principais interfaces do VTT 98 SE antes de criar sua conta.</p>
     </header>
 
     <div class="screenshots-list">
       <section class="screenshot-item">
-        <h3>Sala</h3>
+        <h2>Sala</h2>
         <p>A tela principal do jogo, onde a ação acontece. O mestre controla os tokens no cenário e os movimentos são propagados em tempo real para os jogadores conectados à sala.</p>
         <div class="media-container">
           <Lightbox
@@ -39,7 +39,7 @@ useSeoMeta({
       </section>
 
       <section class="screenshot-item">
-        <h3>Gerenciador de Cenas e Cenários</h3>
+        <h2>Gerenciador de Cenas e Cenários</h2>
         <p>Organize os mapas da sua aventura. Alterne entre o mapa da masmorra, a taverna da cidade ou a imagem de um NPC importante com apenas um clique.</p>
         <div class="media-container">
           <Lightbox
@@ -54,7 +54,7 @@ useSeoMeta({
       </section>
 
       <section class="screenshot-item">
-        <h3>Biblioteca de Tokens e Recursos</h3>
+        <h2>Biblioteca de Tokens e Recursos</h2>
         <p>Suba suas próprias artes de miniaturas para o sistema. O gerenciador de tokens permite organizar personagens, monstros e objetos por categorias.</p>
         <div class="media-container">
           <Lightbox
@@ -69,7 +69,7 @@ useSeoMeta({
       </section>
 
       <section class="screenshot-item">
-        <h3>Rolador de Dados e Lista de Iniciativa</h3>
+        <h2>Rolador de Dados e Lista de Iniciativa</h2>
         <p>Ferramentas de apoio flutuantes que podem ser movidas ou minimizadas na tela como janelas do sistema operacional.</p>
         <div class="media-container">
           <Lightbox

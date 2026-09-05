@@ -24,7 +24,7 @@ definePageMeta({
   middleware: 'auth',
 })
 
-const {register, unregister} = useMenuActions()
+const {register, unregister, openHelpManual, showStatusMessage} = useMenuActions()
 
 const params = useRoute().params
 const {data: currentScene} = useFetch(`/api/v1/scenes/${params.id}`)
@@ -190,7 +190,9 @@ const saveSceneTokens = async () => {
       body: JSON.stringify(localTokens.value),
     });
 
-    if (!response.ok) {
+    if (response.ok) {
+      showStatusMessage('Cena salva com sucesso!')
+    } else {
       console.error('Erro ao salvar tokens da cena.')
     }
   } catch (error) {
@@ -315,6 +317,14 @@ const setTokenTab = (tab: string) => {
 }
 
 const handleKeyDown = (e: KeyboardEvent) => {
+  // Ctrl+S / Cmd+S salva a cena, mesmo com um campo de texto em foco (para não
+  // deixar a edição em andamento sem persistir e evitar o diálogo "Salvar" do navegador).
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    saveSceneTokens();
+    return;
+  }
+
   // 1. Identifica qual elemento está em foco no momento
   const activeElement = document.activeElement as HTMLElement | null;
 
@@ -543,6 +553,15 @@ const onHandleMouseLeave = (e: any) => {
           name="Salvar"
           icon="save"
           @click="saveSceneTokens"
+      />
+    </button>
+    <button class="dice-selector-button">
+      <Icon
+          size="sm"
+          style="padding: 4px; box-sizing: border-box"
+          name="Ajuda"
+          icon="help"
+          @click="openHelpManual"
       />
     </button>
   </Teleport>

@@ -28,7 +28,7 @@ useSeoMeta({
       <NuxtLink to="/blog" class="back-link">&larr; Voltar para a lista de publicações</NuxtLink>
     </nav>
     <header class="post-header">
-      <h2>{{ post.title }}</h2>
+      <h1>{{ post.title }}</h1>
       <time class="post-date" :datetime="post.date">Data: {{ post.date }}</time>
     </header>
     <hr class="post-divider" />
@@ -41,7 +41,7 @@ useSeoMeta({
   </article>
   <article v-else class="page-content not-found-page">
     <header class="page-header">
-      <h2>Artigo não encontrado</h2>
+      <h1>Artigo não encontrado</h1>
     </header>
     <p>O artigo que você está procurando não foi encontrado ou não está mais disponível.</p>
     <div class="actions">

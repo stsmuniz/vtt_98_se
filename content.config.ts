@@ -10,6 +10,16 @@ export default defineContentConfig({
         date: z.string(),
         description: z.string()
       })
+    }),
+    manual: defineCollection({
+      type: 'page',
+      source: 'manual/*.md',
+      schema: z.object({
+        title: z.string(),
+        order: z.number(),
+        icon: z.string().optional(),
+        description: z.string().optional()
+      })
     })
   }
 })

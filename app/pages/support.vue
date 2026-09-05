@@ -35,7 +35,7 @@ const copyToClipboard = async () => {
 <template>
   <article class="page-content support-page">
     <header class="page-header">
-      <h2>Apoie o VTT 98 SE</h2>
+      <h1>Apoie o VTT 98 SE</h1>
       <p class="subtitle">
         O VTT 98 SE é um projeto independente criado por paixão ao RPG e ao desenvolvimento web.
         Ele é oferecido gratuitamente para a comunidade para apoiar sessões de jogo simples e acessíveis.
@@ -43,7 +43,7 @@ const copyToClipboard = async () => {
     </header>
 
     <section class="content-section">
-      <h3>Transparência de Custos e Limites</h3>
+      <h2>Transparência de Custos e Limites</h2>
       <p>Atualmente o sistema opera em camadas gratuitas dos serviços de hospedagem:</p>
 
       <div class="table-responsive">
@@ -72,7 +72,7 @@ const copyToClipboard = async () => {
     </section>
 
     <section class="content-section">
-      <h3>Plano de Novas Funcionalidades (Roadmap)</h3>
+      <h2>Plano de Novas Funcionalidades (Roadmap)</h2>
       <p>Com o apoio da comunidade, os próximos passos do projeto incluem:</p>
       <div class="list-wrapper">
         <ul>
@@ -86,29 +86,26 @@ const copyToClipboard = async () => {
     </section>
 
     <section class="content-section">
-      <h3>Como Ajudar</h3>
+      <h2>Como Ajudar</h2>
       <p>Você pode contribuir de duas formas simples:</p>
 
-      <h4>1. Doação via Pix</h4>
+      <h3>1. Doação via Pix</h3>
       <p>Ajude a manter os servidores ativos e a pagar a anuidade do domínio.</p>
 
       <div class="pix-container">
         <strong>Chave Pix:</strong>
-        <pre
+        <button
           id="chave-pix"
-          role="button"
-          tabindex="0"
+          type="button"
           title="Clique para copiar a chave Pix"
           @click="copyToClipboard"
-          @keydown.enter.prevent="copyToClipboard"
-          @keydown.space.prevent="copyToClipboard"
-        >{{ chavePix }}</pre>
+        ><code>{{ chavePix }}</code></button>
         <small class="pix-tip">
           {{ copied ? '✓ Chave Pix copiada para a área de transferência!' : 'Clique no quadro acima para copiar a chave.' }}
         </small>
       </div>
 
-      <h4>2. Feedback e Divulgação</h4>
+      <h3>2. Feedback e Divulgação</h3>
       <p>Reporte bugs, sugira melhorias e indique o VTT 98 SE para seu grupo de RPG e amigos mestres!</p>
     </section>
   </article>
@@ -192,24 +189,35 @@ const copyToClipboard = async () => {
 }
 
 #chave-pix {
+  display: block;
   background-color: #ffffff;
   color: #000000;
   border: 2px solid;
   border-color: #808080 #dfdfdf #dfdfdf #808080;
   padding: 0.75rem 1rem;
-  font-family: monospace;
   font-size: 1rem;
   cursor: pointer;
   max-width: 100%;
   overflow-x: auto;
-  word-break: break-all;
-  white-space: pre-wrap;
   text-align: center;
   box-sizing: border-box;
 }
 
+#chave-pix code {
+  font-family: monospace;
+  word-break: break-all;
+  white-space: pre-wrap;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
 #chave-pix:hover {
   background-color: #f8f8f8;
+}
+
+#chave-pix:active {
+  border-color: #dfdfdf #808080 #808080 #dfdfdf;
 }
 
 .pix-tip {

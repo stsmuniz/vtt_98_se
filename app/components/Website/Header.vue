@@ -12,8 +12,12 @@
         <li><NuxtLink to="/screenshots">Screenshots</NuxtLink></li>
         <li><NuxtLink to="/blog">Blog</NuxtLink></li>
         <li><NuxtLink to="/support">Ajude-nos</NuxtLink></li>
-        <li><NuxtLink to="/login">Login</NuxtLink></li>
-        <li><NuxtLink to="/register">Cadastre-se</NuxtLink></li>
+      </ul>
+    </nav>
+    <nav aria-label="Conta">
+      <ul class="account-menu">
+        <li><NuxtLink to="/login" class="account-link">Login</NuxtLink></li>
+        <li><NuxtLink to="/register" class="account-link account-link-primary">Cadastre-se grátis</NuxtLink></li>
       </ul>
     </nav>
   </header>
@@ -70,5 +74,51 @@ nav {
 
 .main-menu a:hover {
   color: #551a8b;
+}
+
+.account-menu {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+}
+
+.account-menu li {
+  white-space: nowrap;
+}
+
+.account-link {
+  display: inline-block;
+  padding: 0.4rem 0.9rem;
+  background-color: #c0c0c0;
+  color: #000000;
+  border: 2px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  box-shadow: inset 1px 1px 0px #dfdfdf, inset -1px -1px 0px #000000;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 0.95rem;
+}
+
+.account-link:hover {
+  background-color: #d0d0d0;
+}
+
+.account-link:active {
+  border-color: #808080 #ffffff #ffffff #808080;
+  box-shadow: inset 1px 1px 0px #000000, inset -1px -1px 0px #dfdfdf;
+}
+
+.account-link-primary {
+  background-color: #000080;
+  color: #ffffff;
+}
+
+.account-link-primary:hover {
+  background-color: #0000a8;
 }
 </style>
