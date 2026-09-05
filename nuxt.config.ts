@@ -12,6 +12,9 @@ export default defineNuxtConfig({
         lang: 'pt-BR'
       },
       title: 'VTT 98 SE - Virtual Tabletop Retrô para RPG de Mesa',
+      link: [
+        {rel: 'icon', type: 'image/x-icon', href: 'favicons/favicon-16x16.png'}
+      ],
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
