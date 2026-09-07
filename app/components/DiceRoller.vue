@@ -25,7 +25,7 @@ function clearRollHistory() {
 <template>
   <session class="dice-roller-container">
     <div class="dice-selector">
-      <fieldset>
+      <fieldset class="dice-selector-fieldset">
         <legend>Escolha o dado</legend>
         <button class="dice-selector-button" v-for="d in validDice" :key="d">
           <icon
@@ -37,46 +37,48 @@ function clearRollHistory() {
       </fieldset>
     </div>
     <div class="modifiers">
-      <fieldset>
+      <fieldset class="modifiers-fieldset">
         <legend>Configurações</legend>
-        <div class="attribute-container">
-          <label for="dice-quantity">Quantidade</label>
-          <div class="value-modifier">
-            <input class="attribute-item" v-model="quantity" type="number" id="dice-quantity" name="quantity" min="1" size="2" />
-          </div>
-        </div>
-        <div class="attribute-container">
-          <label for="dice-faces">Faces</label>
-          <div class="value-modifier">
-            <input class="attribute-item" v-model="dice" type="text" disabled id="dice-faces" name="dice-faces" min="1" size="4" />
-          </div>
-        </div>
-        <div class="attribute-container">
-          <label for="dice-mod">Modificadores</label>
-          <div class="value-modifier">
-            <div class="signal-mod-container">
-              <div class="signal-mod">
-                <input type="radio" v-model="modSignal" value="-" name="signal-mod" id="signal-minus">
-                <label for="signal-minus">-</label>
-              </div>
-              <div class="signal-mod">
-                <input type="radio" v-model="modSignal" value="+" name="signal-mod" id="signal-plus">
-                <label for="signal-plus">+</label>
+        <div class="roll-set">
+          <div class="modifiers-container">
+            <div class="attribute-container">
+              <label for="dice-quantity">Quantidade</label>
+              <div class="value-modifier">
+                <input class="attribute-item" v-model="quantity" type="number" id="dice-quantity" name="quantity" min="1" size="2" />
               </div>
             </div>
-            <input class="attribute-item" v-model="mod" type="number" id="dice-mod" name="dice-mod" min="1" size="4" />
+            <div class="attribute-container">
+              <label for="dice-faces">Faces</label>
+              <div class="value-modifier">
+                <input class="attribute-item" v-model="dice" type="text" disabled id="dice-faces" name="dice-faces" min="1" size="4" />
+              </div>
+            </div>
+            <div class="attribute-container">
+              <label for="dice-mod">Modificadores</label>
+              <div class="value-modifier">
+                <div class="signal-mod-container">
+                  <div class="signal-mod">
+                    <input type="radio" v-model="modSignal" value="-" name="signal-mod" id="signal-minus">
+                    <label for="signal-minus">-</label>
+                  </div>
+                  <div class="signal-mod">
+                    <input type="radio" v-model="modSignal" value="+" name="signal-mod" id="signal-plus">
+                    <label for="signal-plus">+</label>
+                  </div>
+                </div>
+                <input class="attribute-item" v-model="mod" type="number" id="dice-mod" name="dice-mod" min="1" size="4" />
+              </div>
+            </div>
+            <div class="attribute-container">
+              <label for="dice-faces">Tipo de Rolagem</label>
+              <div class="value-modifier">
+                <select v-model="rollType" name="roll-type" id="roll-type">
+                  <option value="s">Soma</option>
+                  <option value="h">Maior</option>
+                </select>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="attribute-container">
-          <label for="dice-faces">Tipo de Rolagem</label>
-          <div class="value-modifier">
-            <select v-model="rollType" name="roll-type" id="roll-type">
-              <option value="s">Soma</option>
-              <option value="h">Maior</option>
-            </select>
-          </div>
-        </div>
-        <div class="attribute-container">
           <button class="roll-button" @click.prevent="rollDice">Rolar</button>
         </div>
       </fieldset>
@@ -111,6 +113,11 @@ function clearRollHistory() {
   .dice-selector{
     display: flex;
     gap: 0.25rem;
+    .dice-selector-fieldset {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
     .dice-selector-button {
       padding: 0.5rem;
       button {
@@ -120,33 +127,40 @@ function clearRollHistory() {
   }
   .modifiers {
     width: 100%;
-    fieldset {
-      display: flex;
-      gap: 1rem;
-      flex-direction: row;
-      align-items: end;
-      .attribute-container {
+    .modifiers-fieldset {
+      .roll-set {
         display: flex;
         flex-direction: column;
-        gap: 0.25rem;
-        align-items: center;
-        .value-modifier {
+        gap: 1rem;
+        .modifiers-container {
           display: flex;
-          .attribute-item {
-            width: 3rem;
-            text-align: center;
-            font-size: 2rem;
-            height: 2.5rem;
-            padding: 0.25rem;
-          }
-          select {
-            font-size: 2rem;
-            height: 2.5rem;
+          flex-direction: row;
+          justify-content: space-around;
+          .attribute-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            align-items: center;
+            .value-modifier {
+              display: flex;
+              .attribute-item {
+                width: 3rem;
+                text-align: center;
+                font-size: 2rem;
+                height: 2.5rem;
+                padding: 0.25rem;
+              }
+              select {
+                font-size: 2rem;
+                height: 2.5rem;
+              }
+            }
           }
         }
         .roll-button {
           font-size: 1.8rem;
           height: 2.5rem;
+          width: 100%;
         }
       }
     }
@@ -188,5 +202,8 @@ function clearRollHistory() {
       }
     }
   }
+}
+@media screen and (min-width: 768px) {
+
 }
 </style>

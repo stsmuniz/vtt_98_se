@@ -20,8 +20,8 @@
           <img src="/assets/icons/login.png"/>
         </div>
         <div class="window-content">
-          <form class="login-form" @submit.prevent="submitForm" style="display: grid; grid-template-columns: 1fr auto; gap: 1rem;">
-            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+          <form class="login-form" @submit.prevent="submitForm">
+            <div>
               <div>
                 <p>Entre com suas credenciais no formulário abaixo para se conectar ao sistema. Para sua segurança, pediremos seu nome de usuário e senha toda vez que você fizer um novo acesso.</p>
                 <p>Caso ainda não tenha um cadastro, clique no botão "Registrar" para seguir para o formulário de cadastro.</p>
@@ -121,13 +121,12 @@ section {
 }
 
 .login-window {
-  width: 90vw;
-}
-
-.login-window .window-body, .alert-window .window-body {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 2rem;
+  max-width: 70%;
+  .window-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
 }
 
 .window-overlay {
@@ -145,28 +144,60 @@ section {
 }
 
 .window-icon {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
+  display: none;
+}
+
+.login-form {
+  input {
+    width: 100%;
+  }
 }
 
 .login-form label {
-  min-width: 25%;
+  min-width: 15%;
 }
 
-.login-form input {
-  min-width: 80%;
-}
-
-.buttons {
+.login-form .buttons {
   display: flex;
-  flex-direction: column;
   gap: 0.25rem;
-  align-items: center;
+  justify-content: end;
+  margin-top: 1rem;
 }
 
 @media screen and (min-width: 960px) {
+  .login-window {
+    width: 50vw;
+  }
+
+  .login-window .window-body, .alert-window .window-body {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2rem;
+  }
+
+  .window-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .login-form {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+
+    .buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      align-items: center;
+      justify-content: flex-start;
+    }
+  }
+}
+
+@media screen and (min-width: 1280px) {
   .login-window {
     width: 30vw;
   }

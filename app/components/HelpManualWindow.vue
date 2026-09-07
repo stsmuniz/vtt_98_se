@@ -119,7 +119,7 @@ watch(topics, (list) => {
 }
 
 .help-panes.sidebar-hidden {
-  grid-template-columns: 0 1fr;
+  grid-template-columns: 1fr;
 
   .help-toc {
     display: none;
