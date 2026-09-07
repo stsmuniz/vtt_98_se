@@ -1,18 +1,33 @@
 <script setup lang="ts">
-import {roll, type RollResult, type RollType} from "~~/lib/rollDice.ts";
+import {rollDiceGroups, type DiceGroup, type DiceType, type ModSignal, type RollResult, type RollType} from "~~/lib/rollDice.ts";
 
 const quantity = ref(1)
 const dice = ref('4')
 const mod = ref(0)
-const modSignal = ref('+')
-const diceString = computed(() => `${quantity.value}d${dice.value}${modSignal.value}${mod.value}`)
+const modSignal = ref<ModSignal>('+')
 const rollType = ref<RollType>('s')
 const validDice = ['4', '6', '8', '10', '12', '20']
 const lastRolls = ref<RollResult[]>([])
 const rollResult = ref<RollResult | null>(null)
+const diceGroups = ref<DiceGroup[]>([])
+
+function addDice() {
+  diceGroups.value.push({ quantity: Number(quantity.value), faces: Number(dice.value) as DiceType })
+}
+
+function removeDice(index: number) {
+  diceGroups.value.splice(index, 1)
+}
+
+function clearDiceGroups() {
+  diceGroups.value = []
+}
 
 function rollDice() {
-  const newRoll = roll(diceString.value, rollType.value)
+  const groups = diceGroups.value.length > 0
+      ? diceGroups.value
+      : [{ quantity: Number(quantity.value), faces: Number(dice.value) as DiceType }]
+  const newRoll = rollDiceGroups(groups, rollType.value, Number(mod.value), modSignal.value)
   rollResult.value = newRoll
   lastRolls.value.unshift(newRoll)
 }
@@ -20,6 +35,10 @@ function rollDice() {
 function clearRollHistory() {
   lastRolls.value = []
   rollResult.value = null
+}
+
+function rollTypeLabel(type: RollType) {
+  return type === 's' ? 'Soma' : type === 'h' ? 'Maior' : 'Menor'
 }
 </script>
 <template>
@@ -40,9 +59,9 @@ function clearRollHistory() {
       <fieldset class="modifiers-fieldset">
         <legend>Configurações</legend>
         <div class="roll-set">
-          <div class="modifiers-container">
+          <fieldset class="dice-settings-container">
             <div class="attribute-container">
-              <label for="dice-quantity">Quantidade</label>
+              <label for="dice-quantity">Qtde</label>
               <div class="value-modifier">
                 <input class="attribute-item" v-model="quantity" type="number" id="dice-quantity" name="quantity" min="1" size="2" />
               </div>
@@ -54,7 +73,7 @@ function clearRollHistory() {
               </div>
             </div>
             <div class="attribute-container">
-              <label for="dice-mod">Modificadores</label>
+              <label for="dice-mod">Mod</label>
               <div class="value-modifier">
                 <div class="signal-mod-container">
                   <div class="signal-mod">
@@ -70,16 +89,24 @@ function clearRollHistory() {
               </div>
             </div>
             <div class="attribute-container">
-              <label for="dice-faces">Tipo de Rolagem</label>
+              <label for="dice-faces">Rolagem</label>
               <div class="value-modifier">
                 <select v-model="rollType" name="roll-type" id="roll-type">
                   <option value="s">Soma</option>
                   <option value="h">Maior</option>
+                  <option value="l">Menor</option>
                 </select>
               </div>
             </div>
+          </fieldset>
+          <div class="dice-pool" v-if="diceGroups.length">
+            <div class="dice-pool-item" v-for="(group, index) in diceGroups" :key="index">
+              <span>{{group.quantity}}d{{group.faces}}</span>
+              <button type="button" class="dice-pool-remove" title="Remover dado" @click.prevent="removeDice(index)">&times;</button>
+            </div>
           </div>
-          <button class="roll-button" @click.prevent="rollDice">Rolar</button>
+          <button type="button" class="roll-button" @click.prevent="addDice">Adicionar dado</button>
+          <button type="button" class="roll-button" @click.prevent="rollDice">Rolar</button>
         </div>
       </fieldset>
       <fieldset>
@@ -96,7 +123,7 @@ function clearRollHistory() {
               <span class="result">Resultado: {{roll.result}}</span>
               <span class="rolls">Dados rolados: {{roll.rolls.join(', ')}}</span>
               <span class="input">Formula: {{roll.input}}</span>
-              <span class="roll-type">Tipo: {{roll.type == 's' ? 'Soma' : 'Maior'}}</span>
+              <span class="roll-type">Tipo: {{rollTypeLabel(roll.type)}}</span>
             </div>
           </div>
           <button @click.prevent="clearRollHistory">Limpar Histórico</button>
@@ -132,7 +159,7 @@ function clearRollHistory() {
         display: flex;
         flex-direction: column;
         gap: 1rem;
-        .modifiers-container {
+        .dice-settings-container {
           display: flex;
           flex-direction: row;
           justify-content: space-around;
@@ -161,6 +188,30 @@ function clearRollHistory() {
           font-size: 1.8rem;
           height: 2.5rem;
           width: 100%;
+        }
+        .dice-pool {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          .dice-pool-item {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.5rem;
+            font-size: 1.2rem;
+            background-color: #dfdfdf;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            .dice-pool-remove {
+              min-width: auto;
+              min-height: auto;
+              width: 1.25rem;
+              height: 1.25rem;
+              padding: 0;
+              line-height: 1;
+              font-size: 1rem;
+            }
+          }
         }
       }
     }
