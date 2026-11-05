@@ -29,6 +29,7 @@ export default defineNuxtConfig({
   },
   css: [
     '98.css',
+    '~/assets/css/tokens.css',
     '~/assets/css/fonts.css'
   ],
   vite: {

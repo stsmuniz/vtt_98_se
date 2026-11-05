@@ -1,0 +1,83 @@
+/*
+ * Tokens de design do VTT 98 SE.
+ *
+ * Fonte única de verdade para fontes, tamanhos, espaçamentos, cores e camadas
+ * (z-index). Componentes novos devem usar SOMENTE estas variáveis — nada de
+ * font-size/cores/z-index soltos.
+ *
+ * Tamanhos de fonte: fontes pixel só ficam nítidas em múltiplos inteiros do
+ * tamanho nativo da grade (ex.: uma fonte de grade 16px fica nítida em 16/32/48px).
+ * Por isso a escala --fs-* é definida a partir de --fs-base, e não em rem
+ * fracionário. Os valores definitivos dependem da fonte escolhida em /dev/fonts
+ * (Fase 7); até lá os valores abaixo reproduzem a aparência atual.
+ */
+:root {
+  /* Fontes */
+  --font-ui: "Munro", "Pixelated MS Sans Serif", Arial, sans-serif;
+  --font-display: "Terminal Grotesque", "Pixelated MS Sans Serif", Arial, sans-serif;
+  --font-mono: "Perfect DOS VGA 437", "Courier New", monospace;
+
+  /* Escala tipográfica (múltiplos inteiros da grade da fonte) */
+  --fs-base: 14px;
+  --fs-1: var(--fs-base);              /* texto de interface */
+  --fs-2: calc(var(--fs-base) * 2);    /* títulos de seção */
+  --fs-3: calc(var(--fs-base) * 3);    /* destaques (resultado de dados, splash) */
+  --fs-4: calc(var(--fs-base) * 4);    /* títulos do site */
+  --lh: 1.25;
+
+  /* Escala da interface (Configurações > Aparência) */
+  --ui-scale: 1;
+
+  /* Espaçamentos */
+  --sp-1: 2px;
+  --sp-2: 4px;
+  --sp-3: 8px;
+  --sp-4: 12px;
+  --sp-5: 16px;
+
+  /* Cores do esquema "Padrão do Windows" */
+  --c-desktop: #008080;
+  --c-surface: #c0c0c0;        /* face de botões e janelas */
+  --c-surface-light: #dfdfdf;
+  --c-highlight: #ffffff;      /* borda clara do relevo */
+  --c-shadow: #808080;         /* borda escura do relevo */
+  --c-dark-shadow: #0a0a0a;
+  --c-window: #ffffff;         /* fundo de campos e listas */
+  --c-text: #222222;
+  --c-text-disabled: #808080;
+  --c-text-inverse: #ffffff;
+  --c-selection: #000080;
+  --c-selection-text: #ffffff;
+  --c-title-active-from: #000080;
+  --c-title-active-to: #1084d0;
+  --c-title-inactive-from: #808080;
+  --c-title-inactive-to: #b5b5b5;
+  --c-tooltip: #ffffe1;
+  --c-link: #0000ee;
+
+  /* Relevo (bevel) padrão do 98.css, reutilizável fora dele */
+  --bevel-raised: inset -1px -1px var(--c-dark-shadow), inset 1px 1px var(--c-highlight),
+    inset -2px -2px var(--c-shadow), inset 2px 2px var(--c-surface-light);
+  --bevel-sunken: inset -1px -1px var(--c-highlight), inset 1px 1px var(--c-shadow),
+    inset -2px -2px var(--c-surface-light), inset 2px 2px var(--c-dark-shadow);
+  --bevel-thin-raised: inset -1px -1px var(--c-shadow), inset 1px 1px var(--c-highlight);
+  --bevel-thin-sunken: inset -1px -1px var(--c-highlight), inset 1px 1px var(--c-shadow);
+
+  /* Shell */
+  --taskbar-h: 28px;
+  --icon-cell: 75px;
+
+  /* Camadas */
+  --z-desktop: 0;
+  --z-windows: 10;
+  --z-taskbar: 20;
+  --z-popup: 30;
+  --z-system-modal: 40;
+  --z-busy: 45;
+  --z-shutdown: 50;
+}
+
+/* Imagens pixeladas ampliadas não devem ser suavizadas */
+.pixelated {
+  image-rendering: pixelated;
+}
