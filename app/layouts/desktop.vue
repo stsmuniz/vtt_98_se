@@ -12,10 +12,13 @@
 import { useWindowManager, type WinEntry } from '~~/composables/useWindowManager'
 import { useDesktop } from '~~/composables/useDesktop'
 import { useDialog } from '~~/composables/useDialog'
+import { menusRegistry } from '~~/composables/useWindow'
+import { parseMenuLabel } from '~/utils/menu'
 import { usePreferences } from '~~/composables/usePreferences'
 import { useSystemSounds } from '~~/composables/useSystemSounds'
 
 const wm = useWindowManager()
+const route = useRoute()
 const desktop = useDesktop()
 const dialog = useDialog()
 const prefs = usePreferences()
@@ -81,16 +84,50 @@ function finishSwitcher() {
   if (chosen) wm.focus(chosen.id)
 }
 
+function activeWindowHasMenuKey(key: string): boolean {
+  const id = wm.state.value.activeId
+  const menus = id ? menusRegistry(id).value : undefined
+  return Boolean(menus?.some(m => parseMenuLabel(m.label).accessKey === key))
+}
+
+/**
+ * Capítulo do manual para o F1, conforme a janela ativa (como a ajuda sensível ao contexto do
+ * Windows). Sem janela ativa ou sem capítulo específico, abre o manual no começo.
+ */
+const HELP_TOPIC_BY_APP: Record<string, string> = {
+  tokens: 'pastas', scenarios: 'pastas', scenes: 'pastas', rooms: 'pastas', properties: 'pastas',
+  'room-wizard': 'salas', 'image-viewer': 'cenarios', dice: 'dados-e-iniciativa',
+  settings: 'configuracoes', 'user-account': 'conta',
+}
+const HELP_TOPIC_BY_RESOURCE: Record<string, string> = { tokens: 'tokens', scenarios: 'cenarios', scenes: 'cenas-e-editor', rooms: 'salas' }
+const HELP_TOPIC_BY_INLINE: Record<string, string> = { 'tokens-da-cena': 'cenas-e-editor', iniciativa: 'dados-e-iniciativa', 'token-config': 'salas', 'token-atributos': 'tokens' }
+
+function helpTopicForActiveWindow(): string | undefined {
+  const entry = wm.active.value
+  if (!entry) return undefined
+  if (entry.kind === 'route') return route.path.startsWith('/rooms') ? 'salas' : 'cenas-e-editor'
+  if (entry.kind === 'inline') {
+    const key = entry.id.replace(/^inline:/, '')
+    return Object.entries(HELP_TOPIC_BY_INLINE).find(([k]) => key.includes(k))?.[1]
+      ?? (route.path.startsWith('/rooms') ? 'salas' : 'cenas-e-editor')
+  }
+  if (entry.appId === 'resource-form') return HELP_TOPIC_BY_RESOURCE[String(entry.props?.resource)]
+  return entry.appId ? HELP_TOPIC_BY_APP[entry.appId] : undefined
+}
+
 function onKeyDown(event: KeyboardEvent) {
   // Com uma caixa de mensagem aberta, só ela responde ao teclado.
   if (dialog.queue.value.length) return
 
   if (event.key === 'F1') {
     event.preventDefault()
-    desktop.openHelp()
+    // Dentro do próprio manual, F1 não troca de capítulo.
+    desktop.openHelp(wm.active.value?.appId === 'help' ? undefined : helpTopicForActiveWindow())
     return
   }
-  const startCombo = (event.altKey && !event.ctrlKey && event.key.toLowerCase() === 'i')
+  // Alt+I abre o Iniciar, a não ser que a janela ativa tenha um menu com a letra I (Inserir, Ir):
+  // como no Windows, o menu da janela tem prioridade — e Ctrl+Esc continua abrindo o Iniciar.
+  const startCombo = (event.altKey && !event.ctrlKey && event.key.toLowerCase() === 'i' && !activeWindowHasMenuKey('i'))
     || (event.ctrlKey && event.key === 'Escape')
   if (startCombo) {
     event.preventDefault()

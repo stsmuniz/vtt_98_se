@@ -1,14 +1,16 @@
 <script setup lang="ts">
 /** Caixa de seleção (checkbox) do 98.css. */
-withDefaults(defineProps<{ label: string; disabled?: boolean }>(), { disabled: false })
+const props = withDefaults(defineProps<{ label?: string; inputId?: string; name?: string; disabled?: boolean }>(), { label: undefined, inputId: undefined, name: undefined, disabled: false })
 const model = defineModel<boolean>({ default: false })
-const id = useId()
+const generatedId = useId()
+const id = computed(() => props.inputId ?? generatedId)
 </script>
 
 <template>
   <div class="field-row ui-checkbox">
-    <input :id="id" v-model="model" type="checkbox" :disabled="disabled">
-    <label :for="id">{{ label }}</label>
+    <input :id="id" v-model="model" type="checkbox" :name="name" :disabled="disabled">
+    <!-- O 98.css usa inline-flex no rótulo; o span mantém texto e links numa linha só -->
+    <label :for="id"><span><slot>{{ label }}</slot></span></label>
   </div>
 </template>
 

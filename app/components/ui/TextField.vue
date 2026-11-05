@@ -2,6 +2,9 @@
 /** Campo de texto com rótulo. Enter emite `enter` (ex.: confirmar um diálogo). */
 const props = withDefaults(defineProps<{
   label?: string
+  /** id do <input> (estável); padrão: gerado. */
+  inputId?: string
+  name?: string
   type?: 'text' | 'password' | 'email' | 'number' | 'search'
   placeholder?: string
   disabled?: boolean
@@ -14,6 +17,8 @@ const props = withDefaults(defineProps<{
   hint?: string
 }>(), {
   label: undefined,
+  inputId: undefined,
+  name: undefined,
   type: 'text',
   placeholder: undefined,
   disabled: false,
@@ -37,13 +42,14 @@ defineExpose({ focus: () => inputEl.value?.focus(), select: () => inputEl.value?
 </script>
 
 <template>
-  <UiField :label="label" :stacked="stacked" :hint="hint">
+  <UiField :label="label" :field-id="inputId" :stacked="stacked" :hint="hint">
     <template #default="{ id }">
       <input
         :id="id"
         ref="inputEl"
         v-model="model"
         class="ui-text-field"
+        :name="name"
         :type="type"
         :placeholder="placeholder"
         :disabled="disabled"

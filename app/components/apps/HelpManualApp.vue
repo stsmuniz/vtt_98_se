@@ -5,6 +5,7 @@
  * do @nuxt/content (content/manual/*.md).
  */
 import type { MenuDef } from '~/utils/menu'
+import { iconUrl, isIconName } from '~/utils/icons'
 import { useWindow } from '~~/composables/useWindow'
 
 const props = defineProps<{ topic?: string }>()
@@ -48,9 +49,16 @@ function openExternal(path: string) {
   window.open(path, '_blank', 'noopener')
 }
 
+/** "/manual/07-salas" -> "salas" (o número só ordena o sumário). */
+const topicSlug = (path: string) => (path.split('/').pop() ?? '').replace(/^\d+-/, '')
+
+function topicIcon(icon?: string): string | null {
+  return icon && isIconName(icon) ? iconUrl(icon, 16) : null
+}
+
 watch([topics, () => props.topic], ([list, topic]) => {
   if (!list?.length) return
-  const wanted = topic ? list.find(t => t.path.endsWith(`/${topic}`) || t.path.includes(topic)) : undefined
+  const wanted = topic ? (list.find(t => topicSlug(t.path) === topic) ?? list.find(t => topicSlug(t.path).includes(topic))) : undefined
   if (wanted) openTopic(wanted.path)
   else if (history.value.length === 0) openTopic(list[0]!.path)
 }, { immediate: true })
@@ -120,7 +128,7 @@ win.shortcuts({
               :class="{ active: topic.path === currentPath }"
               @click.prevent="openTopic(topic.path)"
             >
-              <img v-if="topic.icon" :src="`/assets/icons/${topic.icon}.png`" class="help-toc-icon" alt="">
+              <img v-if="topicIcon(topic.icon)" :src="topicIcon(topic.icon)!" class="help-toc-icon" alt="">
               {{ topic.title }}
             </a>
           </li>

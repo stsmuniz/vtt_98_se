@@ -1,68 +1,31 @@
 <template>
-  <section>
-    <div class="window login-window">
-      <div class="title-bar">
-        <div class="title-bar-text">Boas vindas ao VTT 98 SE</div>
-        <div class="title-bar-controls">
-          <button aria-label="Ajuda"><strong>?</strong></button>
-        </div>
-      </div>
-      <div class="window-body">
-        <div class="window-icon">
-          <img src="/assets/icons/login.png"/>
-        </div>
-        <div class="window-content">
-          <form class="login-form" @submit.prevent="submitForm">
-            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
-              <div>
-                <p>Entre com seus dados para criar um registro de novo usuário e permitir acesso ao sistema.</p>
-                <p>Caso já tenha cadastro, clique no botão "Entrar" para seguir para o formulário de login.</p>
-              </div>
-              <div class="field-row">
-                <label for="name">Seu Nome</label>
-                <input v-model="form.name" type="text" name="name" id="name" :disabled="isSubmitting">
-              </div>
-              <div class="field-row">
-                <label for="email">E-mail</label>
-                <input v-model="form.email" type="email" name="email" id="email" :disabled="isSubmitting">
-              </div>
-              <div class="field-row">
-                <label for="password">Senha</label>
-                <input v-model="form.password" type="password" name="password" id="password" :disabled="isSubmitting">
-              </div>
-              <div class="field-row">
-                <label for="password">Confirme Senha</label>
-                <input v-model="form.passwordConfirm" type="password" name="password-confirm" id="password-confirm" :disabled="isSubmitting">
-              </div>
-              <div class="field-row accept-terms">
-                <input v-model="form.acceptedTerms" type="checkbox" name="accepted-terms" id="accepted-terms" :disabled="isSubmitting">
-                <!-- O 98.css usa inline-flex no rótulo do checkbox; o span mantém o texto e os links numa linha só -->
-                <label for="accepted-terms"><span>
-                  Li e aceito os <NuxtLink to="/termos" target="_blank">Termos de Uso</NuxtLink>
-                  e a <NuxtLink to="/privacidade" target="_blank">Política de Privacidade</NuxtLink>.
-                </span></label>
-              </div>
-            </div>
-            <div class="buttons">
-              <button id="submit-login-form" type="submit" :disabled="isSubmitting">
-                OK
-              </button>
-              <NuxtLink to="/login">
-                <button id="register" type="button" :disabled="isSubmitting">
-                  Entrar
-                </button>
-              </NuxtLink>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  </section>
+  <AuthLogonScreen title="Criar conta no VTT 98 SE" :busy="isSubmitting" @submit="submitForm">
+    <template #intro>
+      <p>Preencha os dados para criar sua conta gratuita.</p>
+      <p>Já tem conta? Clique em Entrar.</p>
+    </template>
+
+    <UiTextField v-model="form.name" input-id="name" name="name" label="Seu nome:" autocomplete="name" :maxlength="80" autofocus />
+    <UiTextField v-model="form.email" input-id="email" name="email" type="email" label="E-mail:" autocomplete="username" />
+    <UiTextField v-model="form.password" input-id="password" name="password" type="password" label="Senha:" autocomplete="new-password" />
+    <UiTextField v-model="form.passwordConfirm" input-id="password-confirm" name="password-confirm" type="password" label="Confirme a senha:" autocomplete="new-password" />
+    <UiCheckbox v-model="form.acceptedTerms" input-id="accepted-terms" name="accepted-terms" class="accept-terms">
+      Li e aceito os <NuxtLink to="/termos" target="_blank">Termos de Uso</NuxtLink>
+      e a <NuxtLink to="/privacidade" target="_blank">Política de Privacidade</NuxtLink>.
+    </UiCheckbox>
+
+    <template #buttons>
+      <button id="submit-login-form" type="submit" class="default" :disabled="isSubmitting">OK</button>
+      <button type="button" :disabled="isSubmitting" @click="navigateTo('/')">Cancelar</button>
+      <button id="register" type="button" :disabled="isSubmitting" @click="navigateTo(loginLink)">Entrar…</button>
+    </template>
+  </AuthLogonScreen>
 </template>
 <script setup lang="ts">
 import { useDialog } from "~~/composables/useDialog";
 import { authClient } from "@@/lib/auth-client.ts";
 import { useLoadingWindow } from "~~/composables/useLoadingWindow";
+import { authErrorMessage } from "~~/lib/authErrors";
 
 useSeoMeta({
   title: 'Criar Conta - VTT 98 SE',
@@ -75,6 +38,15 @@ useSeoMeta({
   twitterDescription: 'Cadastre-se gratuitamente no VTT 98 SE e comece a mestrar suas sessões de RPG com facilidade.',
   twitterImage: '/assets/screenshots/vtt_98_screenshot_7.png',
 })
+
+const route = useRoute()
+
+/** Mantém o ?redirect= (só caminhos internos) para depois do primeiro login. */
+const redirectQuery = computed(() => {
+  const r = route.query.redirect
+  return typeof r === 'string' && r.startsWith('/') && !r.startsWith('//') ? r : ''
+})
+const loginLink = computed(() => redirectQuery.value ? `/login?redirect=${encodeURIComponent(redirectQuery.value)}` : '/login')
 
 const err = ref<string|null>(null)
 
@@ -114,10 +86,10 @@ const submitForm = async () => {
       password: form.password,
     }, {
       onSuccess: (ctx) => {
-          navigateTo('/login')
+          navigateTo(loginLink.value)
       },
       onError: (ctx) => {
-        err.value = ctx.error.message
+        err.value = authErrorMessage(ctx.error)
       }
     }), 'Registrando...')
   } finally {
@@ -134,113 +106,3 @@ const form = reactive({
   acceptedTerms: false,
 })
 </script>
-<style lang="css" scoped>
-section {
-  background-color: teal;
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.login-window {
-  max-width: 70%;
-  .window-body {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-}
-
-.window-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 1000;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-}
-
-.window-icon {
-  display: none;
-}
-
-.login-form {
-  input {
-    width: 100%;
-  }
-  .buttons {
-    display: flex;
-    gap: 0.25rem;
-    justify-content: end;
-    margin-top: 1rem;
-  }
-}
-
-.login-form label {
-  min-width: 25%;
-}
-
-.login-form .accept-terms {
-  margin-top: 0.5rem;
-}
-
-.login-form .accept-terms input {
-  width: auto;
-}
-
-.login-form .accept-terms label {
-  min-width: 0;
-}
-
-.login-form {
-  input {
-    width: 100%;
-  }
-}
-
-@media screen and (min-width: 960px) {
-  .login-window {
-    width: 50vw;
-  }
-
-  .login-window .window-body, .alert-window .window-body {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 2rem;
-  }
-
-  .window-icon {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-  }
-
-  .login-form {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 1rem;
-
-    .buttons {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      align-items: center;
-      justify-content: flex-start;
-    }
-  }
-}
-
-@media screen and (min-width: 1280px) {
-  .login-window {
-    width: 30vw;
-  }
-}
-</style>

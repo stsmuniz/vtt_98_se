@@ -75,9 +75,30 @@ useSeoMeta({
         </table>
       </div>
     </section>
+
+    <section class="content-section">
+      <h2>Créditos</h2>
+      <p>O visual do VTT 98 SE só existe graças a trabalhos abertos de outras pessoas:</p>
+      <ul class="credits-list">
+        <li><strong>Pixel Operator</strong>, de Jayvee Enaguas (HarvettFox96) — a fonte de toda a interface, em domínio público (CC0).</li>
+        <li><strong>Chicago95</strong> — os ícones das janelas, pastas e menus, sob GPL-3.0 ou superior / MIT.</li>
+        <li><strong>98.css</strong>, de Jordan Scales — o estilo dos botões, janelas e controles, sob licença MIT.</li>
+      </ul>
+      <p>Windows é marca registrada da Microsoft. O VTT 98 SE é um projeto independente, sem qualquer ligação com a empresa.</p>
+    </section>
   </article>
 </template>
 <style lang="css" scoped>
+.credits-list {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+  list-style: disc;
+}
+
+.credits-list li {
+  margin-bottom: 0.5rem;
+}
+
 .page-header {
   text-align: center;
   margin-bottom: 2rem;

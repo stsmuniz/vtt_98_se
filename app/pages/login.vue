@@ -1,52 +1,25 @@
 <template>
-  <section>
-    <div class="window login-window">
-      <div class="title-bar">
-        <div class="title-bar-text">Boas vindas ao VTT 98 SE</div>
-        <div class="title-bar-controls">
-          <button aria-label="Ajuda"><strong>?</strong></button>
-        </div>
-      </div>
-      <div class="window-body">
-        <div class="window-icon">
-          <img src="/assets/icons/login.png"/>
-        </div>
-        <div class="window-content">
-          <form class="login-form" @submit.prevent="submitForm">
-            <div>
-              <div>
-                <p>Entre com suas credenciais no formulário abaixo para se conectar ao sistema. Para sua segurança, pediremos seu nome de usuário e senha toda vez que você fizer um novo acesso.</p>
-                <p>Caso ainda não tenha um cadastro, clique no botão "Registrar" para seguir para o formulário de cadastro.</p>
-              </div>
-              <div class="field-row">
-                <label for="email">E-mail</label>
-                <input v-model="form.email" type="email" name="email" id="email" :disabled="isSubmitting">
-              </div>
-              <div class="field-row">
-                <label for="password">Senha</label>
-                <input v-model="form.password" type="password" name="password" id="password" :disabled="isSubmitting">
-              </div>
-            </div>
-            <div class="buttons">
-              <button id="submit-login-form" type="submit" :disabled="isSubmitting">
-                OK
-              </button>
-              <NuxtLink to="/register">
-                <button id="register" type="button" :disabled="isSubmitting">
-                  Registrar
-                </button>
-              </NuxtLink>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  </section>
+  <AuthLogonScreen title="Entrar no VTT 98 SE" :busy="isSubmitting" @submit="submitForm">
+    <template #intro>
+      <p>Digite seu e-mail e sua senha para entrar.</p>
+      <p>Ainda não tem uma conta? Clique em Registrar.</p>
+    </template>
+
+    <UiTextField v-model="form.email" input-id="email" name="email" type="email" label="E-mail:" autocomplete="username" autofocus />
+    <UiTextField v-model="form.password" input-id="password" name="password" type="password" label="Senha:" autocomplete="current-password" />
+
+    <template #buttons>
+      <button id="submit-login-form" type="submit" class="default" :disabled="isSubmitting">OK</button>
+      <button type="button" :disabled="isSubmitting" @click="navigateTo('/')">Cancelar</button>
+      <button id="register" type="button" :disabled="isSubmitting" @click="navigateTo(registerLink)">Registrar…</button>
+    </template>
+  </AuthLogonScreen>
 </template>
 <script setup lang="ts">
 import { useDialog } from "~~/composables/useDialog";
 import {authClient} from "~~/lib/auth-client.ts";
 import {useLoadingWindow} from "~~/composables/useLoadingWindow";
+import { authErrorMessage } from "~~/lib/authErrors";
 
 useSeoMeta({
   title: 'Entrar - VTT 98 SE',
@@ -61,6 +34,12 @@ useSeoMeta({
 })
 
 const route = useRoute()
+
+/** O ?redirect= recebido (só caminhos internos), repassado ao cadastro. */
+const redirectQuery = computed(() => {
+  const r = route.query.redirect
+  return typeof r === 'string' && r.startsWith('/') && !r.startsWith('//') ? r : ''
+})
 
 /** Para onde ir depois de entrar: só caminhos internos (evita redirecionar para outro site). */
 const redirectTarget = computed(() => {
@@ -102,7 +81,7 @@ const submitForm = async () => {
         navigateTo(redirectTarget.value)
       },
       onError: (ctx) => {
-        err.value = ctx.error.message
+        err.value = authErrorMessage(ctx.error)
       }
     }), 'Entrando...')
   } finally {
@@ -111,101 +90,10 @@ const submitForm = async () => {
 }
 
 
+const registerLink = computed(() => redirectQuery.value ? `/register?redirect=${encodeURIComponent(redirectQuery.value)}` : '/register')
+
 const form = reactive({
   email: '',
   password: '',
 })
 </script>
-<style lang="css" scoped>
-section {
-  background-color: teal;
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.login-window {
-  max-width: 70%;
-  .window-body {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-}
-
-.window-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 1000;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-}
-
-.window-icon {
-  display: none;
-}
-
-.login-form {
-  input {
-    width: 100%;
-  }
-}
-
-.login-form label {
-  min-width: 15%;
-}
-
-.login-form .buttons {
-  display: flex;
-  gap: 0.25rem;
-  justify-content: end;
-  margin-top: 1rem;
-}
-
-@media screen and (min-width: 960px) {
-  .login-window {
-    width: 50vw;
-  }
-
-  .login-window .window-body, .alert-window .window-body {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 2rem;
-  }
-
-  .window-icon {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-  }
-
-  .login-form {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 1rem;
-
-    .buttons {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      align-items: center;
-      justify-content: flex-start;
-    }
-  }
-}
-
-@media screen and (min-width: 1280px) {
-  .login-window {
-    width: 30vw;
-  }
-}
-</style>

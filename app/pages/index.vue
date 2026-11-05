@@ -55,7 +55,7 @@ useSeoMeta({
       </div>
 
       <div class="media-container">
-        <Lightbox
+        <WebsiteLightbox
           src="/assets/screenshots/vtt_98_screenshot_7.png"
           thumbnail="/assets/screenshots/vtt_98_screenshot_7.avif"
           width="854"
@@ -65,7 +65,7 @@ useSeoMeta({
         />
       </div>
       <p class="see-more">
-        <NuxtLink to="/screenshots">Ver mais telas do sistema &rarr;</NuxtLink>
+        <NuxtLink to="/screenshots">Ver mais telas do sistema &gt;</NuxtLink>
       </p>
     </section>
 
@@ -91,7 +91,7 @@ useSeoMeta({
         <h3><NuxtLink :to="latestPost.path">{{ latestPost.title }}</NuxtLink></h3>
         <time class="news-date" :datetime="latestPost.date">{{ latestPost.date }}</time>
         <p>{{ latestPost.description }}</p>
-        <NuxtLink to="/blog" class="see-more-link">Ver todas as novidades &rarr;</NuxtLink>
+        <NuxtLink to="/blog" class="see-more-link">Ver todas as novidades &gt;</NuxtLink>
       </article>
     </section>
 

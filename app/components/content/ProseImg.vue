@@ -8,7 +8,7 @@ defineProps<{
 </script>
 
 <template>
-  <Lightbox
+  <WebsiteLightbox
     :src="src"
     :alt="alt"
     :title="alt"

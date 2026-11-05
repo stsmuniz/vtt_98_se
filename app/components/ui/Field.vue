@@ -3,18 +3,22 @@
  * Linha de formulário: rótulo + controle. O slot recebe `id` para ligar o
  * controle ao rótulo (`<input :id="id">`).
  */
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   label?: string
+  /** id do controle (estável, ex.: para autopreenchimento do navegador). Padrão: gerado. */
+  fieldId?: string
   /** Rótulo acima do controle em vez de ao lado. */
   stacked?: boolean
   hint?: string
 }>(), {
   label: undefined,
+  fieldId: undefined,
   stacked: false,
   hint: undefined,
 })
 
-const id = useId()
+const generatedId = useId()
+const id = computed(() => props.fieldId ?? generatedId)
 </script>
 
 <template>
@@ -30,7 +34,8 @@ const id = useId()
 <style scoped>
 .ui-field {
   display: grid;
-  grid-template-columns: minmax(80px, max-content) minmax(0, 1fr);
+  /* --field-label-w permite a um formulário alinhar a coluna dos rótulos em todos os campos */
+  grid-template-columns: var(--field-label-w, minmax(80px, max-content)) minmax(0, 1fr);
   align-items: center;
   gap: var(--sp-1) var(--sp-3);
   font-family: var(--font-ui);

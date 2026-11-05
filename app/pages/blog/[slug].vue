@@ -25,7 +25,7 @@ useSeoMeta({
 <template>
   <article v-if="post" class="page-content post-page">
     <nav class="actions-nav" aria-label="Navegação de retorno">
-      <NuxtLink to="/blog" class="back-link">&larr; Voltar para a lista de publicações</NuxtLink>
+      <NuxtLink to="/blog" class="back-link">&lt; Voltar para a lista de publicações</NuxtLink>
     </nav>
     <header class="post-header">
       <h1>{{ post.title }}</h1>
@@ -36,7 +36,7 @@ useSeoMeta({
       <ContentRenderer :value="post" />
     </div>
     <footer class="post-footer">
-      <NuxtLink to="/blog" class="back-link">&larr; Voltar para a lista de publicações</NuxtLink>
+      <NuxtLink to="/blog" class="back-link">&lt; Voltar para a lista de publicações</NuxtLink>
     </footer>
   </article>
   <article v-else class="page-content not-found-page">
@@ -45,7 +45,7 @@ useSeoMeta({
     </header>
     <p>O artigo que você está procurando não foi encontrado ou não está mais disponível.</p>
     <div class="actions">
-      <NuxtLink to="/blog" class="back-link">&larr; Voltar para a lista de publicações</NuxtLink>
+      <NuxtLink to="/blog" class="back-link">&lt; Voltar para a lista de publicações</NuxtLink>
     </div>
   </article>
 </template>
