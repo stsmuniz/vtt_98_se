@@ -36,6 +36,7 @@ const { image: nameBgImage, load: loadNameBgImage } = usePreloadedImage()
 const { image: bgImageObj, load: loadBgImage } = usePreloadedImage()
 const { images: tokenImages, ensureLoaded: ensureTokenImageLoaded } = useImageMap()
 const isDeleteTokenAlertOpen = ref(false)
+const isReplaceTokenWindowOpen = ref(false)
 const activeClass = ref('all-tokens')
 
 register('salvar', async () => {
@@ -308,6 +309,40 @@ const handleDeleteTokenAlertWindow = () => {
   isDeleteTokenAlertOpen.value = true
 }
 
+const openReplaceTokenWindow = () => {
+  if (!selectedTokenId.value) return
+  isReplaceTokenWindowOpen.value = true
+}
+
+const replaceToken = async (token: Token) => {
+  const index = localTokens.value.findIndex(t => t.id === selectedTokenId.value)
+  if (index === -1) return
+
+  const current = localTokens.value[index]
+  // Mantém a altura atual do token na cena, mas ajusta a largura para preservar
+  // a proporção (largura/altura) do token escolhido para substituição.
+  const width = token.width && token.height
+      ? current.height * (token.width / token.height)
+      : current.width
+  const replaced: SceneToken = {
+    ...current,
+    tokenId: token.id,
+    name: token.name ?? '',
+    image: token.image ?? '',
+    attributes: token.attributes ?? [],
+    width,
+  }
+  localTokens.value.splice(index, 1, replaced)
+
+  // Força o recarregamento da imagem: ensureTokenImageLoaded ignora ids já
+  // presentes no mapa, mas aqui a imagem do token mudou mesmo mantendo o id.
+  tokenImages[current.id] = null
+  ensureTokenImageLoaded(current.id, replaced.image)
+
+  await saveSceneTokens()
+  isReplaceTokenWindowOpen.value = false
+}
+
 const closeDeleteAlert = () => {
   isDeleteTokenAlertOpen.value = false
 }
@@ -446,11 +481,24 @@ const onHandleMouseLeave = (e: any) => {
       @close="menuState.show = false"
   >
     <li @click="duplicateToken">Duplicar Token</li>
+    <li @click="openReplaceTokenWindow">Substituir Token</li>
     <li @click="hFlipToken">Inverter Horizontalmente</li>
     <li @click="vFlipToken">Inverter Verticalmente</li>
     <li @click="resetTokenRotation()">Restaurar Rotação</li>
     <li @click="handleDeleteTokenAlertWindow()">Remover Token</li>
   </ContextMenu>
+  <fixed-window
+      title="Substituir Token"
+      icon="tokens" v-if="isReplaceTokenWindowOpen"
+      @close-window="isReplaceTokenWindowOpen = false"
+  >
+    <tokens-window
+        add-token-to-scene="true"
+        add-button-label="Substituir Token"
+        @addTokenToScene="replaceToken"
+        @close-window="isReplaceTokenWindowOpen = false"
+    />
+  </fixed-window>
   <fixed-window
       title="Tokens"
       icon="tokens" v-if="isTokenWindowOpen"

@@ -492,6 +492,40 @@ const isDeleteTokenAlertOpen = ref(false)
 const handleDeleteTokenAlertWindow = () => { isDeleteTokenAlertOpen.value = true }
 const closeDeleteAlert = () => { isDeleteTokenAlertOpen.value = false }
 
+const isReplaceTokenWindowOpen = ref(false)
+const openReplaceTokenWindow = () => {
+  if (!selectedTokenId.value) return
+  isReplaceTokenWindowOpen.value = true
+}
+
+const replaceToken = (token: any) => {
+  const index = localTokens.value.findIndex(t => t.id === selectedTokenId.value)
+  if (index === -1) return
+
+  const current = localTokens.value[index]
+  // Mantém a altura atual do token na sala, mas ajusta a largura para preservar
+  // a proporção (largura/altura) do token escolhido para substituição.
+  const width = token.width && token.height
+      ? current.height * (token.width / token.height)
+      : current.width
+  const replaced: RoomToken = {
+    ...current,
+    tokenId: token.id,
+    name: token.name ?? '',
+    image: token.image ?? '',
+    attributes: token.attributes ?? [],
+    width,
+  }
+  localTokens.value.splice(index, 1, replaced)
+
+  // Força o recarregamento da imagem: ensureTokenImageLoaded ignora ids já
+  // presentes no mapa, mas aqui a imagem do token mudou mesmo mantendo o id.
+  tokenImages[current.id] = null
+  ensureTokenImageLoaded(current.id, replaced.image)
+
+  isReplaceTokenWindowOpen.value = false
+}
+
 const handleDeleteToken = () => {
   if (!selectedTokenId.value) return
 
@@ -709,6 +743,7 @@ function toggleFullScreen() {
         @close="menuState.show = false"
     >
       <li @click="duplicateToken">Duplicar Token</li>
+      <li @click="openReplaceTokenWindow">Substituir Token</li>
       <li @click="hFlipToken">Inverter Horizontalmente</li>
       <li @click="vFlipToken">Inverter Verticalmente</li>
       <li @click="resetTokenRotation()">Restaurar Rotação</li>
@@ -726,6 +761,20 @@ function toggleFullScreen() {
           add-button-label="Adicionar à sala"
           @addTokenToScene="onTokenPicked"
           @close-window="isTokenPickerOpen = false"
+      />
+    </fixed-window>
+
+    <fixed-window
+        title="Substituir Token"
+        icon="tokens"
+        v-if="isReplaceTokenWindowOpen"
+        @close-window="isReplaceTokenWindowOpen = false"
+    >
+      <tokens-window
+          add-token-to-scene="true"
+          add-button-label="Substituir Token"
+          @addTokenToScene="replaceToken"
+          @close-window="isReplaceTokenWindowOpen = false"
       />
     </fixed-window>
 
