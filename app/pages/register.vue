@@ -43,6 +43,14 @@
                 <label for="password">Confirme Senha</label>
                 <input v-model="form.passwordConfirm" type="password" name="password-confirm" id="password-confirm" :disabled="isSubmitting">
               </div>
+              <div class="field-row accept-terms">
+                <input v-model="form.acceptedTerms" type="checkbox" name="accepted-terms" id="accepted-terms" :disabled="isSubmitting">
+                <!-- O 98.css usa inline-flex no rótulo do checkbox; o span mantém o texto e os links numa linha só -->
+                <label for="accepted-terms"><span>
+                  Li e aceito os <NuxtLink to="/termos" target="_blank">Termos de Uso</NuxtLink>
+                  e a <NuxtLink to="/privacidade" target="_blank">Política de Privacidade</NuxtLink>.
+                </span></label>
+              </div>
             </div>
             <div class="buttons">
               <button id="submit-login-form" type="submit" :disabled="isSubmitting">
@@ -94,6 +102,11 @@ const submitForm = async () => {
     return
   }
 
+  if (!form.acceptedTerms) {
+    err.value = 'Para criar a conta, aceite os Termos de Uso e a Política de Privacidade.'
+    return
+  }
+
   isSubmitting.value = true
   try {
     await withLoading(() => authClient.signUp.email({
@@ -101,9 +114,6 @@ const submitForm = async () => {
       email: form.email,
       password: form.password,
     }, {
-      onRequest: (ctx) => {
-        console.log(ctx)
-      },
       onSuccess: (ctx) => {
           navigateTo('/login')
       },
@@ -125,6 +135,7 @@ const form = reactive({
   passwordConfirm: '',
   name: '',
   email: '',
+  acceptedTerms: false,
 })
 </script>
 <style lang="css" scoped>
@@ -178,6 +189,18 @@ section {
 
 .login-form label {
   min-width: 25%;
+}
+
+.login-form .accept-terms {
+  margin-top: 0.5rem;
+}
+
+.login-form .accept-terms input {
+  width: auto;
+}
+
+.login-form .accept-terms label {
+  min-width: 0;
 }
 
 .login-form {

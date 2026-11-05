@@ -143,6 +143,11 @@ const currentYear = new Date().getFullYear()
           </svg>
         </a>
       </div>
+      <nav class="footer-legal" aria-label="Documentos legais">
+        <NuxtLink to="/privacidade">Política de Privacidade</NuxtLink>
+        <span aria-hidden="true">·</span>
+        <NuxtLink to="/termos">Termos de Uso</NuxtLink>
+      </nav>
       <p class="copyright">
         &copy; {{ currentYear }} VTT 98 SE. Todos os direitos reservados. Criado por <NuxtLink to="https://github.com/stsmuniz" target="_blank" rel="noopener noreferrer">@stsmuniz</NuxtLink>.
       </p>
@@ -252,6 +257,14 @@ const currentYear = new Date().getFullYear()
 
 .footer-badges a:hover {
   transform: translateY(-2px);
+}
+
+.footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
 }
 
 .copyright {
