@@ -91,8 +91,8 @@ Os ícones deste diretório vêm do tema **Chicago95**, de Grassmunk e colaborad
 | 16/zoom-out.png | Icons/Chicago95/actions/16/zoom-out.png |
 | 32/zoom-out.png | Icons/Chicago95/actions/32/zoom-out.png |
 | 48/zoom-out.png | Icons/Chicago95/actions/48/zoom-out.png |
-| 16/view-icons.png | Icons/Chicago95/actions/16/view-grid.png |
-| 16/view-list.png | Icons/Chicago95/actions/16/view-list.png |
+| 16/view-icons.png | Icons/Chicago95/actions/16/view-list-images.png |
+| 16/view-list.png | Icons/Chicago95/actions/16/view-list-compact.png |
 | 16/warning.png | Icons/Chicago95/status/16/dialog-warning.png |
 | 32/warning.png | Icons/Chicago95/status/32/dialog-warning.png |
 | 48/warning.png | Icons/Chicago95/status/48/dialog-warning.png |
@@ -142,4 +142,4 @@ Os ícones deste diretório vêm do tema **Chicago95**, de Grassmunk e colaborad
 | 16/link.png | Icons/Chicago95/actions/16/insert-link.png |
 | 32/link.png | Icons/Chicago95/actions/32/insert-link.png |
 | 48/link.png | Icons/Chicago95/actions/48/insert-link.png |
-| 16/view-details.png | Icons/Chicago95/actions/16/help-contents.png |
+| 16/view-details.png | Icons/Chicago95/actions/16/view-list.png |
