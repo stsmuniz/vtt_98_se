@@ -241,6 +241,9 @@ defineExpose({
   min-width: 100%;
   min-height: 100%;
   background: var(--c-shadow);
+  /* Contra-zoom: a escala da interface não amplia o mapa (o canvas tem zoom próprio)
+     e o ponteiro do Konva continua acertando os tokens. */
+  zoom: calc(1 / var(--ui-scale, 1));
 }
 .editor-stage :deep(.konvajs-content) {
   background: var(--c-shadow);

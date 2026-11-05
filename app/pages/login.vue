@@ -70,6 +70,11 @@ const redirectTarget = computed(() => {
 
 const err = ref<string|null>(null)
 
+// Depois de excluir a conta, o usuário cai aqui com ?conta=excluida.
+onMounted(() => {
+  if (route.query.conta === 'excluida') useDialog().alert('Sua conta foi excluída. Obrigado por ter usado o VTT 98 SE.', { title: 'Conta excluída' })
+})
+
 // Erros aparecem numa caixa de mensagem (DesktopDialogHost, em app.vue).
 watch(err, async (message) => {
   if (!message) return

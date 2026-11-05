@@ -1,24 +1,51 @@
-<template>
-    <section>
-        <div>
-            <h1>Seu VTT já pode ser desligado com segurança.</h1>
-        </div>
-    </section>
-</template>
-<style lang="css" scoped>
-section {
-    background-color: black;
-    color: brown;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100vw;
-    height: 100vh;
+<script setup lang="ts">
+/** Fim do "Desligar": tela preta com o aviso em laranja. Qualquer tecla ou clique "religa". */
+definePageMeta({ layout: false })
+useHead({ title: 'VTT 98 SE' })
+
+function powerOn() {
+  navigateTo('/login')
 }
 
-h1 {
-    display: block;
-    text-align: center;
-    width: 70vw;
+onMounted(() => window.addEventListener('keydown', powerOn, { once: true }))
+onBeforeUnmount(() => window.removeEventListener('keydown', powerOn))
+</script>
+
+<template>
+  <main class="turnoff" data-test="turnoff" @click="powerOn">
+    <h1 class="turnoff-text">Seu VTT já pode ser desligado com segurança.</h1>
+    <p class="turnoff-hint">Pressione qualquer tecla ou clique para ligar novamente.</p>
+  </main>
+</template>
+
+<style scoped>
+.turnoff {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-5);
+  padding: var(--sp-5);
+  background: #000;
+  cursor: pointer;
+}
+.turnoff-text {
+  max-width: 18ch;
+  margin: 0;
+  color: #ff8a00;
+  font-family: var(--font-display);
+  font-size: var(--fs-4);
+  font-weight: normal;
+  line-height: 1.15;
+  text-align: center;
+}
+.turnoff-hint {
+  margin: 0;
+  color: #5a3a10;
+  font-family: var(--font-ui);
+  font-size: var(--fs-1);
+  text-align: center;
 }
 </style>

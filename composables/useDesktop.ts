@@ -7,6 +7,8 @@ import { appInstanceId, getApp } from '~/desktop/apps'
 import { useWindowManager } from '~~/composables/useWindowManager'
 import { useDialog } from '~~/composables/useDialog'
 import { useLoadingWindow } from '~~/composables/useLoadingWindow'
+import { usePreferences } from '~~/composables/usePreferences'
+import { useSystemSounds } from '~~/composables/useSystemSounds'
 
 let sessionStore: ReturnType<typeof authClient.useSession> | null = null
 
@@ -20,6 +22,9 @@ export function useDesktop() {
   const wm = useWindowManager()
   const session = useSessionStore()
   const startMenuOpen = useState('start-menu-open', () => false)
+  const shutdownDialogOpen = useState('shutdown-dialog-open', () => false)
+  /** Tela "Aguarde enquanto o VTT 98 SE é desligado" visível. */
+  const shuttingDown = useState('shutting-down', () => false)
 
   const user = computed(() => session.value.data?.user ?? null)
   /** Visitante sem conta (só acontece na página de sala). */
@@ -75,19 +80,62 @@ export function useDesktop() {
     else document.exitFullscreen?.()
   }
 
-  async function logoff() {
-    startMenuOpen.value = false
-    const name = user.value?.name
-    const ok = await useDialog().confirm(
-      name ? `Deseja efetuar logoff de ${name}?` : 'Deseja efetuar logoff?',
-      { title: 'Efetuar logoff do VTT 98 SE', icon: 'question' },
-    )
-    if (!ok) return
-    await useLoadingWindow().withLoading(() => authClient.signOut(), 'Efetuando logoff...')
-    // Fecha todas as janelas da sessão que terminou.
+  /** Antes de sair: a janela da página pode ter alterações não salvas (Sim/Não/Cancelar). */
+  async function confirmLeavePage(): Promise<boolean> {
+    return wm.get('route') ? wm.canClose('route') : true
+  }
+
+  function closeEverything() {
     for (const w of [...wm.windows.value]) wm.unregister(w.id)
+    usePreferences().reset()
+  }
+
+  /** Efetuar logoff. `confirm`: perguntar antes (o item do menu Iniciar pergunta; o diálogo Desligar já perguntou). */
+  async function logoff({ confirm = true } = {}) {
+    startMenuOpen.value = false
+    if (confirm) {
+      const name = user.value?.name
+      const ok = await useDialog().confirm(
+        name ? `Deseja efetuar logoff de ${name}?` : 'Deseja efetuar logoff?',
+        { title: 'Efetuar logoff do VTT 98 SE', icon: 'question' },
+      )
+      if (!ok) return
+    }
+    if (!(await confirmLeavePage())) return
+    useSystemSounds().play('shutdown')
+    await useLoadingWindow().withLoading(() => authClient.signOut(), 'Efetuando logoff...')
+    closeEverything()
     await navigateTo('/login')
   }
 
-  return { session, user, isGuest, startMenuOpen, openApp, pick, openHelp, toggleFullscreen, logoff }
+  function openShutdownDialog() {
+    startMenuOpen.value = false
+    shutdownDialogOpen.value = true
+  }
+
+  /**
+   * "Desligar": tela de carga com nuvens e o som do disco rígido trabalhando por
+   * alguns segundos, logoff e, por fim, a tela "já pode ser desligado".
+   * Deve ser chamada a partir de um clique (libera o áudio).
+   */
+  async function shutdown() {
+    shutdownDialogOpen.value = false
+    if (!(await confirmLeavePage())) return
+    const sounds = useSystemSounds()
+    sounds.unlock()
+    const disk = sounds.hardDisk()
+    shuttingDown.value = true
+    disk?.start()
+    const minimumScreenTime = new Promise(resolve => setTimeout(resolve, 4500))
+    await Promise.all([authClient.signOut().catch(() => {}), minimumScreenTime])
+    await disk?.stop()
+    closeEverything()
+    await navigateTo('/turnoff', { replace: true })
+    shuttingDown.value = false
+  }
+
+  return {
+    session, user, isGuest, startMenuOpen, shutdownDialogOpen, shuttingDown,
+    openApp, pick, openHelp, toggleFullscreen, logoff, openShutdownDialog, shutdown,
+  }
 }

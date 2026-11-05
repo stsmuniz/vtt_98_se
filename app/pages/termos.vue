@@ -32,7 +32,7 @@ const toc = [
 </script>
 
 <template>
-  <WebsiteLegalDocument title="Termos de Uso" version="1.0" effective-date="5 de novembro de 2026" :toc="toc">
+  <WebsiteLegalDocument title="Termos de Uso" version="1.1" effective-date="5 de novembro de 2026" :toc="toc">
     <section id="aceitacao">
       <h2>1. Aceitação</h2>
       <p>
@@ -153,8 +153,9 @@ const toc = [
     <section id="encerramento">
       <h2>9. Encerramento da conta</h2>
       <p>
-        Você pode encerrar sua conta a qualquer momento, solicitando pelo e-mail
-        <a href="mailto:privacidade@vtt98se.com.br">privacidade@vtt98se.com.br</a>. A exclusão apaga seus dados e conteúdos,
+        Você pode encerrar sua conta a qualquer momento em <strong>Iniciar &gt; Usuário &gt; Excluir conta</strong>,
+        ou pedindo pelo e-mail <a href="mailto:privacidade@vtt98se.com.br">privacidade@vtt98se.com.br</a>. A exclusão
+        apaga seus dados e conteúdos,
         conforme a <NuxtLink to="/privacidade">Política de Privacidade</NuxtLink>. Também podemos encerrar contas que violem
         estes termos ou descontinuar o serviço, avisando com antecedência razoável sempre que possível.
       </p>

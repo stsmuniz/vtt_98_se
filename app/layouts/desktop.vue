@@ -12,10 +12,50 @@
 import { useWindowManager, type WinEntry } from '~~/composables/useWindowManager'
 import { useDesktop } from '~~/composables/useDesktop'
 import { useDialog } from '~~/composables/useDialog'
+import { usePreferences } from '~~/composables/usePreferences'
+import { useSystemSounds } from '~~/composables/useSystemSounds'
 
 const wm = useWindowManager()
 const desktop = useDesktop()
 const dialog = useDialog()
+const prefs = usePreferences()
+const sounds = useSystemSounds()
+
+// ---------- preferências: papel de parede e escala ----------
+const WALLPAPER_URLS: Record<string, string | null> = {
+  none: null,
+  clouds: '/assets/backgrounds/clouds_background.jpg',
+}
+
+const desktopStyle = computed(() => {
+  const p = prefs.preferences.value
+  const url = WALLPAPER_URLS[p.wallpaper] ?? null
+  const style: Record<string, string> = { backgroundColor: p.backgroundColor }
+  if (url) {
+    style.backgroundImage = `url(${url})`
+    style.backgroundRepeat = p.wallpaperMode === 'tile' ? 'repeat' : 'no-repeat'
+    style.backgroundPosition = 'center'
+    style.backgroundSize = p.wallpaperMode === 'stretch' ? '100% 100%' : 'auto'
+  }
+  return style
+})
+
+/** Escala efetiva: "Automática" alinha a fonte pixel aos pixels físicos em telas de alta densidade. */
+const devicePixelRatio = ref(1)
+const uiScale = computed(() => {
+  const s = prefs.preferences.value.uiScale
+  if (s !== 'auto') return s
+  const dpr = devicePixelRatio.value
+  return dpr < 1.5 ? 1 : Math.round(dpr) / dpr
+})
+
+watch(uiScale, (s) => {
+  if (import.meta.client) document.documentElement.style.setProperty('--ui-scale', String(s))
+}, { immediate: true })
+
+function updateDpr() {
+  devicePixelRatio.value = window.devicePixelRatio || 1
+}
 
 const areaEl = ref<HTMLElement | null>(null)
 let resizeObserver: ResizeObserver | null = null
@@ -90,6 +130,12 @@ function onDesktopPointerDown(event: PointerEvent) {
 }
 
 onMounted(() => {
+  updateDpr()
+  window.addEventListener('resize', updateDpr)
+  // Som de inicialização depois de carregar as preferências (que podem tê-lo desligado).
+  prefs.load().then(() => { if (!desktop.isGuest.value) sounds.playStartupOnce() })
+  window.addEventListener('pointerdown', sounds.unlock, { once: true })
+  window.addEventListener('keydown', sounds.unlock, { once: true })
   document.body.classList.add('desktop-mode')
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
@@ -103,6 +149,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateDpr)
+  document.documentElement.style.removeProperty('--ui-scale')
   document.body.classList.remove('desktop-mode')
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('keyup', onKeyUp)
@@ -112,7 +160,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="desktop" @pointerdown="onDesktopPointerDown">
+  <div class="desktop" :style="desktopStyle" data-test="desktop" @pointerdown="onDesktopPointerDown">
     <div ref="areaEl" class="desktop-area">
       <DesktopIcons v-if="!desktop.isGuest.value" />
       <div id="wm-layer" class="wm-layer">
@@ -126,6 +174,8 @@ onBeforeUnmount(() => {
     <DesktopTaskbar />
     <DesktopWindowSwitcher v-if="switcher.open" :windows="switcher.list" :index="switcher.index" />
     <div id="popup-layer" class="popup-layer" />
+    <DesktopShutdownDialog v-if="desktop.shutdownDialogOpen.value" />
+    <DesktopShutdownScreen v-if="desktop.shuttingDown.value" />
   </div>
 </template>
 
@@ -135,6 +185,8 @@ body.desktop-mode {
   margin: 0;
   overflow: hidden;
   background: var(--c-desktop);
+  /* Escala da interface (Configurações > Aparência). O canvas do Konva desfaz o zoom. */
+  zoom: var(--ui-scale, 1);
 }
 </style>
 

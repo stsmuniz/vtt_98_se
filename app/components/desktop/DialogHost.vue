@@ -4,9 +4,17 @@
  * recebe cliques; uma camada transparente bloqueia o resto da tela (modal).
  */
 import { useDialog } from '~~/composables/useDialog'
+import { useSystemSounds } from '~~/composables/useSystemSounds'
 
 const dialog = useDialog()
+const sounds = useSystemSounds()
 const current = computed(() => dialog.queue.value.at(-1))
+
+// Som ao aparecer: erro/aviso soam como erro; pergunta/informação, um "ding".
+watch(() => current.value?.id, (id) => {
+  if (!id || !current.value) return
+  sounds.play(current.value.icon === 'error' || current.value.icon === 'warning' ? 'error' : 'ding')
+})
 </script>
 
 <template>

@@ -35,7 +35,7 @@ const toc = [
 </script>
 
 <template>
-  <WebsiteLegalDocument title="Política de Privacidade" version="1.0" effective-date="5 de novembro de 2026" :toc="toc">
+  <WebsiteLegalDocument title="Política de Privacidade" version="1.1" effective-date="5 de novembro de 2026" :toc="toc">
     <section id="resumo">
       <h2>1. Resumo</h2>
       <div class="legal-summary">
@@ -46,7 +46,7 @@ const toc = [
           <li>Coletamos apenas o necessário para o VTT 98 SE funcionar: nome, e-mail, senha (guardada de forma irreversível) e o conteúdo que você cria.</li>
           <li>Os dados ficam em servidores protegidos, com conexão criptografada e acesso restrito.</li>
           <li>Tratamos seus dados de acordo com a <strong>Lei Geral de Proteção de Dados Pessoais (LGPD — Lei nº 13.709/2018)</strong>.</li>
-          <li>Você pode consultar, corrigir ou excluir seus dados a qualquer momento.</li>
+          <li>Você pode consultar, corrigir ou excluir seus dados a qualquer momento — inclusive apagando a conta pelo próprio sistema.</li>
         </ul>
       </div>
     </section>
@@ -254,9 +254,10 @@ const toc = [
         <li>apresentar reclamação à Autoridade Nacional de Proteção de Dados (ANPD).</li>
       </ul>
       <p>
-        Para exercer qualquer desses direitos — inclusive excluir sua conta —, escreva para
-        <a href="mailto:privacidade@vtt98se.com.br">privacidade@vtt98se.com.br</a> a partir do e-mail cadastrado.
-        Responderemos em até 15 dias.
+        Você pode alterar seu nome e <strong>excluir sua conta diretamente no sistema</strong>, em
+        <strong>Iniciar &gt; Usuário</strong> (a exclusão pede sua senha e apaga na hora todos os seus dados e imagens).
+        Para os demais pedidos, escreva para <a href="mailto:privacidade@vtt98se.com.br">privacidade@vtt98se.com.br</a>
+        a partir do e-mail cadastrado. Responderemos em até 15 dias.
       </p>
     </section>
 

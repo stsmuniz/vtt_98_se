@@ -45,12 +45,12 @@ const items = computed<MenuItemDef[]>(() => {
         { id: 'start-accessories', label: '&Acessórios', icon: 'accessories', items: appItems('accessories') },
       ],
     },
-    { id: 'start-settings', label: '&Configurações (em breve)', icon: 'settings', disabled: true },
+    { id: 'start-settings', label: '&Configurações', icon: 'settings', action: () => desktop.openApp('settings') },
     { id: 'start-help', label: 'Aj&uda', icon: 'help', action: () => desktop.openHelp() },
-    { id: 'start-user', label: 'U&suário (em breve)', icon: 'users', disabled: true },
+    { id: 'start-user', label: 'U&suário', icon: 'users', action: () => desktop.openApp('user-account') },
     { type: 'separator' },
     { id: 'start-logoff', label: `&Efetuar logoff de ${name}…`, icon: 'logoff', action: () => desktop.logoff() },
-    { id: 'start-shutdown', label: '&Desligar…', icon: 'shutdown', action: () => desktop.logoff() },
+    { id: 'start-shutdown', label: '&Desligar…', icon: 'shutdown', action: () => desktop.openShutdownDialog() },
   ]
 })
 </script>
