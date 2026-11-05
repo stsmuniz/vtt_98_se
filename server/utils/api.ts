@@ -20,6 +20,73 @@ function coerceField(spec: ResourceFieldSpec, raw: unknown, isJsonSource: boolea
     return raw ?? ''
 }
 
+/** Sessão obrigatória: devolve o usuário logado ou lança 401. */
+export async function requireUser(event: any) {
+    const session = await auth.api.getSession({ headers: event.headers })
+    if (!session || !session.user) {
+        throw createError({ statusCode: 401, statusMessage: 'Não autorizado.' })
+    }
+    return session.user
+}
+
+export const MAX_NAME_LENGTH = 120
+
+/**
+ * Valida `name`/`tags` vindos de um corpo JSON (renomear pelo F2, editar tags).
+ * Devolve só os campos presentes; lança 400 se algum deles for inválido.
+ */
+export function sanitizeNameAndTags(body: Record<string, unknown>): { name?: string; tags?: string[] } {
+    const out: { name?: string; tags?: string[] } = {}
+    if ('name' in body) {
+        const name = typeof body.name === 'string' ? body.name.trim() : ''
+        if (!name) {
+            throw createError({ statusCode: 400, statusMessage: 'O nome não pode ficar vazio.' })
+        }
+        if (name.length > MAX_NAME_LENGTH) {
+            throw createError({ statusCode: 400, statusMessage: `O nome pode ter no máximo ${MAX_NAME_LENGTH} caracteres.` })
+        }
+        out.name = name
+    }
+    if ('tags' in body) {
+        if (!Array.isArray(body.tags) || !body.tags.every(t => typeof t === 'string')) {
+            throw createError({ statusCode: 400, statusMessage: 'Tags inválidas.' })
+        }
+        out.tags = [...new Set(body.tags.map(t => t.trim()).filter(Boolean))]
+    }
+    return out
+}
+
+/**
+ * PATCH JSON de `name`/`tags` para recursos com dono (tokens, cenários).
+ * Filtra pelo dono na própria query, como o resto da API.
+ */
+export async function patchOwnedNameAndTags(event: any, table: any, notFoundMessage: string) {
+    const user = await requireUser(event)
+    const id = parseIdParam(event)
+
+    const body = await readBody<Record<string, unknown>>(event)
+    if (!body || typeof body !== 'object') {
+        throw createError({ statusCode: 400, statusMessage: 'Nenhum dado enviado.' })
+    }
+
+    const updateData = sanitizeNameAndTags(body)
+    if (!Object.keys(updateData).length) {
+        throw createError({ statusCode: 400, statusMessage: 'Nada para atualizar.' })
+    }
+
+    const [row] = await useDrizzle()
+        .update(table)
+        .set(updateData)
+        .where(and(eq(table.id, id), eq(table.userId, user.id)))
+        .returning()
+
+    if (!row) {
+        throw createError({ statusCode: 404, statusMessage: notFoundMessage })
+    }
+
+    return row
+}
+
 export function parseIdParam(event: any): number {
     const idParam = getRouterParam(event, 'id')
     const id = Number(idParam)

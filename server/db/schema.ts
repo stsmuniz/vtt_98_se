@@ -1,4 +1,5 @@
 import { relations, sql } from 'drizzle-orm'
+import type { StoredPreferences } from '../../lib/preferences'
 import { boolean, index, integer, jsonb, pgTable, serial, text, timestamp, unique } from 'drizzle-orm/pg-core'
 
 export type TokenStatus = 'normal' | 'machucado' | 'morrendo'
@@ -150,7 +151,12 @@ export const tokensTable = pgTable('tokens', {
     userId: text('user_id')
         .notNull()
         .references(() => user.id, { onDelete: 'cascade' }),
-}).enableRLS()
+    createdAt: timestamp('created_at', { mode: 'date', withTimezone: true })
+        .defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true })
+        .defaultNow()
+        .$onUpdate(() => new Date()),
+}, (table) => [index('tokens_user_id_idx').on(table.userId)]).enableRLS()
 
 export const scenariosTable = pgTable('scenarios', {
     id: serial('id').primaryKey(),
@@ -162,7 +168,12 @@ export const scenariosTable = pgTable('scenarios', {
     userId: text('user_id')
         .notNull()
         .references(() => user.id, { onDelete: 'cascade' }),
-}).enableRLS()
+    createdAt: timestamp('created_at', { mode: 'date', withTimezone: true })
+        .defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true })
+        .defaultNow()
+        .$onUpdate(() => new Date()),
+}, (table) => [index('scenarios_user_id_idx').on(table.userId)]).enableRLS()
 
 export const scenesTable = pgTable('scenes', {
     id: serial('id').primaryKey(),
@@ -184,7 +195,10 @@ export const scenesTable = pgTable('scenes', {
     updatedAt: timestamp('updated_at', { mode: 'date' })
         .defaultNow()
         .$onUpdate(() => new Date()),
-}).enableRLS()
+}, (table) => [
+    index('scenes_user_id_idx').on(table.userId),
+    index('scenes_scenario_id_idx').on(table.scenarioId),
+]).enableRLS()
 
 export const roomsTable = pgTable('rooms', {
     id: serial('id').primaryKey(),
@@ -208,7 +222,10 @@ export const roomsTable = pgTable('rooms', {
     updatedAt: timestamp('updated_at', { mode: 'date' })
         .defaultNow()
         .$onUpdate(() => new Date()),
-}).enableRLS()
+}, (table) => [
+    index('rooms_user_id_idx').on(table.userId),
+    index('rooms_scene_id_idx').on(table.sceneId),
+]).enableRLS()
 
 export const roomPlayersTable = pgTable(
     'room_players',
@@ -224,12 +241,31 @@ export const roomPlayersTable = pgTable(
         joinedAt: timestamp('joined_at', { mode: 'date' })
             .defaultNow(),
     },
-    (table) => ({
-        unq: unique().on(table.roomId, table.userId),
-    }),
+    (table) => [
+        unique().on(table.roomId, table.userId),
+        index('room_players_user_id_idx').on(table.userId),
+    ],
 ).enableRLS()
 
-export const userRelations = relations(user, ({ many }) => ({
+/**
+ * Preferências do usuário (Configurações). `data` guarda só o que o usuário
+ * alterou; os padrões e a validação ficam em lib/preferences.ts.
+ */
+export const userPreferencesTable = pgTable('user_preferences', {
+    userId: text('user_id')
+        .primaryKey()
+        .references(() => user.id, { onDelete: 'cascade' }),
+    data: jsonb('data')
+        .$type<StoredPreferences>()
+        .notNull()
+        .default({}),
+    updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true })
+        .defaultNow()
+        .$onUpdate(() => new Date())
+        .notNull(),
+}).enableRLS()
+
+export const userRelations = relations(user, ({ many, one }) => ({
     sessions: many(session),
     accounts: many(account),
     tokens: many(tokensTable),
@@ -237,6 +273,7 @@ export const userRelations = relations(user, ({ many }) => ({
     scenes: many(scenesTable),
     ownedRooms: many(roomsTable),
     roomMemberships: many(roomPlayersTable),
+    preferences: one(userPreferencesTable),
 }))
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -299,6 +336,13 @@ export const roomPlayersRelations = relations(roomPlayersTable, ({ one }) => ({
     }),
     user: one(user, {
         fields: [roomPlayersTable.userId],
+        references: [user.id],
+    }),
+}))
+
+export const userPreferencesRelations = relations(userPreferencesTable, ({ one }) => ({
+    user: one(user, {
+        fields: [userPreferencesTable.userId],
         references: [user.id],
     }),
 }))

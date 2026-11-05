@@ -25,6 +25,8 @@ export default defineEventHandler(async (event) => {
     for (const field of PATCHABLE_FIELDS) {
         if (field in body) updateData[field] = body[field]
     }
+    // name/tags passam pela validação compartilhada (renomear com F2 nas pastas).
+    Object.assign(updateData, sanitizeNameAndTags(body))
 
     const db = useDrizzle()
 

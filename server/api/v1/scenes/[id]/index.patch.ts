@@ -5,10 +5,7 @@ import { createError } from "h3";
 const PATCHABLE_FIELDS = ['scenarioId', 'width', 'height'] as const
 
 export default defineEventHandler(async (event) => {
-    const session = await auth.api.getSession({
-        headers: event.headers,
-    })
-
+    const user = await requireUser(event)
     const id = parseIdParam(event)
 
     const body = await readBody<Record<string, unknown>>(event)
@@ -20,12 +17,14 @@ export default defineEventHandler(async (event) => {
     for (const field of PATCHABLE_FIELDS) {
         if (field in body) updateData[field] = body[field]
     }
+    // name/tags passam pela validação compartilhada (renomear com F2 nas pastas).
+    Object.assign(updateData, sanitizeNameAndTags(body))
 
     const db = useDrizzle()
     const [scene] = await db
         .update(tables.scenesTable)
         .set(updateData)
-        .where(and(eq(tables.scenesTable.id, id), eq(tables.scenesTable.userId, session.user.id)))
+        .where(and(eq(tables.scenesTable.id, id), eq(tables.scenesTable.userId, user.id)))
         .returning({ id: tables.scenesTable.id })
 
     if (!scene) {
