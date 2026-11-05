@@ -65,7 +65,16 @@ export default defineEventHandler(async (event) => {
         }
 
         accessToken = crypto.randomUUID()
-        await redis.set(`room-access:${accessToken}`, code, { ex: 60 * 60 * 12 })
+        try {
+            await redis.set(`room-access:${accessToken}`, code, { ex: 60 * 60 * 12 })
+        } catch (error) {
+            // Sem o Redis não há como emitir o acesso temporário de salas com senha.
+            console.error(`Erro ao registrar acesso à sala ${code} no Redis:`, error)
+            throw createError({
+                statusCode: 503,
+                statusMessage: "O serviço de tempo real está indisponível no momento. Tente novamente em instantes.",
+            })
+        }
     }
 
     const { password, ...roomWithoutPassword } = room

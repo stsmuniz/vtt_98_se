@@ -28,11 +28,18 @@ export function useCanvasZoom(initial = 100, min = 10, max = 500, step = 10) {
         }
     }
 
+    /** Ajusta o zoom para a cena inteira caber na área visível (em degraus de 5%). */
+    const fitTo = (areaWidth: number, areaHeight: number, sceneWidth: number, sceneHeight: number) => {
+        if (!areaWidth || !areaHeight || !sceneWidth || !sceneHeight) return
+        const fit = Math.min(areaWidth / sceneWidth, areaHeight / sceneHeight) * 100
+        zoom.value = Math.max(min, Math.min(max, Math.floor(fit / 5) * 5))
+    }
+
     watch(zoom, (newVal) => {
         if (isNaN(newVal) || newVal <= 0) {
             zoom.value = initial
         }
     })
 
-    return { zoom, scale, zoomIn, zoomOut, resetZoom, handleWheel }
+    return { zoom, scale, zoomIn, zoomOut, resetZoom, handleWheel, fitTo }
 }

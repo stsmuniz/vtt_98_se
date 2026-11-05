@@ -33,7 +33,13 @@ export default defineEventHandler(async (event) => {
 
     if (room.password && !isOwner) {
         const token = getQuery(event).token
-        const grantedCode = typeof token === 'string' ? await redis.get(`room-access:${token}`) : null
+        // Redis fora do ar = acesso não confirmado (o visitante vê a tela de senha de novo).
+        const grantedCode = typeof token === 'string'
+            ? await redis.get(`room-access:${token}`).catch((error: unknown) => {
+                console.error(`Erro ao validar acesso à sala ${code} no Redis:`, error)
+                return null
+            })
+            : null
         if (grantedCode !== code) {
             throw createError({ statusCode: 401, statusMessage: 'Não autenticado.' })
         }

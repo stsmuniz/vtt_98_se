@@ -1,36 +1,46 @@
 <script setup lang="ts">
-import type {SceneToken} from "#server/db/schema.ts"
-import type { MenuDef, MenuItemDef } from "~/utils/menu"
-import {useDialog} from "~~/composables/useDialog"
-import {useDesktop} from "~~/composables/useDesktop"
-import {useWindow} from "~~/composables/useWindow"
-import {useCanvasZoom} from "~~/composables/useCanvasZoom"
-import {usePreloadedImage, useImageMap} from "~~/composables/useImagePreloader"
-import {useTokenTransform} from "~~/composables/useTokenTransform"
-
-import {
-  Stage as VStage,
-  Layer as VLayer,
-  Rect as VRect,
-  Image as VImage,
-  Text as VText,
-  Group as VGroup,
-  Transformer as VTransformer,
-} from 'vue-konva'
-
-import FixedWindow from "~/components/FixedWIndow.vue"
+/**
+ * Editor de cenas: posiciona tokens sobre o cenário. Roda dentro da janela da
+ * página (DesktopRouteWindow) com menus, barra de ferramentas e barra de status
+ * próprias. Avisa sobre alterações não salvas ao fechar, sair ou recarregar.
+ */
+import type { SceneToken } from '#server/db/schema.ts'
+import type { MenuDef, MenuItemDef } from '~/utils/menu'
+import type { ResourceRecord } from '~/desktop/resources'
+import { buildTokenMenu } from '~/utils/tokenMenu'
+import { useDialog } from '~~/composables/useDialog'
+import { useDesktop } from '~~/composables/useDesktop'
+import { useWindow } from '~~/composables/useWindow'
+import { useCanvasZoom } from '~~/composables/useCanvasZoom'
+import { usePreloadedImage, useImageMap } from '~~/composables/useImagePreloader'
 
 definePageMeta({
   layout: 'desktop',
   middleware: 'auth',
 })
 
+type TokenTemplate = ResourceRecord & { image?: string; width?: number; height?: number; attributes?: SceneToken['attributes'] }
+type StageApi = { hFlip: (id: number) => void; vFlip: (id: number) => void; resetRotation: (id: number) => void }
+
 const desktop = useDesktop()
 const dialog = useDialog()
 const routeWindow = useWindow('route')
-const openHelpManual = () => desktop.openHelp()
+const params = useRoute().params
 
-// Mensagem temporária na barra de status (ex.: "Cena salva com sucesso!")
+const { data: currentScene } = useFetch<Record<string, any>>(`/api/v1/scenes/${params.id}`)
+const { zoom: sceneZoom, scale: stageScale, zoomIn, zoomOut, resetZoom, handleWheel, fitTo } = useCanvasZoom()
+const { image: bgImageObj, load: loadBgImage } = usePreloadedImage()
+const { images: tokenImages, ensureLoaded: ensureTokenImageLoaded } = useImageMap()
+
+const stage = ref<StageApi | null>(null)
+const canvasWrap = ref<HTMLElement | null>(null)
+const isTokenWindowOpen = ref(false)
+const selectedTokenId = ref<number | null>(null)
+const localTokens = ref<SceneToken[]>([])
+const sceneWidth = ref(1920)
+const sceneHeight = ref(1084)
+
+// ---------- barra de status ----------
 const statusFlash = ref<string | null>(null)
 let statusFlashTimer: ReturnType<typeof setTimeout> | null = null
 function showStatusMessage(text: string, duration = 2000) {
@@ -39,427 +49,215 @@ function showStatusMessage(text: string, duration = 2000) {
   statusFlashTimer = setTimeout(() => { statusFlash.value = null }, duration)
 }
 
-const params = useRoute().params
-const {data: currentScene} = useFetch(`/api/v1/scenes/${params.id}`)
-const { zoom: sceneZoom, scale: stageScale, zoomIn, zoomOut, resetZoom, handleWheel } = useCanvasZoom()
+// ---------- alterações não salvas ----------
+const savedSignature = ref('[]')
+const signature = (tokens: SceneToken[]) => JSON.stringify(tokens)
+const isDirty = computed(() => signature(localTokens.value) !== savedSignature.value)
 
-const isTokenWindowOpen = ref(false)
-const { image: nameBgImage, load: loadNameBgImage } = usePreloadedImage()
-const { image: bgImageObj, load: loadBgImage } = usePreloadedImage()
-const { images: tokenImages, ensureLoaded: ensureTokenImageLoaded } = useImageMap()
-const activeClass = ref('all-tokens')
-
-
-const stageRef = ref(null)
-const transformerRef = ref(null)
-const selectedTokenId = ref<number | null>(null) // Guarda qual token está selecionado
-
-// Adicione este reactive para controlar os tokens localmente
-const localTokens = ref<SceneToken[]>([])
-
-const sceneWidth = ref(1920)
-const sceneHeight = ref(1084)
-
-// Sincronizar tamanho inicial do servidor
-watch(() => currentScene.value, (newScene) => {
-  if (newScene) {
-    sceneWidth.value = newScene.width ?? 1920
-    sceneHeight.value = newScene.height ?? 1084
-  }
+// ---------- dados da cena ----------
+watch(() => currentScene.value, (scene) => {
+  if (!scene) return
+  sceneWidth.value = scene.width ?? 1920
+  sceneHeight.value = scene.height ?? 1084
 }, { immediate: true, deep: true })
 
-watchEffect(() => {
-  loadBgImage(currentScene.value?.scenario?.image)
-})
+watchEffect(() => loadBgImage(currentScene.value?.scenario?.image))
 
-// Sincronizar tokens do servidor com tokens locais
-watch(() => currentScene.value?.tokens, (newTokens) => {
-  if (newTokens) {
-    localTokens.value = [...newTokens]
-  }
-}, {immediate: true, deep: true})
+watch(() => currentScene.value?.tokens, (tokens: SceneToken[] | undefined) => {
+  if (!tokens) return
+  localTokens.value = [...tokens]
+  savedSignature.value = signature(localTokens.value)
+}, { immediate: true, deep: true })
 
-// Carregar imagens dos tokens
-watch(() => localTokens.value, (newTokens) => {
-  if (!newTokens) return;
-  newTokens.forEach(token => ensureTokenImageLoaded(token.id, token.image))
-}, {immediate: true, deep: true})
-
-// Configuração atualizada do Stage para aplicar o scaleX e scaleY
-const stageConfig = computed(() => ({
-  width: sceneWidth.value,
-  height: sceneHeight.value,
-  scaleX: stageScale.value,
-  scaleY: stageScale.value,
-}))
-
-const scene = computed(() => ({
-  x: 0,
-  y: 0,
-  width: sceneWidth.value,
-  height: sceneHeight.value,
-  image: bgImageObj.value ?? undefined,
-  id: 'scene',
-}))
-
-// Usar localTokens em vez de currentScene.value?.tokens
-const tokens = computed(() => localTokens.value ?? [])
+watch(localTokens, tokens => tokens.forEach(t => ensureTokenImageLoaded(t.id, t.image)), { immediate: true, deep: true })
 
 const selectedToken = computed(() => localTokens.value.find(t => t.id === selectedTokenId.value) ?? null)
 
-const selectToken = (id: number | null) => {
-  if (id === null) {
-    selectedTokenId.value = null
-    return
-  }
+/** Seleciona e traz o token para o topo (índice 0 = topo). */
+function selectToken(id: number | null) {
   selectedTokenId.value = id
+  if (id === null) return
   const index = localTokens.value.findIndex(t => t.id === id)
   if (index > 0) {
     const [token] = localTokens.value.splice(index, 1)
-    localTokens.value.unshift(token)
+    localTokens.value.unshift(token!)
   }
 }
 
-const duplicateToken = () => {
-  const token = selectedToken.value
-  if (!token) return
-  const newToken = {...token}
-  newToken.id = Date.now()
-  newToken.x += 10
-  newToken.y += 10
-  localTokens.value.unshift(newToken)
-  selectToken(newToken.id)
-}
-
-const centerToken = () => {
-  const token = selectedToken.value
-  if (token) {
-    const centerX = token.width / 2
-    const centerY = token.height / 2
-    token.x = scene.value.width / 2 - centerX
-    token.y = scene.value.height / 2 - centerY
-  }
-}
-
-const tokenGroups = computed(() => {
-  return [...localTokens.value].reverse().map(token => {
-    const width = token.width || 100
-    const height = token.height || 100
-    const centerX = width / 2
-    const centerY = height / 2
-
-    return {
-      id: token.id,
-
-      groupConfig: {
-        x: token.x,
-        y: token.y,
-        draggable: true,
-        opacity: (token.opacity ?? 100) / 100,
-      },
-
-      imageConfig: {
-        id: `token-${token.id}`,
-        name: 'token-image',
-        image: tokenImages[token.id] ?? undefined,
-        x: centerX,
-        y: centerY,
-        width,
-        height,
-        offsetX: centerX,
-        offsetY: centerY,
-        scaleX: token.scaleX ?? 1,
-        scaleY: token.scaleY ?? 1,
-        rotation: token.rotation || 0, // ADICIONADO AQUI
-      },
-    }
-  })
-})
-
-// Única fonte de verdade para persistir os tokens da cena: sempre envia o array
-// completo atual de localTokens, usada por save/adicionar/apagar token.
-const saveSceneTokens = async () => {
+// ---------- persistência ----------
+/** Grava todos os tokens da cena. Retorna se deu certo. */
+async function saveSceneTokens(): Promise<boolean> {
   try {
-    const response = await fetch(`/api/v1/scenes/${params.id}/tokens`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(localTokens.value),
-    });
-
-    if (response.ok) {
-      showStatusMessage('Cena salva com sucesso!')
-    } else {
-      console.error('Erro ao salvar tokens da cena.')
-    }
+    await $fetch(`/api/v1/scenes/${params.id}/tokens`, { method: 'POST', body: localTokens.value })
+    savedSignature.value = signature(localTokens.value)
+    showStatusMessage('Cena salva com sucesso!')
+    return true
   } catch (error) {
-    console.error('Erro ao salvar tokens da cena:', error);
+    console.error('Erro ao salvar tokens da cena:', error)
+    await dialog.alert('Não foi possível salvar a cena. Tente novamente.', { title: 'Erro ao salvar', icon: 'error' })
+    return false
   }
-};
+}
 
-const addToken = async (token: Omit<Token, "tags"> & { x?: number; y?: number; }) => {
+async function updateSceneSize(size: { width: number; height: number }) {
+  try {
+    await $fetch(`/api/v1/scenes/${params.id}`, { method: 'PATCH', body: size })
+  } catch (error) {
+    console.error('Erro ao salvar o novo tamanho da cena:', error)
+  }
+}
+
+// ---------- ações sobre tokens ----------
+async function addToken(token: TokenTemplate) {
+  const width = token.width ?? 100
+  const height = token.height ?? 100
   const sceneToken: SceneToken = {
-    ...token,
     id: Date.now(),
     tokenId: token.id,
-    x: token.x ?? scene.value.width / 2 - token.width / 2,
-    y: token.y ?? scene.value.height / 2 - token.height / 2,
-    width: token.width ?? 100,
-    height: token.height ?? 100,
-    image: token.image ?? '',
     name: token.name ?? '',
+    image: token.image ?? '',
+    x: sceneWidth.value / 2 - width / 2,
+    y: sceneHeight.value / 2 - height / 2,
+    width,
+    height,
     attributes: token.attributes ?? [],
     scaleX: 1,
     scaleY: 1,
     rotation: 0,
-    opacity: 100
+    opacity: 100,
   }
-
   localTokens.value = [sceneToken, ...localTokens.value]
   selectToken(sceneToken.id)
   ensureTokenImageLoaded(sceneToken.id, sceneToken.image)
-
-  await saveSceneTokens()
-  isTokenWindowOpen.value = false
-}
-
-const setScenario = async (scenario: Scenario) => {
-  try {
-    const response = await fetch(`/api/v1/scenes/${params.id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({scenarioId: scenario.id}),
-    })
-    if (response.ok) {
-      const res = await response.json()
-      currentScene.value = res
-    }
-  } catch (error) {
-    console.error(error)
-  }
-}
-
-onMounted(() => {
-  loadNameBgImage('/assets/name_background.png')
-})
-
-// ==========================================
-// EVENTOS DE SELEÇÃO E TRANSFORM (RESIZE/ROTATE)
-// ==========================================
-
-// 1. Monitora mudanças na seleção para conectar o Transformer
-watch(selectedTokenId, async (newId) => {
-  if (!transformerRef.value) return;
-  await nextTick();
-  const transformerNode = transformerRef.value.getNode();
-
-  if (!newId) {
-    transformerNode.nodes([]);
-    return;
-  }
-
-  const stageNode = stageRef.value.getNode();
-  // Busca a IMAGEM do token selecionado pelo ID, não o grupo
-  const selectedNode = stageNode?.findOne(`#token-${newId}`);
-  if (selectedNode) {
-    transformerNode.nodes([selectedNode]);
-  }
-});
-
-// 2. Clique no Canvas geral (para desselecionar)
-const handleStageClick = (e: any) => {
-  // Se clicou no Stage vazio ou na imagem de fundo, desseleciona
-  if (e.target === e.target.getStage() || e.target.attrs.id === 'scene') {
-    selectToken(null);
-  }
-};
-
-const { handleTransformEnd, handleDragEnd, hFlipToken: flipTokenHorizontally, vFlipToken: flipTokenVertically, resetTokenRotation: resetSelectedTokenRotation } = useTokenTransform(localTokens, stageRef, transformerRef)
-
-const handleDeleteToken = async () => {
-  if (!selectedTokenId.value) return
-
-  const tokenId = selectedTokenId.value
-  const index = localTokens.value.findIndex(t => t.id === tokenId)
-  if (index === -1) return
-
-  // Remove localmente imediatamente (otimista)
-  localTokens.value.splice(index, 1)
-  selectedTokenId.value = null
-
-  // Limpa o transformer
-  if (transformerRef.value) {
-    transformerRef.value.getNode().nodes([])
-  }
-
-  // Persiste no backend (envie o array completo atualizado)
   await saveSceneTokens()
 }
 
-const handleDeleteTokenAlertWindow = async () => {
-  if (selectedTokenId.value === null) return
+function duplicateToken() {
+  const token = selectedToken.value
+  if (!token) return
+  const copy = { ...token, id: Date.now(), x: token.x + 10, y: token.y + 10 }
+  localTokens.value.unshift(copy)
+  selectToken(copy.id)
+}
+
+function centerToken() {
+  const token = selectedToken.value
+  if (!token) return
+  token.x = sceneWidth.value / 2 - token.width / 2
+  token.y = sceneHeight.value / 2 - token.height / 2
+}
+
+async function removeSelectedToken() {
+  const id = selectedTokenId.value
+  if (id === null) return
   const ok = await dialog.confirm('Tem certeza de que deseja remover este token da cena?', { title: 'Remover token', icon: 'warning' })
-  if (ok) await handleDeleteToken()
+  if (!ok) return
+  localTokens.value = localTokens.value.filter(t => t.id !== id)
+  selectedTokenId.value = null
+  await saveSceneTokens()
 }
 
-const openReplaceTokenWindow = async () => {
-  if (!selectedTokenId.value) return
-  const token = await desktop.pick<Token>('tokens', { ownerId: 'route', title: 'Substituir token', confirmLabel: 'Substituir' })
-  if (token) await replaceToken(token)
-}
-
-// Seletores (janelas de pasta em modo "pick", que fecham junto com o editor)
-const pickTokenToAdd = async () => {
-  const token = await desktop.pick<Token>('tokens', { ownerId: 'route', title: 'Adicionar token à cena', confirmLabel: 'Adicionar na cena' })
-  if (token) await addToken(token)
-}
-
-const chooseScenario = async () => {
-  const scenario = await desktop.pick<Scenario>('scenarios', { ownerId: 'route', title: 'Trocar cenário', confirmLabel: 'Usar este cenário' })
-  if (scenario) await setScenario(scenario)
-}
-
-const replaceToken = async (token: Token) => {
+async function replaceSelectedToken() {
+  if (selectedTokenId.value === null) return
+  const token = await desktop.pick<TokenTemplate>('tokens', { ownerId: 'route', title: 'Substituir token', confirmLabel: 'Substituir' })
   const index = localTokens.value.findIndex(t => t.id === selectedTokenId.value)
-  if (index === -1) return
-
-  const current = localTokens.value[index]
-  // Mantém a altura atual do token na cena, mas ajusta a largura para preservar
-  // a proporção (largura/altura) do token escolhido para substituição.
-  const width = token.width && token.height
-      ? current.height * (token.width / token.height)
-      : current.width
-  const replaced: SceneToken = {
+  if (!token || index === -1) return
+  const current = localTokens.value[index]!
+  // Mantém a altura do token na cena e ajusta a largura à proporção do novo.
+  const width = token.width && token.height ? current.height * (token.width / token.height) : current.width
+  localTokens.value.splice(index, 1, {
     ...current,
     tokenId: token.id,
     name: token.name ?? '',
     image: token.image ?? '',
     attributes: token.attributes ?? [],
     width,
-  }
-  localTokens.value.splice(index, 1, replaced)
-
-  // Força o recarregamento da imagem: ensureTokenImageLoaded ignora ids já
-  // presentes no mapa, mas aqui a imagem do token mudou mesmo mantendo o id.
+  })
+  // Força recarregar a imagem (o cache ignora ids já carregados).
   tokenImages[current.id] = null
-  ensureTokenImageLoaded(current.id, replaced.image)
-
+  ensureTokenImageLoaded(current.id, token.image ?? '')
   await saveSceneTokens()
 }
 
+const withSelected = (fn: (id: number) => void) => () => { if (selectedTokenId.value !== null) fn(selectedTokenId.value) }
 
-const setTokenTab = (tab: string) => {
-  activeClass.value = tab
+const tokenMenuItems = computed<MenuItemDef[]>(() => buildTokenMenu({
+  duplicate: duplicateToken,
+  replace: replaceSelectedToken,
+  hFlip: withSelected(id => stage.value?.hFlip(id)),
+  vFlip: withSelected(id => stage.value?.vFlip(id)),
+  resetRotation: withSelected(id => stage.value?.resetRotation(id)),
+  remove: removeSelectedToken,
+}, { disabled: selectedTokenId.value === null }))
+
+// ---------- seletores ----------
+async function pickTokenToAdd() {
+  const token = await desktop.pick<TokenTemplate>('tokens', { ownerId: 'route', title: 'Adicionar token à cena', confirmLabel: 'Adicionar na cena' })
+  if (token) await addToken(token)
 }
 
-// Atalhos do editor: só disparam com a janela do editor ativa.
-// Ctrl+S funciona mesmo com um campo de texto em foco (evita o "Salvar" do navegador).
-routeWindow.shortcuts({
-  'ctrl+s': { run: () => saveSceneTokens(), allowInInput: true },
-  delete: () => handleDeleteTokenAlertWindow(),
-})
-
-const menuState = reactive({
-  show: false,
-  x: 0,
-  y: 0
-});
-
-const openMenu = (e, item) => {
-  const event = e.evt;
-  event.preventDefault();
-
-  // Assign mouse coordinates
-  menuState.x = event.clientX;
-  menuState.y = event.clientY;
-  menuState.show = true;
-};
-
-const hFlipToken = () => flipTokenHorizontally(selectedTokenId.value!)
-const vFlipToken = () => flipTokenVertically(selectedTokenId.value!)
-const resetTokenRotation = () => resetSelectedTokenRotation(selectedTokenId.value!)
-// ==========================================
-// REDIMENSIONAMENTO DO CANVAS
-// ==========================================
-
-// 1. Função para salvar o novo tamanho no backend
-const updateSceneSize = async (newWidth: number, newHeight: number) => {
+async function chooseScenario() {
+  const scenario = await desktop.pick('scenarios', { ownerId: 'route', title: 'Trocar cenário', confirmLabel: 'Usar este cenário' })
+  if (!scenario) return
   try {
-    const response = await fetch(`/api/v1/scenes/${params.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ width: newWidth, height: newHeight }),
-    })
-
-    if (!response.ok) {
-      console.error('Erro ao salvar novo tamanho da cena')
-    }
+    currentScene.value = await $fetch(`/api/v1/scenes/${params.id}`, { method: 'PATCH', body: { scenarioId: scenario.id } })
   } catch (error) {
-    console.error('Erro de conexão ao redimensionar:', error)
+    console.error('Erro ao trocar o cenário:', error)
+    await dialog.alert('Não foi possível trocar o cenário.', { title: 'Erro', icon: 'error' })
   }
 }
 
-const resizeHandleConfig = computed(() => ({
-  x: sceneWidth.value,
-  y: sceneHeight.value,
-  width: 20,
-  height: 20,
-  offsetX: 10,
-  offsetY: 10,
-  fill: '#000080',
-  stroke: '#ffffff',
-  strokeWidth: 2,
-  draggable: true,
-  name: 'resize-handle',
-}))
-
-const onResizeHandleDragMove = (e: any) => {
-  const node = e.target
-
-  sceneWidth.value = Math.max(100, node.x())
-  sceneHeight.value = Math.max(100, node.y())
-
-  // Força o nó a não passar do limite mínimo
-  node.x(sceneWidth.value)
-  node.y(sceneHeight.value)
+// ---------- zoom ----------
+function fitToWindow() {
+  const area = canvasWrap.value?.parentElement
+  if (area) fitTo(area.clientWidth - 24, area.clientHeight - 24, sceneWidth.value, sceneHeight.value)
 }
 
-const onResizeHandleDragEnd = (e: any) => {
-  const node = e.target
-
-  sceneWidth.value = Math.max(100, node.x())
-  sceneHeight.value = Math.max(100, node.y())
-
-  // Salva no banco de dados quando soltar o mouse
-  updateSceneSize(sceneWidth.value, sceneHeight.value)
+// ---------- menu de contexto do canvas ----------
+const ctxMenu = reactive({ open: false, x: 0, y: 0 })
+function onTokenContext(payload: { x: number; y: number }) {
+  Object.assign(ctxMenu, { open: true, x: payload.x, y: payload.y })
 }
 
-// 5. Muda o cursor do mouse ao passar por cima da alça
-const onHandleMouseEnter = (e: any) => {
-  const container = e.target.getStage().container()
-  container.style.cursor = 'nwse-resize'
+// ---------- sair com alterações não salvas ----------
+let leaveConfirmed = false
+
+/** Pergunta se salva antes de sair. Retorna se pode sair. */
+async function confirmLeave(): Promise<boolean> {
+  if (leaveConfirmed || !isDirty.value) return true
+  const answer = await dialog.ask({
+    title: 'Editor de cenas',
+    icon: 'warning',
+    message: `Deseja salvar as alterações em "${currentScene.value?.name ?? 'cena'}"?`,
+    buttons: [
+      { label: 'Sim', value: 'yes', default: true },
+      { label: 'Não', value: 'no' },
+      { label: 'Cancelar', value: 'cancel', cancel: true },
+    ],
+  })
+  if (answer === 'cancel') return false
+  if (answer === 'yes' && !(await saveSceneTokens())) return false
+  leaveConfirmed = true
+  return true
 }
 
-const onHandleMouseLeave = (e: any) => {
-  const container = e.target.getStage().container()
-  container.style.cursor = 'default'
+routeWindow.onBeforeClose(confirmLeave)
+onBeforeRouteLeave(async () => {
+  const ok = await confirmLeave()
+  if (!ok) leaveConfirmed = false
+  return ok
+})
+
+function onBeforeUnload(event: BeforeUnloadEvent) {
+  if (!isDirty.value) return
+  event.preventDefault()
+  event.returnValue = ''
 }
+onMounted(() => window.addEventListener('beforeunload', onBeforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
 
-const tokenContextItems = computed<MenuItemDef[]>(() => [
-  { id: 'ctx-duplicar', label: '&Duplicar token', icon: 'copy', action: duplicateToken },
-  { id: 'ctx-substituir', label: '&Substituir token…', icon: 'token', action: openReplaceTokenWindow },
-  { type: 'separator' },
-  { id: 'ctx-inverter-h', label: 'Inverter &horizontalmente', action: hFlipToken },
-  { id: 'ctx-inverter-v', label: 'Inverter &verticalmente', action: vFlipToken },
-  { id: 'ctx-rotacao', label: '&Restaurar rotação', action: resetTokenRotation },
-  { type: 'separator' },
-  { id: 'ctx-remover', label: 'Re&mover token', icon: 'delete', shortcut: 'Del', action: handleDeleteTokenAlertWindow },
-])
-
-const windowTitle = computed(() => currentScene.value?.name ? `${currentScene.value.name} - Editor de cenas` : 'Editor de cenas')
+// ---------- janela: título, menus, atalhos ----------
+const windowTitle = computed(() => (currentScene.value?.name ? `${currentScene.value.name} - Editor de cenas` : 'Editor de cenas'))
 
 const editorMenus = computed<MenuDef[]>(() => [
   {
@@ -471,6 +269,7 @@ const editorMenus = computed<MenuDef[]>(() => [
       { id: 'fechar', label: '&Fechar', action: () => navigateTo('/dashboard') },
     ],
   },
+  { id: 'editar', label: '&Editar', items: tokenMenuItems.value },
   {
     id: 'inserir',
     label: '&Inserir',
@@ -483,289 +282,105 @@ const editorMenus = computed<MenuDef[]>(() => [
     id: 'exibir',
     label: 'E&xibir',
     items: [
+      { id: 'janela-tokens', type: 'check', label: 'Janela de &tokens', checked: isTokenWindowOpen.value, action: () => { isTokenWindowOpen.value = !isTokenWindowOpen.value } },
+      { type: 'separator' },
       { id: 'zoom-mais', label: '&Aumentar zoom', icon: 'zoom-in', action: zoomIn },
       { id: 'zoom-menos', label: '&Diminuir zoom', icon: 'zoom-out', action: zoomOut },
-      { id: 'zoom-100', label: '&Restaurar zoom', action: resetZoom },
+      { id: 'zoom-100', label: '&Tamanho real (100%)', action: resetZoom },
+      { id: 'zoom-ajustar', label: 'Ajustar à &janela', action: fitToWindow },
       { type: 'separator' },
-      { id: 'tela-cheia', label: '&Tela cheia', icon: 'fullscreen', action: desktop.toggleFullscreen },
+      { id: 'tela-cheia', label: 'Tela &cheia', icon: 'fullscreen', action: desktop.toggleFullscreen },
     ],
   },
   {
     id: 'ajuda',
     label: 'Aj&uda',
-    items: [{ id: 'manual', label: '&Manual do VTT 98 SE', icon: 'help', shortcut: 'F1', action: openHelpManual }],
+    items: [{ id: 'manual', label: '&Manual do VTT 98 SE', icon: 'help', shortcut: 'F1', action: () => desktop.openHelp() }],
   },
 ])
 routeWindow.setMenus(editorMenus.value)
 watch(editorMenus, m => routeWindow.setMenus(m))
 onBeforeUnmount(() => routeWindow.setMenus(undefined))
+
+// Atalhos só com a janela do editor ativa. Ctrl+S funciona mesmo digitando.
+routeWindow.shortcuts({
+  'ctrl+s': { run: () => saveSceneTokens(), allowInInput: true },
+  delete: () => removeSelectedToken(),
+})
 </script>
 
 <template>
   <DesktopRouteWindow :title="windowTitle" icon="scene">
     <template #toolbar>
       <UiToolbar label="Ferramentas do editor">
-        <UiToolbarButton label="Tokens" icon="token" show-label @click="isTokenWindowOpen = true" />
+        <UiToolbarButton label="Tokens" icon="token" show-label :pressed="isTokenWindowOpen" data-test="tb-tokens" @click="isTokenWindowOpen = !isTokenWindowOpen" />
         <UiToolbarButton label="Cenário" icon="scenario" show-label @click="chooseScenario" />
-        <UiToolbarButton label="Salvar" icon="save" show-label @click="saveSceneTokens" />
+        <UiToolbarButton label="Salvar" icon="save" show-label data-test="tb-salvar" @click="saveSceneTokens" />
         <UiToolbarSeparator />
-        <UiToolbarButton label="Ajuda" icon="help" show-label @click="openHelpManual" />
+        <UiToolbarButton label="Ajuda" icon="help" show-label @click="desktop.openHelp()" />
       </UiToolbar>
     </template>
-    <UiContextMenu
-        :open="menuState.show"
-        :x="menuState.x"
-        :y="menuState.y"
-        :items="tokenContextItems"
-        label="Token"
-        @close="menuState.show = false"
-    />
-    <fixed-window
-        title="Tokens"
-        icon="tokens" v-if="isTokenWindowOpen"
-        @close-window="isTokenWindowOpen = false"
-    >
-      <div>
-        <menu role="tablist">
-          <li role="tab" :aria-selected="activeClass == 'scene-tokens'" @click="setTokenTab('scene-tokens')"><span>Tokens da cena</span>
-          </li>
-          <li role="tab" :aria-selected="activeClass == 'all-tokens'" @click="setTokenTab('all-tokens')"><span>Tokens cadastrados</span>
-          </li>
-        </menu>
-        <div class="window" role="tabpanel">
-          <div class="window-body">
-            <div class="tokens-tabs" :class="activeClass == 'scene-tokens' ? 'active' : ''" id="scene-tokens">
-              <div class="window-content-container">
-                <div>
-                  <div class="section-header">Tokens</div>
-                  <div class="content">
-                    <div class="scenes-grid">
-                      <div
-                          class="scene-item"
-                          v-for="token in tokens"
-                          :key="token.id"
-                          :class="{ selected: selectedTokenId === token.id }"
-                          @click="selectToken(token.id)"
-                      >
-                        <img :src="token.image" :alt="token.name">
-                        <span>{{ token.name }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <aside class="window-sidebar">
-                  <div class="buttons" style="display: flex; flex-direction: column; gap: 0.25rem;">
-                    <button :disabled="!selectedTokenId" class="disabled" @click.prevent="handleDeleteTokenAlertWindow">
-                      Apagar
-                    </button>
-                    <button :disabled="!selectedTokenId" @click.prevent="duplicateToken" class="disabled">Duplicar</button>
-                    <button :disabled="!selectedTokenId" @click.prevent="centerToken" class="disabled">Centralizar</button>
-                  </div>
-                  <div class="information" v-if="selectedToken">
-                    <dl>
-                      <dt>Tamanho</dt>
-                      <dd>{{ Math.trunc(selectedToken.width) }}x{{ Math.trunc(selectedToken.height) }}</dd>
-                      <dt>Tags</dt>
-                      <dd>{{ selectedToken.tags }}</dd>
-                      <dt>Posição</dt>
-                      <dd>X: {{ selectedToken.x }}, Y: {{ selectedToken.y }}</dd>
-                    </dl>
-                  </div>
-                </aside>
-              </div>
-            </div>
-            <div class="tokens-tabs" :class="activeClass == 'all-tokens' ? 'active' : ''" id="all-tokens">
-              <Suspense>
-                <AppsExplorerResourceExplorer
-                    resource="tokens"
-                    mode="pick"
-                    embedded
-                    confirm-label="Adicionar na cena"
-                    @pick="addToken"
-                    @cancel="isTokenWindowOpen = false"
-                />
-              </Suspense>
-            </div>
-          </div>
-        </div>
-      </div>
-    </fixed-window>
-    <div class="scene-canvas">
-      <!-- Adicionado eventos de click no Stage -->
-      <v-stage
-          ref="stageRef"
-          :config="stageConfig"
-          style="display: block;background-color: #808080"
-          @click="handleStageClick"
-          @tap="handleStageClick"
-          @wheel="handleWheel"
-      >
-        <v-layer>
-          <v-image :config="scene" id="scene"/>
-        </v-layer>
-        <v-layer>
-          <v-group
-              v-for="tokenGroup in tokenGroups"
-              :key="tokenGroup.id"
-              :config="tokenGroup.groupConfig"
-              @mousedown="selectToken(tokenGroup.id)"
-              @touchstart="selectToken(tokenGroup.id)"
-              @dragend="(e) => handleDragEnd(e, tokenGroup.id)"
-              @contextmenu="(e) => openMenu(e, 'Target Box Alpha')"
-          >
-            <v-image
-                :config="tokenGroup.imageConfig"
-                @transformend="(e) => handleTransformEnd(e, tokenGroup.id)"
-            />
-          </v-group>
 
-          <v-transformer
-              ref="transformerRef"
-              :config="{
-          keepRatio: true,
-          enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right']
-        }"
-          />
-
-          <v-rect
-              :config="resizeHandleConfig"
-              @dragmove="onResizeHandleDragMove"
-              @dragend="onResizeHandleDragEnd"
-              @mouseenter="onHandleMouseEnter"
-              @mouseleave="onHandleMouseLeave"
-          />
-        </v-layer>
-      </v-stage>
+    <div ref="canvasWrap" class="canvas-wrap">
+      <EditorStage
+        ref="stage"
+        v-model:tokens="localTokens"
+        v-model:width="sceneWidth"
+        v-model:height="sceneHeight"
+        :scale="stageScale"
+        :background="bgImageObj"
+        :images="tokenImages"
+        :selected="selectedTokenId"
+        resizable
+        @select="selectToken"
+        @context="onTokenContext"
+        @wheel="handleWheel"
+        @resized="updateSceneSize"
+      />
     </div>
+
+    <UiContextMenu
+      :open="ctxMenu.open"
+      :x="ctxMenu.x"
+      :y="ctxMenu.y"
+      :items="tokenMenuItems"
+      label="Token"
+      @close="ctxMenu.open = false"
+    />
+
+    <EditorSceneTokensWindow
+      v-model:open="isTokenWindowOpen"
+      :tokens="localTokens"
+      :selected="selectedTokenId"
+      @select="selectToken"
+      @remove="removeSelectedToken"
+      @duplicate="duplicateToken"
+      @center="centerToken"
+      @add="addToken"
+    />
+
     <template #statusbar>
       <UiStatusBar>
-        <UiStatusField grow>{{ statusFlash ?? 'Pronto' }}</UiStatusField>
-        <UiStatusField>{{ tokens.length }} token(s)</UiStatusField>
+        <UiStatusField grow data-test="editor-status">{{ statusFlash ?? 'Pronto' }}</UiStatusField>
+        <UiStatusField v-if="isDirty" data-test="editor-dirty">Alterações não salvas</UiStatusField>
+        <UiStatusField data-test="editor-token-count">{{ localTokens.length }} token(s)</UiStatusField>
+        <UiStatusField>{{ sceneWidth }} × {{ sceneHeight }}</UiStatusField>
         <UiStatusField class="zoom-field">
-          <label for="zoom">Zoom:</label>
-          <input id="zoom" v-model.number="sceneZoom" type="text" class="scene-zoom-input">
-          <span>%</span>
-          <button type="button" title="Diminuir zoom" @click="zoomOut">-</button>
-          <button type="button" title="Aumentar zoom" @click="zoomIn">+</button>
-          <button type="button" @click="resetZoom">Restaurar</button>
+          <EditorZoomControl v-model="sceneZoom" @in="zoomIn" @out="zoomOut" @reset="resetZoom" @fit="fitToWindow" />
         </UiStatusField>
       </UiStatusBar>
     </template>
   </DesktopRouteWindow>
 </template>
-<style lang="css" scoped>
-/* Controle de zoom na barra de status da janela */
+
+<style scoped>
+.canvas-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--c-shadow);
+}
 .zoom-field {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
   padding-top: 0;
   padding-bottom: 0;
-}
-.zoom-field input {
-  width: 3.5em;
-  height: auto;
-}
-.zoom-field button {
-  min-width: 0;
-  min-height: 0;
-  padding: 0 var(--sp-2);
-}
-
-.zoom-control-container {
-  button {
-    min-width: 0.25rem;
-  }
-}
-
-.scene-canvas {
-  background-color: #808080;
-  width: 100%;
-  height: 100%;
-}
-
-.dice-selector-button {
-  box-shadow: none;
-  padding: 0;
-  min-width: 4rem;
-}
-
-[role="tablist"] {
-  [role="tab"] {
-    padding: 0.5rem 1rem;
-    cursor: pointer;
-    transition: border-color 0.3s ease;
-  }
-}
-
-.tokens-tabs {
-  display: none;
-
-  &.active {
-    display: block;
-  }
-
-  .section-header {
-    background-color: black;
-    color: white;
-    padding: 0.25rem;
-    border-radius: 0.25rem 0.25rem 0 0;
-  }
-
-  .window-content-container {
-    display: grid;
-    grid-template-columns: 5fr 1fr;
-    gap: 0.25rem;
-  }
-
-  .window-sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .content {
-    background-color: white;
-    color: black;
-    padding: 0.25rem;
-    border: 2px solid;
-    border-color: #333333 lightgray lightgray #333333;
-    min-height: 54vh;
-    max-height: 60vh;
-    overflow-y: scroll;
-
-    .scenes-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 0.25rem;
-    }
-
-    .scene-item {
-      width: 150px;
-      display: flex;
-      padding: 0.25rem;
-      flex-direction: column;
-      justify-content: space-between;
-      align-items: center;
-      gap: 0.25rem;
-      cursor: pointer;
-
-      &:hover, &.selected {
-        background-color: darkblue;
-        color: white;
-      }
-
-      img {
-        max-width: 100%;
-        max-height: 200px;
-      }
-    }
-  }
-}
-
-@media screen and (min-width: 768px) {
-  .window-content-container {
-    width: 60vw;
-  }
 }
 </style>

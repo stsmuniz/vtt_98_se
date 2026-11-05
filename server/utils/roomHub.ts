@@ -50,16 +50,32 @@ export function subscribeToRoomEvents(code: string, listener: RoomListener): () 
     }
 }
 
+// O rascunho ao vivo é um complemento: se o Redis estiver fora do ar, a sala continua
+// funcionando (salvar grava no Postgres; visitantes na mesma instância seguem recebendo os
+// eventos locais). Por isso as falhas aqui são só registradas, nunca propagadas.
 export async function getRoomLiveSnapshot(code: string): Promise<unknown> {
-    return await redis.get(liveSnapshotKey(code))
+    try {
+        return await redis.get(liveSnapshotKey(code))
+    } catch (error) {
+        console.error(`Erro ao ler o rascunho ao vivo da sala ${code} no Redis:`, error)
+        return null
+    }
 }
 
 export async function setRoomLiveSnapshot(code: string, snapshot: unknown) {
-    await redis.set(liveSnapshotKey(code), snapshot, { ex: LIVE_SNAPSHOT_TTL_SECONDS })
+    try {
+        await redis.set(liveSnapshotKey(code), snapshot, { ex: LIVE_SNAPSHOT_TTL_SECONDS })
+    } catch (error) {
+        console.error(`Erro ao gravar o rascunho ao vivo da sala ${code} no Redis:`, error)
+    }
 }
 
 export async function clearRoomLiveSnapshot(code: string) {
-    await redis.del(liveSnapshotKey(code))
+    try {
+        await redis.del(liveSnapshotKey(code))
+    } catch (error) {
+        console.error(`Erro ao apagar o rascunho ao vivo da sala ${code} no Redis:`, error)
+    }
 }
 
 // Chamado pelo endpoint POST /api/rooms/:code/live quando o dono da sala transmite uma edição

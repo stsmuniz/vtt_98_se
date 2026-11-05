@@ -6,21 +6,9 @@ import { useDesktop } from "~~/composables/useDesktop"
 import { useWindow } from "~~/composables/useWindow"
 import { useCanvasZoom } from "~~/composables/useCanvasZoom"
 import { usePreloadedImage, useImageMap } from "~~/composables/useImagePreloader"
-import { useTokenTransform } from "~~/composables/useTokenTransform"
+import { buildTokenMenu } from "~/utils/tokenMenu"
 
-import {
-  Stage as VStage,
-  Layer as VLayer,
-  Image as VImage,
-  Group as VGroup,
-  Transformer as VTransformer,
-} from 'vue-konva'
 
-import RoomPasswordWindow from "~/components/RoomPasswordWindow.vue"
-import RoomTokenAttributesWindow from "~/components/RoomTokenAttributesWindow.vue"
-import FloatingWindow from "~/components/FloatingWindow.vue";
-import Initiative from "~/components/Initiative.vue";
-import TokenConfig from "~/components/TokenConfig.vue";
 
 definePageMeta({
   layout: 'desktop',
@@ -46,6 +34,8 @@ const isGm = computed(() => room.value?.role === 'gm')
 // snapshot vindo do servidor dispare de volta uma transmissão ao vivo (loop infinito). Ver o
 // watcher de `localTokens` na seção PERSISTÊNCIA.
 let isApplyingRemoteUpdate = false
+/** Verdadeiro enquanto aplica um `snapshot:live` (rascunho não salvo). */
+let isLiveSnapshot = false
 
 function setRoom(next: any) {
   isApplyingRemoteUpdate = true
@@ -69,6 +59,12 @@ async function loadRoom(password?: string) {
 
     if (response.status === 403) {
       loadError.value = 'Esta sala está fechada no momento.'
+      return
+    }
+
+    if (response.status === 503) {
+      isPasswordWindowOpen.value = false
+      loadError.value = 'O serviço de tempo real está indisponível no momento. Tente novamente em instantes.'
       return
     }
 
@@ -117,7 +113,9 @@ function connectRoomEvents() {
       if (data.type === 'room:update' && data.room) {
         setRoom({ ...room.value, ...data.room })
       } else if (data.type === 'snapshot:live' && data.snapshot) {
+        isLiveSnapshot = true
         setRoom({ ...room.value, snapshot: data.snapshot })
+        nextTick(() => { isLiveSnapshot = false })
       } else if (data.type === 'room:closed') {
         console.error('A sala foi encerrada pelo dono.')
       }
@@ -159,17 +157,21 @@ onUnmounted(() => {
 // CANVAS (mesmo padrão do editor de cenas)
 // ==========================================
 
-const { zoom: sceneZoom, scale: stageScale, zoomIn, zoomOut, resetZoom, handleWheel } = useCanvasZoom()
+const { zoom: sceneZoom, scale: stageScale, zoomIn, zoomOut, resetZoom, handleWheel, fitTo } = useCanvasZoom()
 const { image: bgImageObj, load: loadBgImage } = usePreloadedImage()
 const { images: tokenImages, ensureLoaded: ensureTokenImageLoaded } = useImageMap()
 
-const stageRef = ref(null)
-const transformerRef = ref(null)
+type StageApi = { hFlip: (id: number) => void; vFlip: (id: number) => void; resetRotation: (id: number) => void }
+const stage = ref<StageApi | null>(null)
+const canvasWrap = ref<HTMLElement | null>(null)
 const selectedTokenId = ref<number | null>(null)
 
 const initiativeList = ref<SceneInitiativeEntry[]>([])
 
 const localTokens = ref<RoomToken[]>([])
+/** Tokens como estão gravados no banco (para saber se há alterações não salvas). */
+const savedSignature = ref('[]')
+const isDirty = computed(() => isGm.value && JSON.stringify(localTokens.value) !== savedSignature.value)
 const sceneWidth = ref(1920)
 const sceneHeight = ref(1080)
 
@@ -237,6 +239,8 @@ watch(() => room.value, (newRoom) => {
   // localTokens from the (unsaved) snapshot — silently wiping out any local-only token, such
   // as one just duplicated or added but not yet saved.
   localTokens.value = JSON.parse(JSON.stringify(snapshot.tokens ?? []))
+  // Snapshot ao vivo (rascunho do mestre) não conta como salvo; o do banco, sim.
+  if (!isLiveSnapshot) savedSignature.value = JSON.stringify(localTokens.value)
 }, { immediate: true, deep: true })
 
 watchEffect(() => {
@@ -248,21 +252,6 @@ watch(localTokens, (newTokens) => {
   newTokens.forEach(token => ensureTokenImageLoaded(token.id, token.image))
 }, { immediate: true, deep: true })
 
-const stageConfig = computed(() => ({
-  width: sceneWidth.value,
-  height: sceneHeight.value,
-  scaleX: stageScale.value,
-  scaleY: stageScale.value,
-}))
-
-const scene = computed(() => ({
-  x: 0,
-  y: 0,
-  width: sceneWidth.value,
-  height: sceneHeight.value,
-  image: bgImageObj.value ?? undefined,
-  id: 'scene',
-}))
 
 const selectToken = (id: number | null) => {
   if (id === null) {
@@ -342,76 +331,11 @@ onUnmounted(() => {
   if (displayAnimationFrame !== null) cancelAnimationFrame(displayAnimationFrame)
 })
 
-const tokenGroups = computed(() => {
-  return [...localTokens.value].reverse().map(token => {
-    const width = token.width || 100
-    const height = token.height || 100
-    const centerX = width / 2
-    const centerY = height / 2
-    const position = isGm.value ? token : (displayPositions[token.id] ?? token)
 
-    return {
-      id: token.id,
 
-      groupConfig: {
-        x: position.x,
-        y: position.y,
-        draggable: isGm.value,
-        opacity: (token.opacity ?? 100) / 100,
-      },
-
-      imageConfig: {
-        id: `token-${token.id}`,
-        name: 'token-image',
-        image: tokenImages[token.id] ?? undefined,
-        x: centerX,
-        y: centerY,
-        width,
-        height,
-        offsetX: centerX,
-        offsetY: centerY,
-        scaleX: token.scaleX ?? 1,
-        scaleY: token.scaleY ?? 1,
-        rotation: token.rotation || 0,
-      },
-    }
-  })
-})
-
-watch(selectedTokenId, async (newId) => {
-  if (!isGm.value || !transformerRef.value) return
-  await nextTick()
-  const transformerNode = transformerRef.value.getNode()
-
-  if (!newId) {
-    transformerNode.nodes([])
-    return
-  }
-
-  const stageNode = stageRef.value.getNode()
-  const selectedNode = stageNode?.findOne(`#token-${newId}`)
-  if (selectedNode) {
-    transformerNode.nodes([selectedNode])
-  }
-})
-
-const handleStageClick = (e: any) => {
-  if (e.target === e.target.getStage() || e.target.attrs.id === 'scene') {
-    selectToken(null)
-  }
-}
-
-const {
-  handleTransformEnd,
-  handleDragEnd,
-  hFlipToken: flipTokenHorizontally,
-  vFlipToken: flipTokenVertically,
-  resetTokenRotation: resetSelectedTokenRotation,
-} = useTokenTransform(localTokens, stageRef, transformerRef)
-
-const hFlipToken = () => selectedTokenId.value && flipTokenHorizontally(selectedTokenId.value)
-const vFlipToken = () => selectedTokenId.value && flipTokenVertically(selectedTokenId.value)
-const resetTokenRotation = () => selectedTokenId.value && resetSelectedTokenRotation(selectedTokenId.value)
+const hFlipToken = () => { if (selectedTokenId.value) stage.value?.hFlip(selectedTokenId.value) }
+const vFlipToken = () => { if (selectedTokenId.value) stage.value?.vFlip(selectedTokenId.value) }
+const resetTokenRotation = () => { if (selectedTokenId.value) stage.value?.resetRotation(selectedTokenId.value) }
 
 const duplicateToken = () => {
   const token = selectedToken.value
@@ -424,13 +348,19 @@ const duplicateToken = () => {
 
 const menuState = reactive({ show: false, x: 0, y: 0 })
 
-const openMenu = (e: any) => {
+function onTokenContext(payload: { x: number; y: number }) {
   if (!isGm.value) return
-  const event = e.evt
-  event.preventDefault()
-  menuState.x = event.clientX
-  menuState.y = event.clientY
-  menuState.show = true
+  Object.assign(menuState, { show: true, x: payload.x, y: payload.y })
+}
+
+function onTokenDblClick(id: number) {
+  selectToken(id)
+  if (isGm.value) isTokenConfigWindowOpen.value = true
+}
+
+function fitToWindow() {
+  const area = canvasWrap.value?.parentElement
+  if (area) fitTo(area.clientWidth - 24, area.clientHeight - 24, sceneWidth.value, sceneHeight.value)
 }
 
 // ==========================================
@@ -469,8 +399,9 @@ watch(localTokens, () => {
   sendLiveSnapshot()
 }, { deep: true })
 
-async function saveRoomSnapshot() {
-  if (!room.value) return
+/** Grava a sala. Retorna se deu certo. */
+async function saveRoomSnapshot(): Promise<boolean> {
+  if (!room.value) return false
   try {
     const response = await fetch(`/api/v1/rooms/${room.value.id}`, {
       method: 'PATCH',
@@ -479,14 +410,51 @@ async function saveRoomSnapshot() {
     })
     if (response.ok) {
       setRoom({ ...(await response.json()), role: 'gm' })
+      savedSignature.value = JSON.stringify(localTokens.value)
       showStatusMessage('Sala salva com sucesso!')
-    } else {
-      console.error('Erro ao salvar a sala.')
+      return true
     }
+    console.error('Erro ao salvar a sala.')
   } catch (error) {
     console.error('Erro ao salvar a sala:', error)
   }
+  await dialog.alert('Não foi possível salvar a sala. Tente novamente.', { title: 'Erro ao salvar', icon: 'error' })
+  return false
 }
+
+let leaveConfirmed = false
+
+/** Pergunta se salva antes de sair (só o mestre tem o que salvar). */
+async function confirmLeave(): Promise<boolean> {
+  if (leaveConfirmed || !isDirty.value) return true
+  const answer = await dialog.ask({
+    title: 'Sala',
+    icon: 'warning',
+    message: `Deseja salvar as alterações na sala "${room.value?.name ?? ''}"?`,
+    buttons: [
+      { label: 'Sim', value: 'yes', default: true },
+      { label: 'Não', value: 'no' },
+      { label: 'Cancelar', value: 'cancel', cancel: true },
+    ],
+  })
+  if (answer === 'cancel') return false
+  if (answer === 'yes' && !(await saveRoomSnapshot())) return false
+  leaveConfirmed = true
+  return true
+}
+
+function onBeforeUnload(event: BeforeUnloadEvent) {
+  if (!isDirty.value) return
+  event.preventDefault()
+  event.returnValue = ''
+}
+onMounted(() => window.addEventListener('beforeunload', onBeforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
+onBeforeRouteLeave(async () => {
+  const ok = await confirmLeave()
+  if (!ok) leaveConfirmed = false
+  return ok
+})
 
 async function handleDeleteTokenAlertWindow() {
   if (!selectedTokenId.value) return
@@ -537,13 +505,7 @@ const handleDeleteToken = () => {
   localTokens.value.splice(index, 1)
   selectedTokenId.value = null
 
-  if (transformerRef.value) {
-    transformerRef.value.getNode().nodes([])
-  }
-
-  if (isTokenConfigWindowOpen) {
-    isTokenConfigWindowOpen.value = false
-  }
+  isTokenConfigWindowOpen.value = false
 }
 
 const isTokenConfigWindowOpen = ref(false)
@@ -692,6 +654,8 @@ async function confirmToggleRoomOpen() {
 }
 
 // Atalhos da sala (só o GM edita): valem com a janela da sala ativa.
+routeWindow.onBeforeClose(confirmLeave)
+
 routeWindow.shortcuts({
   'ctrl+s': { run: () => { if (isGm.value) saveRoomSnapshot() }, allowInInput: true },
   delete: () => { if (isGm.value) handleDeleteTokenAlertWindow() },
@@ -699,16 +663,15 @@ routeWindow.shortcuts({
 
 
 
-const tokenContextItems = computed<MenuItemDef[]>(() => isGm.value ? [
-  { id: 'ctx-duplicar', label: '&Duplicar token', icon: 'copy', action: duplicateToken },
-  { id: 'ctx-substituir', label: '&Substituir token…', icon: 'token', action: openReplaceTokenWindow },
-  { type: 'separator' },
-  { id: 'ctx-inverter-h', label: 'Inverter &horizontalmente', action: hFlipToken },
-  { id: 'ctx-inverter-v', label: 'Inverter &verticalmente', action: vFlipToken },
-  { id: 'ctx-rotacao', label: '&Restaurar rotação', action: resetTokenRotation },
-  { type: 'separator' },
-  { id: 'ctx-remover', label: 'Re&mover token', icon: 'delete', shortcut: 'Del', action: handleDeleteTokenAlertWindow },
-] : [])
+const tokenContextItems = computed<MenuItemDef[]>(() => isGm.value ? buildTokenMenu({
+  configure: () => { isTokenConfigWindowOpen.value = true },
+  duplicate: duplicateToken,
+  replace: openReplaceTokenWindow,
+  hFlip: hFlipToken,
+  vFlip: vFlipToken,
+  resetRotation: resetTokenRotation,
+  remove: handleDeleteTokenAlertWindow,
+}, { disabled: selectedTokenId.value === null }) : [])
 
 const windowTitle = computed(() => room.value?.name ? `${room.value.name} - Sala` : 'Sala')
 
@@ -719,7 +682,8 @@ const roomMenus = computed<MenuDef[]>(() => {
     items: [
       { id: 'zoom-mais', label: '&Aumentar zoom', icon: 'zoom-in', action: zoomIn },
       { id: 'zoom-menos', label: '&Diminuir zoom', icon: 'zoom-out', action: zoomOut },
-      { id: 'zoom-100', label: '&Restaurar zoom', action: resetZoom },
+      { id: 'zoom-100', label: '&Tamanho real (100%)', action: resetZoom },
+      { id: 'zoom-ajustar', label: 'Ajustar à &janela', action: fitToWindow },
       { type: 'separator' },
       { id: 'tela-cheia', label: '&Tela cheia', icon: 'fullscreen', action: desktop.toggleFullscreen },
     ],
@@ -752,6 +716,7 @@ const roomMenus = computed<MenuDef[]>(() => {
         { id: 'fechar', label: '&Fechar', action: () => navigateTo('/dashboard') },
       ],
     },
+    { id: 'editar', label: '&Editar', items: tokenContextItems.value },
     {
       id: 'inserir',
       label: '&Inserir',
@@ -797,82 +762,46 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
 
 
 
-      <RoomTokenAttributesWindow
-          v-if="isTokenAttributesWindowOpen && pendingToken"
+      <EditorTokenAttributesDialog
+          v-model:open="isTokenAttributesWindowOpen"
           :token="pendingToken"
           @confirm="onTokenAttributesConfirmed"
-          @close-window="closeTokenAttributesWindow"
       />
 
-      <floating-window
-          title="Iniciativa"
-          icon="initiative"
-          v-if="isInitiativeWindowOpen"
-          @close-window="isInitiativeWindowOpen = false"
-      >
-        <initiative v-model:initiative-list="initiativeList" />
-      </floating-window>
-      <floating-window
-          title="Configurações do Token"
-          icon="objects"
-          v-if="isTokenConfigWindowOpen"
-          @close-window="isTokenConfigWindowOpen = false"
-      >
-        <token-config
-            style="max-width: 30rem"
-            :token="selectedToken"
-            @delete-token="handleDeleteToken"
-        />
-      </floating-window>
+      <EditorInitiativeWindow v-if="isGm" v-model:open="isInitiativeWindowOpen" v-model:list="initiativeList" />
+      <EditorTokenConfigWindow
+          v-if="isGm"
+          v-model:open="isTokenConfigWindowOpen"
+          :token="selectedToken ?? null"
+          @remove="handleDeleteTokenAlertWindow"
+      />
 
 
 
-      <div class="scene-canvas">
-        <v-stage
-            ref="stageRef"
-            :config="stageConfig"
-            style="display: block;background-color: #808080"
-            @click="handleStageClick"
-            @tap="handleStageClick"
+      <div ref="canvasWrap" class="canvas-wrap">
+        <EditorStage
+            ref="stage"
+            v-model:tokens="localTokens"
+            v-model:width="sceneWidth"
+            v-model:height="sceneHeight"
+            :scale="stageScale"
+            :background="bgImageObj"
+            :images="tokenImages"
+            :selected="selectedTokenId"
+            :editable="isGm"
+            :positions="isGm ? null : displayPositions"
+            @select="selectToken"
+            @context="onTokenContext"
+            @dblclick="onTokenDblClick"
             @wheel="handleWheel"
-        >
-          <v-layer>
-            <v-image :config="scene" id="scene"/>
-          </v-layer>
-          <v-layer>
-            <v-group
-                v-for="tokenGroup in tokenGroups"
-                :key="tokenGroup.id"
-                :config="tokenGroup.groupConfig"
-                @mousedown="selectToken(tokenGroup.id)"
-                @touchstart="selectToken(tokenGroup.id)"
-                @dragend="(e) => handleDragEnd(e, tokenGroup.id)"
-                @contextmenu="openMenu"
-                @dblclick="isTokenConfigWindowOpen = true"
-            >
-              <v-image
-                  :config="tokenGroup.imageConfig"
-                  @transformend="(e) => handleTransformEnd(e, tokenGroup.id)"
-              />
-            </v-group>
-
-            <v-transformer
-                v-if="isGm"
-                ref="transformerRef"
-                :config="{
-                  keepRatio: true,
-                  enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right']
-                }"
-            />
-          </v-layer>
-        </v-stage>
+        />
       </div>
-
     </template>
-    <RoomPasswordWindow
+    <EditorRoomPasswordDialog
         v-else-if="isPasswordWindowOpen"
         :error="passwordError"
         @submit="loadRoom"
+        @cancel="navigateTo(desktop.isGuest.value ? '/' : '/dashboard')"
     />
     <p v-else-if="loadError" style="padding: 1rem;">{{ loadError }}</p>
     <p v-else style="padding: 1rem;">Carregando sala...</p>
@@ -880,13 +809,9 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
       <UiStatusBar>
         <UiStatusField grow>{{ statusFlash ?? roomStatusText }}</UiStatusField>
         <UiStatusField>{{ isGm ? 'Mestre' : 'Jogador' }}</UiStatusField>
+        <UiStatusField v-if="isDirty">Alterações não salvas</UiStatusField>
         <UiStatusField class="zoom-field">
-          <label for="zoom">Zoom:</label>
-          <input id="zoom" v-model.number="sceneZoom" type="text" class="scene-zoom-input">
-          <span>%</span>
-          <button type="button" title="Diminuir zoom" @click="zoomOut">-</button>
-          <button type="button" title="Aumentar zoom" @click="zoomIn">+</button>
-          <button type="button" @click="resetZoom">Restaurar</button>
+          <EditorZoomControl v-model="sceneZoom" @in="zoomIn" @out="zoomOut" @reset="resetZoom" @fit="fitToWindow" />
         </UiStatusField>
       </UiStatusBar>
     </template>
@@ -902,20 +827,11 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
   padding-top: 0;
   padding-bottom: 0;
 }
-.zoom-field input {
-  width: 3.5em;
-  height: auto;
-}
-.zoom-field button {
-  min-width: 0;
-  min-height: 0;
-  padding: 0 var(--sp-2);
-}
 
-.scene-canvas {
-  background-color: #808080;
-  width: 100%;
-  height: 100%;
+.canvas-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--c-shadow);
 }
 
 .dice-selector-button {

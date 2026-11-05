@@ -79,10 +79,14 @@ function onWindowBlur() {
   switcher.open = false
 }
 
-/** Clique no papel de parede: nenhuma janela ativa. */
+/**
+ * Clique no papel de parede (ou nos ícones): nenhuma janela ativa. Cliques em
+ * menus, caixas de mensagem e barra de tarefas não contam — eles ficam fora da
+ * área de trabalho e não podem tirar o foco da janela que os abriu.
+ */
 function onDesktopPointerDown(event: PointerEvent) {
   const t = event.target as HTMLElement
-  if (!t.closest('.wm-frame') && !t.closest('.taskbar')) wm.blurAll()
+  if (t.closest('.desktop-area') && !t.closest('.wm-frame')) wm.blurAll()
 }
 
 onMounted(() => {
