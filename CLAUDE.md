@@ -60,7 +60,7 @@ Rooms need one-way live push (server → browser) for token edits and saves. **T
 - `app/` — client app: `pages/`, `components/`, `layouts/`, `middleware/`, `app.vue`, `error.vue`. Standard Nuxt 4 file-based routing.
 - `server/` — Nitro server: `api/v1/**` (REST endpoints), `api/auth/**` (better-auth), `middleware/` (server-side request middleware), `utils/` (auto-imported server utilities), `db/schema.ts` (Drizzle schema, single source of truth for the data model).
 - `lib/` — small shared non-Nuxt-specific helpers (`auth-client.ts` for the better-auth Vue client, `rollDice.ts`).
-- `composables/` — Vue composables (currently `useMenuActions`, the provide/inject bridge described below).
+- `composables/` — Vue composables (root folder, NOT auto-imported: import them explicitly with `~~/composables/...`). The desktop shell lives in `useWindowManager`, `useWindow`, `useDesktop`, `useDialog` (described below).
 - Path aliases in use: `#server/...` resolves into `server/...` (Nitro server alias), `~~/` and `~/` resolve to the app root / `app/` respectively.
 
 ### Auto-imports
@@ -72,7 +72,7 @@ Nitro auto-imports everything exported from `server/utils/*` (e.g. `auth`, `useD
 - `better-auth` (`server/utils/auth.ts`) is configured with the Drizzle adapter (`provider: "pg"`) over the same Supabase Postgres db, using the `user`/`session`/`account`/`verification` tables in `server/db/schema.ts`. Email/password auth is enabled.
 - `server/api/auth/[...all].ts` mounts the better-auth handler for all `/api/auth/*` routes.
 - `server/middleware/auth.ts` is a global Nitro middleware that rejects any `/api/v1/*` request with no valid session (401). Individual `server/api/v1/**` handlers additionally re-check `session.user` themselves in most cases — this is defensive duplication, not a bug; keep doing it when adding new v1 routes since the shared middleware alone shouldn't be relied on as the only guard in a handler that also needs `session.user.id` for row ownership.
-- Client-side: `lib/auth-client.ts` creates the better-auth Vue client (hardcoded `baseURL: "http://localhost:3000"`). `app/middleware/auth.ts` is a Nuxt route middleware (`definePageMeta({ middleware: 'auth' })`) that redirects to `/login` when there's no client session.
+- Client-side: `lib/auth-client.ts` creates the better-auth Vue client (no explicit `baseURL`; it uses the current origin). `app/middleware/auth.ts` is a Nuxt route middleware (`definePageMeta({ middleware: 'auth' })`) that redirects to `/login?redirect=<path>` when there's no client session; the login page sends the user back to that (internal-only) path.
 
 ### Data model (`server/db/schema.ts`)
 
@@ -99,6 +99,17 @@ Uploaded files go through `server/utils/imageStorage.ts`'s `storeImage()`: it re
 
 ### Client app structure
 
-- `app/layouts/dashboard.vue` renders the Windows-98-style desktop chrome (title bar, menu bar, status bar) and implements a **provide/inject action bus**: it `provide()`s `menuActions` (an object of `register`/`unregister`/reactive `actions`), and menu items call `onAction(name)` which looks up and invokes a handler by name. Pages/components register their own handlers via the `useMenuActions()` composable (`composables/useMenuActions.ts`) for actions like `salvar` (save) or `novo-token` (new token) scoped to whatever page is currently mounted, and must `unregister` them `onUnmounted`. When adding a new page-level menu action, follow this register/unregister pattern rather than adding page-specific logic into the layout.
+The logged-in app is a simulated **Windows 98 desktop** (UI rework in progress, done in phases).
+
+- **Component layers** (Nuxt auto-imports with folder prefix):
+  - `app/components/ui/*` → `<Ui*>`: pure, atomic Win98 primitives with no global state — `UiWindow` (the ONLY window frame), `UiMenuBar`/`UiMenu`/`UiContextMenu`/`UiPopup`, `UiToolbar`, `UiStatusBar`, `UiTabs`, `UiListView` (icons/list/details), form fields, `UiWizard`, `UiMessageBox`. Live showcase at `/dev/ui` (dev only).
+  - `app/components/desktop/*` → `<Desktop*>`: the shell that knows the window manager — `DesktopWindow` (binds a WM entry to `UiWindow`: drag, resize, focus, min/max), `DesktopRouteWindow`, `DesktopTaskbar`, `DesktopStartMenu`, `DesktopIcons`, `DesktopDialogHost`, `DesktopBusyOverlay`.
+  - `app/components/apps/*`: contents of windows opened from the app registry.
+- **Menus are data, never hand-written markup**: `MenuDef`/`MenuItemDef` in `app/utils/menu.ts` (`&` marks the access key). Icons are referenced by logical name via `app/utils/icons.ts` (`iconUrl(name, size)`), never by file path.
+- **`app/layouts/desktop.vue`** serves `/dashboard`, `/dashboard/scenes/:id` and `/rooms/:code` (all `ssr: false` via `routeRules`). Because the three routes share the layout, it stays mounted across navigation and open windows survive page changes. It owns the single global keydown listener: F1 help, Alt+I / Ctrl+Esc Start menu, Alt+W window switcher; everything else goes to the active window.
+- **Window manager** (`composables/useWindowManager.ts`): serializable state in `useState('wm')` (rect, state, z-order, active window); non-serializable bits (shortcuts, before-close guards) in module Maps. Window kinds: `app` (opened via `useDesktop().openApp(id, props)` from the registry in `app/desktop/apps.ts`, rendered by `DesktopWindowLayer`), `route` (the current page wrapped in `<DesktopRouteWindow>`, id `'route'`), `inline`.
+- **Per-window API** (`composables/useWindow.ts`): inside a window's content call `useWindow()`; a page that owns its route window calls `useWindow('route')`. Use `setMenus(...)`, `shortcuts({ 'ctrl+s': { run, allowInInput: true }, delete: fn })` (fires only while that window is active — never add global `window.addEventListener('keydown')` in pages) and `onBeforeClose(fn)`.
+- **Dialogs**: `await useDialog().alert(msg)` / `confirm(msg)` / `ask({ buttons })` instead of native `alert()`/`confirm()`. Blocking "Aguarde" overlay: `useLoadingWindow().withLoading(fn, msg)`.
+- **Template gotcha**: Vue templates cannot see globals such as `window`, `document` or `HTMLElement` — put that logic in a script function (a `ref` callback using `el instanceof HTMLElement` inline crashed hydration once).
 - The scene editor (`app/pages/dashboard/scenes/[id].vue`) renders the canvas with `vue-konva` (`Stage`/`Layer`/`Image`/`Transformer`, etc.) for placing, dragging, and transforming tokens over a scenario background image.
-- Windowed dialogs (`EditTokenWindow.vue`, `InsertSceneWindow.vue`, `AlertWindow.vue`, `FixedWIndow.vue`, etc.) are the modal/floating-window building blocks styled with `98.css`; reuse these rather than introducing a different dialog pattern.
+- Legacy windowed dialogs (`ResourceListWindow`, `EditTokenWindow`, `InsertSceneWindow`, `AlertWindow`, `FixedWIndow`, `FloatingWindow`, …) still exist inside some windows and are being replaced by `ui/*` + the window manager (phases 4–5 of the rework). Do not use them in new code.

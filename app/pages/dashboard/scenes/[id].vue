@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type {SceneToken} from "#server/db/schema.ts"
-import {useMenuActions} from "~~/composables/useMenuActions"
+import type { MenuDef } from "~/utils/menu"
+import {useDesktop} from "~~/composables/useDesktop"
+import {useWindow} from "~~/composables/useWindow"
 import {useCanvasZoom} from "~~/composables/useCanvasZoom"
 import {usePreloadedImage, useImageMap} from "~~/composables/useImagePreloader"
 import {useTokenTransform} from "~~/composables/useTokenTransform"
@@ -20,11 +22,22 @@ import FixedWindow from "~/components/FixedWIndow.vue"
 import ScenariosWindow from "~/components/ScenariosWindow.vue";
 
 definePageMeta({
-  layout: 'dashboard',
+  layout: 'desktop',
   middleware: 'auth',
 })
 
-const {register, unregister, openHelpManual, showStatusMessage} = useMenuActions()
+const desktop = useDesktop()
+const routeWindow = useWindow('route')
+const openHelpManual = () => desktop.openHelp()
+
+// Mensagem temporária na barra de status (ex.: "Cena salva com sucesso!")
+const statusFlash = ref<string | null>(null)
+let statusFlashTimer: ReturnType<typeof setTimeout> | null = null
+function showStatusMessage(text: string, duration = 2000) {
+  if (statusFlashTimer) clearTimeout(statusFlashTimer)
+  statusFlash.value = text
+  statusFlashTimer = setTimeout(() => { statusFlash.value = null }, duration)
+}
 
 const params = useRoute().params
 const {data: currentScene} = useFetch(`/api/v1/scenes/${params.id}`)
@@ -39,19 +52,6 @@ const isDeleteTokenAlertOpen = ref(false)
 const isReplaceTokenWindowOpen = ref(false)
 const activeClass = ref('all-tokens')
 
-register('salvar', async () => {
-  await saveSceneTokens()
-})
-
-register('novo-token', () => {
-  console.log('Novo token')
-  isTokenWindowOpen.value = true
-})
-
-onUnmounted(() => {
-  unregister('salvar')
-  unregister('novo-token')
-})
 
 const stageRef = ref(null)
 const transformerRef = ref(null)
@@ -351,39 +351,11 @@ const setTokenTab = (tab: string) => {
   activeClass.value = tab
 }
 
-const handleKeyDown = (e: KeyboardEvent) => {
-  // Ctrl+S / Cmd+S salva a cena, mesmo com um campo de texto em foco (para não
-  // deixar a edição em andamento sem persistir e evitar o diálogo "Salvar" do navegador).
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-    e.preventDefault();
-    saveSceneTokens();
-    return;
-  }
-
-  // 1. Identifica qual elemento está em foco no momento
-  const activeElement = document.activeElement as HTMLElement | null;
-
-  // 2. Verifica se é um elemento de formulário
-  const isInputFocused = activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName);
-
-  // 3. Se o usuário estiver digitando, aborta a função para não atrapalhar
-  if (isInputFocused) {
-    return;
-  }
-
-  // Comportamento normal do seu atalho
-  if (e.key === 'Delete') {
-    e.preventDefault();
-    handleDeleteTokenAlertWindow();
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', handleKeyDown)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown)
+// Atalhos do editor: só disparam com a janela do editor ativa.
+// Ctrl+S funciona mesmo com um campo de texto em foco (evita o "Salvar" do navegador).
+routeWindow.shortcuts({
+  'ctrl+s': { run: () => saveSceneTokens(), allowInInput: true },
+  delete: () => handleDeleteTokenAlertWindow(),
 })
 
 const menuState = reactive({
@@ -471,221 +443,252 @@ const onHandleMouseLeave = (e: any) => {
   const container = e.target.getStage().container()
   container.style.cursor = 'default'
 }
+
+const windowTitle = computed(() => currentScene.value?.name ? `${currentScene.value.name} - Editor de cenas` : 'Editor de cenas')
+
+const editorMenus = computed<MenuDef[]>(() => [
+  {
+    id: 'arquivo',
+    label: '&Arquivo',
+    items: [
+      { id: 'salvar', label: '&Salvar', icon: 'save', shortcut: 'Ctrl+S', action: saveSceneTokens },
+      { type: 'separator' },
+      { id: 'fechar', label: '&Fechar', action: () => navigateTo('/dashboard') },
+    ],
+  },
+  {
+    id: 'inserir',
+    label: '&Inserir',
+    items: [
+      { id: 'inserir-token', label: '&Token…', icon: 'token', action: () => { isTokenWindowOpen.value = true } },
+      { id: 'trocar-cenario', label: '&Cenário…', icon: 'scenario', action: () => { isScenarioWindowOpen.value = true } },
+    ],
+  },
+  {
+    id: 'exibir',
+    label: 'E&xibir',
+    items: [
+      { id: 'zoom-mais', label: '&Aumentar zoom', icon: 'zoom-in', action: zoomIn },
+      { id: 'zoom-menos', label: '&Diminuir zoom', icon: 'zoom-out', action: zoomOut },
+      { id: 'zoom-100', label: '&Restaurar zoom', action: resetZoom },
+      { type: 'separator' },
+      { id: 'tela-cheia', label: '&Tela cheia', icon: 'fullscreen', action: desktop.toggleFullscreen },
+    ],
+  },
+  {
+    id: 'ajuda',
+    label: 'Aj&uda',
+    items: [{ id: 'manual', label: '&Manual do VTT 98 SE', icon: 'help', shortcut: 'F1', action: openHelpManual }],
+  },
+])
+routeWindow.setMenus(editorMenus.value)
+watch(editorMenus, m => routeWindow.setMenus(m))
+onBeforeUnmount(() => routeWindow.setMenus(undefined))
 </script>
 
 <template>
-  <ContextMenu
-      :show="menuState.show"
-      :x="menuState.x"
-      :y="menuState.y"
-      @close="menuState.show = false"
-  >
-    <li @click="duplicateToken">Duplicar Token</li>
-    <li @click="openReplaceTokenWindow">Substituir Token</li>
-    <li @click="hFlipToken">Inverter Horizontalmente</li>
-    <li @click="vFlipToken">Inverter Verticalmente</li>
-    <li @click="resetTokenRotation()">Restaurar Rotação</li>
-    <li @click="handleDeleteTokenAlertWindow()">Remover Token</li>
-  </ContextMenu>
-  <fixed-window
-      title="Substituir Token"
-      icon="tokens" v-if="isReplaceTokenWindowOpen"
-      @close-window="isReplaceTokenWindowOpen = false"
-  >
-    <tokens-window
-        add-token-to-scene="true"
-        add-button-label="Substituir Token"
-        @addTokenToScene="replaceToken"
+  <DesktopRouteWindow :title="windowTitle" icon="scene">
+    <template #toolbar>
+      <UiToolbar label="Ferramentas do editor">
+        <UiToolbarButton label="Tokens" icon="token" show-label @click="isTokenWindowOpen = true" />
+        <UiToolbarButton label="Cenário" icon="scenario" show-label @click="isScenarioWindowOpen = true" />
+        <UiToolbarButton label="Salvar" icon="save" show-label @click="saveSceneTokens" />
+        <UiToolbarSeparator />
+        <UiToolbarButton label="Ajuda" icon="help" show-label @click="openHelpManual" />
+      </UiToolbar>
+    </template>
+    <ContextMenu
+        :show="menuState.show"
+        :x="menuState.x"
+        :y="menuState.y"
+        @close="menuState.show = false"
+    >
+      <li @click="duplicateToken">Duplicar Token</li>
+      <li @click="openReplaceTokenWindow">Substituir Token</li>
+      <li @click="hFlipToken">Inverter Horizontalmente</li>
+      <li @click="vFlipToken">Inverter Verticalmente</li>
+      <li @click="resetTokenRotation()">Restaurar Rotação</li>
+      <li @click="handleDeleteTokenAlertWindow()">Remover Token</li>
+    </ContextMenu>
+    <fixed-window
+        title="Substituir Token"
+        icon="tokens" v-if="isReplaceTokenWindowOpen"
         @close-window="isReplaceTokenWindowOpen = false"
-    />
-  </fixed-window>
-  <fixed-window
-      title="Tokens"
-      icon="tokens" v-if="isTokenWindowOpen"
-      @close-window="isTokenWindowOpen = false"
-  >
-    <div>
-      <menu role="tablist">
-        <li role="tab" :aria-selected="activeClass == 'scene-tokens'" @click="setTokenTab('scene-tokens')"><span>Tokens da cena</span>
-        </li>
-        <li role="tab" :aria-selected="activeClass == 'all-tokens'" @click="setTokenTab('all-tokens')"><span>Tokens cadastrados</span>
-        </li>
-      </menu>
-      <div class="window" role="tabpanel">
-        <div class="window-body">
-          <div class="tokens-tabs" :class="activeClass == 'scene-tokens' ? 'active' : ''" id="scene-tokens">
-            <div class="window-content-container">
-              <div>
-                <div class="section-header">Tokens</div>
-                <div class="content">
-                  <div class="scenes-grid">
-                    <div
-                        class="scene-item"
-                        v-for="token in tokens"
-                        :key="token.id"
-                        :class="{ selected: selectedTokenId === token.id }"
-                        @click="selectToken(token.id)"
-                    >
-                      <img :src="token.image" :alt="token.name">
-                      <span>{{ token.name }}</span>
+    >
+      <tokens-window
+          add-token-to-scene="true"
+          add-button-label="Substituir Token"
+          @addTokenToScene="replaceToken"
+          @close-window="isReplaceTokenWindowOpen = false"
+      />
+    </fixed-window>
+    <fixed-window
+        title="Tokens"
+        icon="tokens" v-if="isTokenWindowOpen"
+        @close-window="isTokenWindowOpen = false"
+    >
+      <div>
+        <menu role="tablist">
+          <li role="tab" :aria-selected="activeClass == 'scene-tokens'" @click="setTokenTab('scene-tokens')"><span>Tokens da cena</span>
+          </li>
+          <li role="tab" :aria-selected="activeClass == 'all-tokens'" @click="setTokenTab('all-tokens')"><span>Tokens cadastrados</span>
+          </li>
+        </menu>
+        <div class="window" role="tabpanel">
+          <div class="window-body">
+            <div class="tokens-tabs" :class="activeClass == 'scene-tokens' ? 'active' : ''" id="scene-tokens">
+              <div class="window-content-container">
+                <div>
+                  <div class="section-header">Tokens</div>
+                  <div class="content">
+                    <div class="scenes-grid">
+                      <div
+                          class="scene-item"
+                          v-for="token in tokens"
+                          :key="token.id"
+                          :class="{ selected: selectedTokenId === token.id }"
+                          @click="selectToken(token.id)"
+                      >
+                        <img :src="token.image" :alt="token.name">
+                        <span>{{ token.name }}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
+                <aside class="window-sidebar">
+                  <div class="buttons" style="display: flex; flex-direction: column; gap: 0.25rem;">
+                    <button :disabled="!selectedTokenId" class="disabled" @click.prevent="handleDeleteTokenAlertWindow">
+                      Apagar
+                    </button>
+                    <button :disabled="!selectedTokenId" @click.prevent="duplicateToken" class="disabled">Duplicar</button>
+                    <button :disabled="!selectedTokenId" @click.prevent="centerToken" class="disabled">Centralizar</button>
+                  </div>
+                  <div class="information" v-if="selectedToken">
+                    <dl>
+                      <dt>Tamanho</dt>
+                      <dd>{{ Math.trunc(selectedToken.width) }}x{{ Math.trunc(selectedToken.height) }}</dd>
+                      <dt>Tags</dt>
+                      <dd>{{ selectedToken.tags }}</dd>
+                      <dt>Posição</dt>
+                      <dd>X: {{ selectedToken.x }}, Y: {{ selectedToken.y }}</dd>
+                    </dl>
+                  </div>
+                </aside>
               </div>
-              <aside class="window-sidebar">
-                <div class="buttons" style="display: flex; flex-direction: column; gap: 0.25rem;">
-                  <button :disabled="!selectedTokenId" class="disabled" @click.prevent="handleDeleteTokenAlertWindow">
-                    Apagar
-                  </button>
-                  <button :disabled="!selectedTokenId" @click.prevent="duplicateToken" class="disabled">Duplicar</button>
-                  <button :disabled="!selectedTokenId" @click.prevent="centerToken" class="disabled">Centralizar</button>
-                </div>
-                <div class="information" v-if="selectedToken">
-                  <dl>
-                    <dt>Tamanho</dt>
-                    <dd>{{ Math.trunc(selectedToken.width) }}x{{ Math.trunc(selectedToken.height) }}</dd>
-                    <dt>Tags</dt>
-                    <dd>{{ selectedToken.tags }}</dd>
-                    <dt>Posição</dt>
-                    <dd>X: {{ selectedToken.x }}, Y: {{ selectedToken.y }}</dd>
-                  </dl>
-                </div>
-              </aside>
+            </div>
+            <div class="tokens-tabs" :class="activeClass == 'all-tokens' ? 'active' : ''" id="all-tokens">
+              <tokens-window
+                  add-token-to-scene="true"
+                  @addTokenToScene="addToken"
+                  @close-window="isTokenWindowOpen = false"
+              />
             </div>
           </div>
-          <div class="tokens-tabs" :class="activeClass == 'all-tokens' ? 'active' : ''" id="all-tokens">
-            <tokens-window
-                add-token-to-scene="true"
-                @addTokenToScene="addToken"
-                @close-window="isTokenWindowOpen = false"
-            />
-          </div>
         </div>
       </div>
-    </div>
-  </fixed-window>
-  <fixed-window
-      title="Cenários"
-      icon="scenario"
-      v-if="isScenarioWindowOpen"
-      @close-window="isScenarioWindowOpen = false">
-    <scenarios-window
-        set-scenario-to-scene="true"
-        @setScenarioToScene="setScenario"
-        @close-window="isScenarioWindowOpen = false"
-    />
-  </fixed-window>
-  <Teleport to="#button-bar">
-    <button class="dice-selector-button">
-      <Icon
-          size="sm"
-          style="padding: 4px; box-sizing: border-box"
-          name="Tokens"
-          icon="tokens"
-          @click="isTokenWindowOpen = true"
+    </fixed-window>
+    <fixed-window
+        title="Cenários"
+        icon="scenario"
+        v-if="isScenarioWindowOpen"
+        @close-window="isScenarioWindowOpen = false">
+      <scenarios-window
+          set-scenario-to-scene="true"
+          @setScenarioToScene="setScenario"
+          @close-window="isScenarioWindowOpen = false"
       />
-    </button>
-    <button class="dice-selector-button">
-      <Icon
-          size="sm"
-          style="padding: 4px; box-sizing: border-box"
-          name="Cenário"
-          icon="scenario"
-          @click="isScenarioWindowOpen = true"
-      />
-    </button>
-    <button class="dice-selector-button">
-      <Icon
-          size="sm"
-          style="padding: 4px; box-sizing: border-box"
-          name="Salvar"
-          icon="save"
-          @click="saveSceneTokens"
-      />
-    </button>
-    <button class="dice-selector-button">
-      <Icon
-          size="sm"
-          style="padding: 4px; box-sizing: border-box"
-          name="Ajuda"
-          icon="help"
-          @click="openHelpManual"
-      />
-    </button>
-  </Teleport>
-  <alert-window
-      v-if="isDeleteTokenAlertOpen"
-      icon="warning"
-      title="Apagar Token"
-      @alert-button-OK="handleDeleteToken"
-      :cancelAction="closeDeleteAlert"
-  >
-    Tem certeza que quer apagar este token?
-  </alert-window>
-  <div class="scene-canvas">
-    <!-- Adicionado eventos de click no Stage -->
-    <v-stage
-        ref="stageRef"
-        :config="stageConfig"
-        style="display: block;background-color: #808080"
-        @click="handleStageClick"
-        @tap="handleStageClick"
-        @wheel="handleWheel"
+    </fixed-window>
+    <alert-window
+        v-if="isDeleteTokenAlertOpen"
+        icon="warning"
+        title="Apagar Token"
+        @alert-button-OK="handleDeleteToken"
+        :cancelAction="closeDeleteAlert"
     >
-      <v-layer>
-        <v-image :config="scene" id="scene"/>
-      </v-layer>
-      <v-layer>
-        <v-group
-            v-for="tokenGroup in tokenGroups"
-            :key="tokenGroup.id"
-            :config="tokenGroup.groupConfig"
-            @mousedown="selectToken(tokenGroup.id)"
-            @touchstart="selectToken(tokenGroup.id)"
-            @dragend="(e) => handleDragEnd(e, tokenGroup.id)"
-            @contextmenu="(e) => openMenu(e, 'Target Box Alpha')"
-        >
-          <v-image
-              :config="tokenGroup.imageConfig"
-              @transformend="(e) => handleTransformEnd(e, tokenGroup.id)"
+      Tem certeza que quer apagar este token?
+    </alert-window>
+    <div class="scene-canvas">
+      <!-- Adicionado eventos de click no Stage -->
+      <v-stage
+          ref="stageRef"
+          :config="stageConfig"
+          style="display: block;background-color: #808080"
+          @click="handleStageClick"
+          @tap="handleStageClick"
+          @wheel="handleWheel"
+      >
+        <v-layer>
+          <v-image :config="scene" id="scene"/>
+        </v-layer>
+        <v-layer>
+          <v-group
+              v-for="tokenGroup in tokenGroups"
+              :key="tokenGroup.id"
+              :config="tokenGroup.groupConfig"
+              @mousedown="selectToken(tokenGroup.id)"
+              @touchstart="selectToken(tokenGroup.id)"
+              @dragend="(e) => handleDragEnd(e, tokenGroup.id)"
+              @contextmenu="(e) => openMenu(e, 'Target Box Alpha')"
+          >
+            <v-image
+                :config="tokenGroup.imageConfig"
+                @transformend="(e) => handleTransformEnd(e, tokenGroup.id)"
+            />
+          </v-group>
+
+          <v-transformer
+              ref="transformerRef"
+              :config="{
+          keepRatio: true,
+          enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+        }"
           />
-        </v-group>
 
-        <v-transformer
-            ref="transformerRef"
-            :config="{
-        keepRatio: true,
-        enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right']
-      }"
-        />
-
-        <v-rect
-            :config="resizeHandleConfig"
-            @dragmove="onResizeHandleDragMove"
-            @dragend="onResizeHandleDragEnd"
-            @mouseenter="onHandleMouseEnter"
-            @mouseleave="onHandleMouseLeave"
-        />
-      </v-layer>
-    </v-stage>
-  </div>
-  <teleport to="#footer-menu">
-    <div class="scene-footer">
-      <div class="zoom-control-container">
-        <div class="field-row">
-          <label for="zoom">Zoom:</label>
-          <!-- v-model.number garante que o valor seja tratado como número -->
-          <input type="text" id="zoom" v-model.number="sceneZoom" class="scene-zoom-input" />
-          <span style="margin-right: 4px;">%</span>
-          <button @click="zoomOut">-</button>
-          <button @click="zoomIn">+</button>
-          <button @click="resetZoom">Restaurar</button>
-        </div>
-      </div>
+          <v-rect
+              :config="resizeHandleConfig"
+              @dragmove="onResizeHandleDragMove"
+              @dragend="onResizeHandleDragEnd"
+              @mouseenter="onHandleMouseEnter"
+              @mouseleave="onHandleMouseLeave"
+          />
+        </v-layer>
+      </v-stage>
     </div>
-  </teleport>
+    <template #statusbar>
+      <UiStatusBar>
+        <UiStatusField grow>{{ statusFlash ?? 'Pronto' }}</UiStatusField>
+        <UiStatusField>{{ tokens.length }} token(s)</UiStatusField>
+        <UiStatusField class="zoom-field">
+          <label for="zoom">Zoom:</label>
+          <input id="zoom" v-model.number="sceneZoom" type="text" class="scene-zoom-input">
+          <span>%</span>
+          <button type="button" title="Diminuir zoom" @click="zoomOut">-</button>
+          <button type="button" title="Aumentar zoom" @click="zoomIn">+</button>
+          <button type="button" @click="resetZoom">Restaurar</button>
+        </UiStatusField>
+      </UiStatusBar>
+    </template>
+  </DesktopRouteWindow>
 </template>
 <style lang="css" scoped>
+/* Controle de zoom na barra de status da janela */
+.zoom-field {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.zoom-field input {
+  width: 3.5em;
+  height: auto;
+}
+.zoom-field button {
+  min-width: 0;
+  min-height: 0;
+  padding: 0 var(--sp-2);
+}
+
 .zoom-control-container {
   button {
     min-width: 0.25rem;

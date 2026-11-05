@@ -1,5 +1,5 @@
 /**
- * Estado global da LoadingWindow. Usa useState para que qualquer form/janela do app
+ * Estado global do aviso "Aguarde" (DesktopBusyOverlay). Usa useState para que qualquer form/janela do app
  * compartilhe o mesmo overlay bloqueante ao consultar o banco de dados.
  */
 export type LoadingWindowImage = 'loading' | 'copy' | 'delete'

@@ -68,6 +68,14 @@ useSeoMeta({
   twitterImage: '/assets/screenshots/vtt_98_screenshot_7.png',
 })
 
+const route = useRoute()
+
+/** Para onde ir depois de entrar: só caminhos internos (evita redirecionar para outro site). */
+const redirectTarget = computed(() => {
+  const r = route.query.redirect
+  return typeof r === 'string' && r.startsWith('/') && !r.startsWith('//') ? r : '/dashboard'
+})
+
 const err = ref<string|null>(null)
 const isSubmitting = ref(false)
 const { withLoading } = useLoadingWindow()
@@ -86,11 +94,8 @@ const submitForm = async () => {
       email: form.email,
       password: form.password,
     }, {
-      onRequest: (ctx) => {
-        console.log(ctx)
-      },
       onSuccess: (ctx) => {
-        navigateTo('/dashboard')
+        navigateTo(redirectTarget.value)
       },
       onError: (ctx) => {
         err.value = ctx.error.message

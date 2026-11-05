@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { RoomToken, SceneAttribute, SceneInitiativeEntry } from "#server/db/schema.ts"
-import { useMenuActions } from "~~/composables/useMenuActions"
+import type { MenuDef } from "~/utils/menu"
+import { useDesktop } from "~~/composables/useDesktop"
+import { useWindow } from "~~/composables/useWindow"
 import { useCanvasZoom } from "~~/composables/useCanvasZoom"
 import { usePreloadedImage, useImageMap } from "~~/composables/useImagePreloader"
 import { useTokenTransform } from "~~/composables/useTokenTransform"
@@ -23,7 +25,7 @@ import Initiative from "~/components/Initiative.vue";
 import TokenConfig from "~/components/TokenConfig.vue";
 
 definePageMeta({
-  layout: 'dashboard',
+  layout: 'desktop',
 })
 
 const route = useRoute()
@@ -563,7 +565,6 @@ watch(selectedToken, (newToken) => {
 
 const isTokenPickerOpen = ref(false)
 const isTokenAttributesWindowOpen = ref(false)
-const isDiceRollerWindowOpen = ref(false)
 const pendingToken = ref<any>(null)
 
 function onTokenPicked(token: any) {
@@ -637,33 +638,21 @@ async function changeRoomScene(scene: any) {
 // AÇÕES DO MENU / ATALHOS
 // ==========================================
 
-const { register, unregister, setMenuBarVisible, setStatusText, showStatusMessage, openHelpManual } = useMenuActions()
+const desktop = useDesktop()
+const routeWindow = useWindow('route')
+const openHelpManual = () => desktop.openHelp()
+const openDiceRoller = () => desktop.openApp('dice')
 
-register('salvar', async () => {
-  if (isGm.value) await saveRoomSnapshot()
-})
+// Mensagem temporária na barra de status (ex.: "Sala salva com sucesso!")
+const statusFlash = ref<string | null>(null)
+let statusFlashTimer: ReturnType<typeof setTimeout> | null = null
+function showStatusMessage(text: string, duration = 2000) {
+  if (statusFlashTimer) clearTimeout(statusFlashTimer)
+  statusFlash.value = text
+  statusFlashTimer = setTimeout(() => { statusFlash.value = null }, duration)
+}
 
-register('novo-token', () => {
-  if (isGm.value) isTokenPickerOpen.value = true
-})
-
-// Visitantes não têm ações de menu disponíveis nesta página — a menubar só
-// faz sentido para o dono da sala (GM).
-watchEffect(() => {
-  setMenuBarVisible(isGm.value)
-})
-
-// Mostra o estado da sala (aberta/fechada) na status bar do layout no lugar do "Dashboard" padrão.
-watchEffect(() => {
-  setStatusText(room.value ? `Sala ${room.value.isOpen ? 'Aberta' : 'Fechada'}` : 'Dashboard')
-})
-
-onUnmounted(() => {
-  unregister('salvar')
-  unregister('novo-token')
-  setMenuBarVisible(true)
-  setStatusText('Dashboard')
-})
+const roomStatusText = computed(() => room.value ? `Sala ${room.value.isOpen ? 'aberta' : 'fechada'}` : 'Conectando…')
 
 // ==========================================
 // ABRIR / FECHAR SALA (somente GM)
@@ -693,262 +682,277 @@ async function confirmToggleRoomOpen() {
   }
 }
 
-const handleKeyDown = (e: KeyboardEvent) => {
-  if (!isGm.value) return
-
-  // Ctrl+S / Cmd+S salva a sala, mesmo com um campo de texto em foco (para não
-  // deixar a edição em andamento sem persistir e evitar o diálogo "Salvar" do navegador).
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-    e.preventDefault()
-    saveRoomSnapshot()
-    return
-  }
-
-  const activeElement = document.activeElement as HTMLElement | null
-  const isInputFocused = activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName)
-  if (isInputFocused) return
-
-  if (e.key === 'Delete') {
-    e.preventDefault()
-    handleDeleteTokenAlertWindow()
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', handleKeyDown)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown)
+// Atalhos da sala (só o GM edita): valem com a janela da sala ativa.
+routeWindow.shortcuts({
+  'ctrl+s': { run: () => { if (isGm.value) saveRoomSnapshot() }, allowInInput: true },
+  delete: () => { if (isGm.value) handleDeleteTokenAlertWindow() },
 })
 
 
-function toggleFullScreen() {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen()
-  } else {
-    if (document.exitFullscreen) {
-      document.exitFullscreen()
-    }
+
+const windowTitle = computed(() => room.value?.name ? `${room.value.name} - Sala` : 'Sala')
+
+const roomMenus = computed<MenuDef[]>(() => {
+  const view: MenuDef = {
+    id: 'exibir',
+    label: 'E&xibir',
+    items: [
+      { id: 'zoom-mais', label: '&Aumentar zoom', icon: 'zoom-in', action: zoomIn },
+      { id: 'zoom-menos', label: '&Diminuir zoom', icon: 'zoom-out', action: zoomOut },
+      { id: 'zoom-100', label: '&Restaurar zoom', action: resetZoom },
+      { type: 'separator' },
+      { id: 'tela-cheia', label: '&Tela cheia', icon: 'fullscreen', action: desktop.toggleFullscreen },
+    ],
   }
-}
+  const help: MenuDef = {
+    id: 'ajuda',
+    label: 'Aj&uda',
+    items: [{ id: 'manual', label: '&Manual do VTT 98 SE', icon: 'help', shortcut: 'F1', action: openHelpManual }],
+  }
+  const tools: MenuDef = {
+    id: 'ferramentas',
+    label: '&Ferramentas',
+    items: [
+      { id: 'dados', label: '&Rolador de dados', icon: 'dice', action: openDiceRoller },
+      ...(isGm.value ? [
+        { id: 'iniciativa', label: '&Iniciativa', icon: 'initiative' as const, action: () => { isInitiativeWindowOpen.value = true } },
+        { type: 'separator' as const },
+        { id: 'abrir-fechar', label: room.value?.isOpen ? '&Fechar sala…' : '&Abrir sala…', icon: 'lock' as const, action: openToggleRoomOpenAlert },
+      ] : []),
+    ],
+  }
+  if (!isGm.value) return [view, tools, help]
+  return [
+    {
+      id: 'arquivo',
+      label: '&Arquivo',
+      items: [
+        { id: 'salvar', label: '&Salvar', icon: 'save', shortcut: 'Ctrl+S', action: saveRoomSnapshot },
+        { type: 'separator' },
+        { id: 'fechar', label: '&Fechar', action: () => navigateTo('/dashboard') },
+      ],
+    },
+    {
+      id: 'inserir',
+      label: '&Inserir',
+      items: [
+        { id: 'inserir-token', label: '&Token…', icon: 'token', action: () => { isTokenPickerOpen.value = true } },
+        { id: 'trocar-cena', label: '&Cena…', icon: 'scene', action: () => { isSceneWindowOpen.value = true } },
+      ],
+    },
+    view,
+    tools,
+    help,
+  ]
+})
+routeWindow.setMenus(roomMenus.value)
+watch(roomMenus, m => routeWindow.setMenus(m))
+onBeforeUnmount(() => routeWindow.setMenus(undefined))
 </script>
 
 <template>
-  <template v-if="room">
-    <ContextMenu
-        :show="menuState.show"
-        :x="menuState.x"
-        :y="menuState.y"
-        @close="menuState.show = false"
-    >
-      <li @click="duplicateToken">Duplicar Token</li>
-      <li @click="openReplaceTokenWindow">Substituir Token</li>
-      <li @click="hFlipToken">Inverter Horizontalmente</li>
-      <li @click="vFlipToken">Inverter Verticalmente</li>
-      <li @click="resetTokenRotation()">Restaurar Rotação</li>
-      <li @click="handleDeleteTokenAlertWindow()">Remover Token</li>
-    </ContextMenu>
-
-    <fixed-window
-        title="Tokens"
-        icon="tokens"
-        v-if="isTokenPickerOpen"
-        @close-window="isTokenPickerOpen = false"
-    >
-      <tokens-window
-          add-token-to-scene="true"
-          add-button-label="Adicionar à sala"
-          @addTokenToScene="onTokenPicked"
-          @close-window="isTokenPickerOpen = false"
-      />
-    </fixed-window>
-
-    <fixed-window
-        title="Substituir Token"
-        icon="tokens"
-        v-if="isReplaceTokenWindowOpen"
-        @close-window="isReplaceTokenWindowOpen = false"
-    >
-      <tokens-window
-          add-token-to-scene="true"
-          add-button-label="Substituir Token"
-          @addTokenToScene="replaceToken"
-          @close-window="isReplaceTokenWindowOpen = false"
-      />
-    </fixed-window>
-
-    <RoomTokenAttributesWindow
-        v-if="isTokenAttributesWindowOpen && pendingToken"
-        :token="pendingToken"
-        @confirm="onTokenAttributesConfirmed"
-        @close-window="closeTokenAttributesWindow"
-    />
-
-    <fixed-window
-        title="Cenas"
-        icon="scenes"
-        v-if="isSceneWindowOpen"
-        @close-window="isSceneWindowOpen = false"
-    >
-      <scenes-window
-          select-scene-for-room="true"
-          @selectSceneForRoom="changeRoomScene"
-          @close-window="isSceneWindowOpen = false"
-      />
-    </fixed-window>
-    <floating-window
-        title="Rolador de dados"
-        icon="dices/d20"
-        v-if="isDiceRollerWindowOpen"
-        @close-window="isDiceRollerWindowOpen = false"
-    >
-      <dice-roller />
-    </floating-window>
-    <floating-window
-        title="Iniciativa"
-        icon="initiative"
-        v-if="isInitiativeWindowOpen"
-        @close-window="isInitiativeWindowOpen = false"
-    >
-      <initiative v-model:initiative-list="initiativeList" />
-    </floating-window>
-    <floating-window
-        title="Configurações do Token"
-        icon="objects"
-        v-if="isTokenConfigWindowOpen"
-        @close-window="isTokenConfigWindowOpen = false"
-    >
-      <token-config
-          style="max-width: 30rem"
-          :token="selectedToken"
-          @delete-token="handleDeleteToken"
-      />
-    </floating-window>
-    <alert-window
-        v-if="isDeleteTokenAlertOpen"
-        icon="warning"
-        title="Apagar Token"
-        @alert-button-OK="handleDeleteToken"
-        :cancelAction="closeDeleteAlert"
-    >
-      Tem certeza que quer apagar este token?
-    </alert-window>
-
-    <alert-window
-        v-if="isToggleRoomOpenAlertOpen"
-        :icon="room.isOpen ? 'restrict' : 'success'"
-        :title="room.isOpen ? 'Fechar Sala' : 'Abrir Sala'"
-        @alert-button-OK="confirmToggleRoomOpen"
-        :cancelAction="closeToggleRoomOpenAlert"
-    >
-      Tem certeza que quer {{ room.isOpen ? 'fechar' : 'abrir' }} a sala? {{ room.isOpen ? 'Visitantes não conseguirão mais entrar até que ela seja reaberta.' : 'Visitantes poderão entrar novamente.' }}
-    </alert-window>
-
-    <Teleport to="#button-bar" v-if="isGm">
-      <button class="dice-selector-button">
-        <Icon size="sm" style="padding: 4px; box-sizing: border-box" name="Token" icon="tokens" @click="isTokenPickerOpen = true"/>
-      </button>
-      <button class="dice-selector-button">
-        <Icon size="sm" style="padding: 4px; box-sizing: border-box" name="Cena" icon="scenes" @click="isSceneWindowOpen = true"/>
-      </button>
-      <button class="dice-selector-button">
-        <Icon size="sm" style="padding: 4px; box-sizing: border-box" name="Salvar" icon="save" @click="saveRoomSnapshot"/>
-      </button>
-      <button class="dice-selector-button">
-        <Icon size="sm" style="padding: 4px; box-sizing: border-box" name="Dados" icon="dices/d20" @click="isDiceRollerWindowOpen = true"/>
-      </button>
-      <button class="dice-selector-button">
-        <Icon size="sm" style="padding: 4px; box-sizing: border-box" name="Iniciativa" icon="initiative" @click="isInitiativeWindowOpen = true"/>
-      </button>
-      <button class="dice-selector-button">
-        <Icon
-            size="sm"
-            style="padding: 4px; box-sizing: border-box"
-            :name="room.isOpen ? 'Fechar Sala' : 'Abrir Sala'"
-            :icon="room.isOpen ? 'success' : 'restrict'"
-            @click="openToggleRoomOpenAlert"
-        />
-      </button>
-      <button class="dice-selector-button">
-        <Icon size="sm" style="padding: 4px; box-sizing: border-box" name="Ajuda" icon="help" @click="openHelpManual"/>
-      </button>
-    </Teleport>
-
-    <div class="scene-canvas">
-      <v-stage
-          ref="stageRef"
-          :config="stageConfig"
-          style="display: block;background-color: #808080"
-          @click="handleStageClick"
-          @tap="handleStageClick"
-          @wheel="handleWheel"
+  <DesktopRouteWindow :title="windowTitle" icon="room" :close-to="desktop.isGuest.value ? '/' : '/dashboard'">
+    <template v-if="room && isGm" #toolbar>
+      <UiToolbar label="Ferramentas da sala">
+        <UiToolbarButton label="Token" icon="token" show-label @click="isTokenPickerOpen = true" />
+        <UiToolbarButton label="Cena" icon="scene" show-label @click="isSceneWindowOpen = true" />
+        <UiToolbarButton label="Salvar" icon="save" show-label @click="saveRoomSnapshot" />
+        <UiToolbarSeparator />
+        <UiToolbarButton label="Dados" icon="dice" show-label @click="openDiceRoller" />
+        <UiToolbarButton label="Iniciativa" icon="initiative" show-label @click="isInitiativeWindowOpen = true" />
+        <UiToolbarButton :label="room.isOpen ? 'Fechar sala' : 'Abrir sala'" icon="lock" show-label :pressed="!room.isOpen" @click="openToggleRoomOpenAlert" />
+        <UiToolbarSeparator />
+        <UiToolbarButton label="Ajuda" icon="help" show-label @click="openHelpManual" />
+      </UiToolbar>
+    </template>
+    <template v-if="room">
+      <ContextMenu
+          :show="menuState.show"
+          :x="menuState.x"
+          :y="menuState.y"
+          @close="menuState.show = false"
       >
-        <v-layer>
-          <v-image :config="scene" id="scene"/>
-        </v-layer>
-        <v-layer>
-          <v-group
-              v-for="tokenGroup in tokenGroups"
-              :key="tokenGroup.id"
-              :config="tokenGroup.groupConfig"
-              @mousedown="selectToken(tokenGroup.id)"
-              @touchstart="selectToken(tokenGroup.id)"
-              @dragend="(e) => handleDragEnd(e, tokenGroup.id)"
-              @contextmenu="openMenu"
-              @dblclick="isTokenConfigWindowOpen = true"
-          >
-            <v-image
-                :config="tokenGroup.imageConfig"
-                @transformend="(e) => handleTransformEnd(e, tokenGroup.id)"
+        <li @click="duplicateToken">Duplicar Token</li>
+        <li @click="openReplaceTokenWindow">Substituir Token</li>
+        <li @click="hFlipToken">Inverter Horizontalmente</li>
+        <li @click="vFlipToken">Inverter Verticalmente</li>
+        <li @click="resetTokenRotation()">Restaurar Rotação</li>
+        <li @click="handleDeleteTokenAlertWindow()">Remover Token</li>
+      </ContextMenu>
+
+      <fixed-window
+          title="Tokens"
+          icon="tokens"
+          v-if="isTokenPickerOpen"
+          @close-window="isTokenPickerOpen = false"
+      >
+        <tokens-window
+            add-token-to-scene="true"
+            add-button-label="Adicionar à sala"
+            @addTokenToScene="onTokenPicked"
+            @close-window="isTokenPickerOpen = false"
+        />
+      </fixed-window>
+
+      <fixed-window
+          title="Substituir Token"
+          icon="tokens"
+          v-if="isReplaceTokenWindowOpen"
+          @close-window="isReplaceTokenWindowOpen = false"
+      >
+        <tokens-window
+            add-token-to-scene="true"
+            add-button-label="Substituir Token"
+            @addTokenToScene="replaceToken"
+            @close-window="isReplaceTokenWindowOpen = false"
+        />
+      </fixed-window>
+
+      <RoomTokenAttributesWindow
+          v-if="isTokenAttributesWindowOpen && pendingToken"
+          :token="pendingToken"
+          @confirm="onTokenAttributesConfirmed"
+          @close-window="closeTokenAttributesWindow"
+      />
+
+      <fixed-window
+          title="Cenas"
+          icon="scenes"
+          v-if="isSceneWindowOpen"
+          @close-window="isSceneWindowOpen = false"
+      >
+        <scenes-window
+            select-scene-for-room="true"
+            @selectSceneForRoom="changeRoomScene"
+            @close-window="isSceneWindowOpen = false"
+        />
+      </fixed-window>
+      <floating-window
+          title="Iniciativa"
+          icon="initiative"
+          v-if="isInitiativeWindowOpen"
+          @close-window="isInitiativeWindowOpen = false"
+      >
+        <initiative v-model:initiative-list="initiativeList" />
+      </floating-window>
+      <floating-window
+          title="Configurações do Token"
+          icon="objects"
+          v-if="isTokenConfigWindowOpen"
+          @close-window="isTokenConfigWindowOpen = false"
+      >
+        <token-config
+            style="max-width: 30rem"
+            :token="selectedToken"
+            @delete-token="handleDeleteToken"
+        />
+      </floating-window>
+      <alert-window
+          v-if="isDeleteTokenAlertOpen"
+          icon="warning"
+          title="Apagar Token"
+          @alert-button-OK="handleDeleteToken"
+          :cancelAction="closeDeleteAlert"
+      >
+        Tem certeza que quer apagar este token?
+      </alert-window>
+
+      <alert-window
+          v-if="isToggleRoomOpenAlertOpen"
+          :icon="room.isOpen ? 'restrict' : 'success'"
+          :title="room.isOpen ? 'Fechar Sala' : 'Abrir Sala'"
+          @alert-button-OK="confirmToggleRoomOpen"
+          :cancelAction="closeToggleRoomOpenAlert"
+      >
+        Tem certeza que quer {{ room.isOpen ? 'fechar' : 'abrir' }} a sala? {{ room.isOpen ? 'Visitantes não conseguirão mais entrar até que ela seja reaberta.' : 'Visitantes poderão entrar novamente.' }}
+      </alert-window>
+
+
+      <div class="scene-canvas">
+        <v-stage
+            ref="stageRef"
+            :config="stageConfig"
+            style="display: block;background-color: #808080"
+            @click="handleStageClick"
+            @tap="handleStageClick"
+            @wheel="handleWheel"
+        >
+          <v-layer>
+            <v-image :config="scene" id="scene"/>
+          </v-layer>
+          <v-layer>
+            <v-group
+                v-for="tokenGroup in tokenGroups"
+                :key="tokenGroup.id"
+                :config="tokenGroup.groupConfig"
+                @mousedown="selectToken(tokenGroup.id)"
+                @touchstart="selectToken(tokenGroup.id)"
+                @dragend="(e) => handleDragEnd(e, tokenGroup.id)"
+                @contextmenu="openMenu"
+                @dblclick="isTokenConfigWindowOpen = true"
+            >
+              <v-image
+                  :config="tokenGroup.imageConfig"
+                  @transformend="(e) => handleTransformEnd(e, tokenGroup.id)"
+              />
+            </v-group>
+
+            <v-transformer
+                v-if="isGm"
+                ref="transformerRef"
+                :config="{
+                  keepRatio: true,
+                  enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+                }"
             />
-          </v-group>
-
-          <v-transformer
-              v-if="isGm"
-              ref="transformerRef"
-              :config="{
-                keepRatio: true,
-                enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right']
-              }"
-          />
-        </v-layer>
-      </v-stage>
-    </div>
-
-    <teleport to="#footer-menu">
-      <div class="scene-footer">
-        <div class="zoom-control-container">
-          <div class="field-row">
-            <label for="zoom">Zoom:</label>
-            <input type="text" id="zoom" v-model.number="sceneZoom" class="scene-zoom-input"/>
-            <span style="margin-right: 4px;">%</span>
-            <button @click="zoomOut">-</button>
-            <button @click="zoomIn">+</button>
-            <button @click="resetZoom">Restaurar</button>
-          </div>
-        </div>
-        <hr class="footer-separator"/>
-        <div class="extra-buttons">
-          <button @click="toggleFullScreen">Tela Cheia</button>
-        </div>
-        <hr class="footer-separator"/>
-        <div class="extra-buttons">
-          <button @click="isDiceRollerWindowOpen = true">Rolar Dados</button>
-        </div>
+          </v-layer>
+        </v-stage>
       </div>
-    </teleport>
-  </template>
-  <RoomPasswordWindow
-      v-else-if="isPasswordWindowOpen"
-      :error="passwordError"
-      @submit="loadRoom"
-  />
-  <p v-else-if="loadError" style="padding: 1rem;">{{ loadError }}</p>
-  <p v-else style="padding: 1rem;">Carregando sala...</p>
+
+    </template>
+    <RoomPasswordWindow
+        v-else-if="isPasswordWindowOpen"
+        :error="passwordError"
+        @submit="loadRoom"
+    />
+    <p v-else-if="loadError" style="padding: 1rem;">{{ loadError }}</p>
+    <p v-else style="padding: 1rem;">Carregando sala...</p>
+    <template v-if="room" #statusbar>
+      <UiStatusBar>
+        <UiStatusField grow>{{ statusFlash ?? roomStatusText }}</UiStatusField>
+        <UiStatusField>{{ isGm ? 'Mestre' : 'Jogador' }}</UiStatusField>
+        <UiStatusField class="zoom-field">
+          <label for="zoom">Zoom:</label>
+          <input id="zoom" v-model.number="sceneZoom" type="text" class="scene-zoom-input">
+          <span>%</span>
+          <button type="button" title="Diminuir zoom" @click="zoomOut">-</button>
+          <button type="button" title="Aumentar zoom" @click="zoomIn">+</button>
+          <button type="button" @click="resetZoom">Restaurar</button>
+        </UiStatusField>
+      </UiStatusBar>
+    </template>
+  </DesktopRouteWindow>
 </template>
 
 <style lang="css" scoped>
+/* Controle de zoom na barra de status da janela */
+.zoom-field {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.zoom-field input {
+  width: 3.5em;
+  height: auto;
+}
+.zoom-field button {
+  min-width: 0;
+  min-height: 0;
+  padding: 0 var(--sp-2);
+}
+
 .scene-canvas {
   background-color: #808080;
   width: 100%;

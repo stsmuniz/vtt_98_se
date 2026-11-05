@@ -27,10 +27,13 @@ const props = withDefaults(defineProps<{
   isSubmenu?: boolean
   /** Rótulo acessível do menu. */
   label?: string
+  /** Itens altos com ícones de 32px (primeiro nível do menu Iniciar). */
+  large?: boolean
 }>(), {
   initialIndex: -1,
   isSubmenu: false,
   label: undefined,
+  large: false,
 })
 
 const emit = defineEmits<{
@@ -202,7 +205,7 @@ defineExpose({ focus: () => listEl.value?.focus({ preventScroll: true }) })
   <ul
     ref="listEl"
     class="ui-menu"
-    :class="{ 'has-icons': hasIconColumn }"
+    :class="{ 'has-icons': hasIconColumn, large }"
     role="menu"
     tabindex="-1"
     :aria-label="label"
@@ -233,7 +236,7 @@ defineExpose({ focus: () => listEl.value?.focus({ preventScroll: true }) })
         <span v-if="hasIconColumn" class="ui-menu-icon" aria-hidden="true">
           <span v-if="item.type === 'check' && toValue(item.checked)" class="mark-check" />
           <span v-else-if="item.type === 'radio' && toValue(item.checked)" class="mark-radio" />
-          <img v-else-if="item.icon" :src="iconUrl(item.icon, 16)" alt="" width="16" height="16">
+          <img v-else-if="item.icon" :src="iconUrl(item.icon, large ? 32 : 16)" alt="" :width="large ? 32 : 16" :height="large ? 32 : 16">
         </span>
         <span class="ui-menu-label">{{ parsed[i]!.before }}<u v-if="parsed[i]!.key">{{ parsed[i]!.key }}</u>{{ parsed[i]!.after }}</span>
         <span v-if="item.shortcut" class="ui-menu-shortcut">{{ item.shortcut }}</span>
@@ -343,6 +346,16 @@ defineExpose({ focus: () => listEl.value?.focus({ preventScroll: true }) })
 .submenu-open .mark-check {
   filter: invert(1);
 }
+.ui-menu.large .ui-menu-item {
+  grid-template-columns: 36px 1fr auto 12px;
+  min-height: 40px;
+  padding: 2px var(--sp-2) 2px var(--sp-1);
+}
+.ui-menu.large .ui-menu-icon {
+  width: 32px;
+  height: 32px;
+}
+
 .mark-radio {
   width: 6px;
   height: 6px;

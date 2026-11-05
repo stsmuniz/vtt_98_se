@@ -27,6 +27,14 @@ export default defineNuxtConfig({
       ]
     }
   },
+  // A área de trabalho (gerenciador de janelas, Konva, áudio) só existe no navegador.
+  // Renderizar essas rotas só no cliente evita incompatibilidades de hidratação;
+  // o site público e o login continuam com SSR.
+  routeRules: {
+    '/dashboard': { ssr: false },
+    '/dashboard/**': { ssr: false },
+    '/rooms/**': { ssr: false },
+  },
   css: [
     '98.css',
     '~/assets/css/tokens.css',

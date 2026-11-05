@@ -42,7 +42,7 @@ function rollTypeLabel(type: RollType) {
 }
 </script>
 <template>
-  <session class="dice-roller-container">
+  <section class="dice-roller-container">
     <div class="dice-selector">
       <fieldset class="dice-selector-fieldset">
         <legend>Escolha o dado</legend>
@@ -130,7 +130,7 @@ function rollTypeLabel(type: RollType) {
         </div>
       </fieldset>
     </div>
-  </session>
+  </section>
 </template>
 <style lang="css" scoped>
 .dice-roller-container {
