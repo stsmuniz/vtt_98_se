@@ -1,11 +1,35 @@
+/*
+ * Fontes do sistema. Variáveis (--font-ui, --fs-*) ficam em tokens.css.
+ *
+ * Pixel Operator — Jayvee Enaguas, CC0 1.0 (public/fonts/PixelOperator-LICENSE.txt).
+ * Escolhida porque cobre todos os acentos do português com glifos desenhados na
+ * grade de pixels (as fontes anteriores não tinham letras acentuadas).
+ */
 @font-face {
-  font-family: "Terminal Grotesque";
-  src: url("/fonts/terminal-grotesque.ttf") format("truetype");
+  font-family: "Pixel Operator";
+  src: url("/fonts/PixelOperator.ttf") format("truetype");
   font-style: normal;
   font-weight: 400;
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Pixel Operator";
+  src: url("/fonts/PixelOperator-Bold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pixel Operator Mono";
+  src: url("/fonts/PixelOperatorMono.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+/* Só a tela de erro (estilo "tela azul") e o fallback mono usam a fonte VGA */
 @font-face {
   font-family: "Perfect DOS VGA 437";
   src: url("/fonts/Perfect.DOS.VGA.437.ttf") format("truetype");
@@ -14,23 +38,20 @@
   font-display: swap;
 }
 
-@font-face {
-  font-family: "Munro";
-  src: url("/fonts/munro.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-
-/* Sobrescreve a fonte e o tamanho padrão do 98.css em todo o sistema */
 html,
 body {
-  font-family: "Terminal Grotesque", "Pixelated MS Sans Serif", Arial, sans-serif;
-  font-size: 14px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-1);
+  /* Sem suavização: o texto é desenhado em pixels inteiros */
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  font-smooth: never;
 }
 
+/* O 98.css fixa fonte e tamanho nos controles; aqui voltam a seguir os tokens */
 .title-bar,
 .window,
+.status-bar,
 button,
 input,
 label,
@@ -41,8 +62,16 @@ select,
 table,
 textarea,
 ul.tree-view {
-  font-family: "Munro", "Pixelated MS Sans Serif", Arial, sans-serif;
-  font-size: 14px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-1);
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
 }
 
 h1,
@@ -51,29 +80,31 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: "Terminal Grotesque", "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-family: var(--font-display);
+  line-height: var(--lh-heading);
 }
 
+/* h1 e h2 usam o degrau de 32 px (h1 em negrito); h3 a h6 ficam em 16 px (h3 em negrito) */
 h1 {
-  font-size: 2rem;
+  font-size: var(--fs-2);
+  font-weight: 700;
 }
 
 h2 {
-  font-size: 1.75rem;
+  font-size: var(--fs-2);
+  font-weight: 400;
 }
 
 h3 {
-  font-size: 1.5rem;
+  font-size: var(--fs-1);
+  font-weight: 700;
+  line-height: var(--lh);
 }
 
-h4 {
-  font-size: 1.25rem;
-}
-
-h5 {
-  font-size: 1.1rem;
-}
-
+h4,
+h5,
 h6 {
-  font-size: 1rem;
+  font-size: var(--fs-1);
+  font-weight: 400;
+  line-height: var(--lh);
 }

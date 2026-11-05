@@ -69,7 +69,7 @@ nav {
 .main-menu a {
   color: #0000ee;
   text-decoration: underline;
-  font-size: 1.05rem;
+  font-size: var(--fs-1);
 }
 
 .main-menu a:hover {
@@ -101,7 +101,7 @@ nav {
   box-shadow: inset 1px 1px 0px #dfdfdf, inset -1px -1px 0px #000000;
   text-decoration: none;
   font-weight: bold;
-  font-size: 0.95rem;
+  font-size: var(--fs-1);
 }
 
 .account-link:hover {

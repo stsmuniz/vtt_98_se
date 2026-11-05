@@ -38,7 +38,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', powerOn))
   font-family: var(--font-display);
   font-size: var(--fs-4);
   font-weight: normal;
-  line-height: 1.15;
+  line-height: calc(var(--fs-4) * 1.25);
   text-align: center;
 }
 .turnoff-hint {

@@ -58,7 +58,7 @@ useSeoMeta({
 .back-link {
   color: #0000ee;
   text-decoration: underline;
-  font-size: 0.95rem;
+  font-size: var(--fs-1);
 }
 
 .post-header {
@@ -72,7 +72,7 @@ useSeoMeta({
 
 .post-date {
   display: block;
-  font-size: 0.95rem;
+  font-size: var(--fs-1);
   color: #555555;
 }
 
@@ -83,7 +83,7 @@ useSeoMeta({
 }
 
 .markdown-body {
-  line-height: 1.7;
+  line-height: var(--lh);
   overflow-wrap: break-word;
   word-break: break-word;
 }
@@ -134,8 +134,8 @@ useSeoMeta({
   background-color: #f0f0f0;
   border: 1px solid #dfdfdf;
   padding: 0.15rem 0.35rem;
-  font-family: monospace;
-  font-size: 0.9em;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
 }
 
 .markdown-body :deep(pre) {

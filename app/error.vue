@@ -24,7 +24,7 @@ section {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  font-family: "Perfect DOS VGA 437", "Terminal Grotesque", "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-family: "Perfect DOS VGA 437", var(--font-ui);
 }
 
 h1 {
@@ -33,14 +33,14 @@ h1 {
   color: darkblue;
   display: inline-block;
   padding: 0 1rem;
-  font-family: "Perfect DOS VGA 437", "Terminal Grotesque", "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-family: "Perfect DOS VGA 437", var(--font-ui);
 }
 
 p {
   color: white;
   width: 90vw;
   text-align: left;
-  font-size: 1.5rem;
+  font-size: var(--fs-2);
 }
 
 @media screen and (min-width: 960px) {

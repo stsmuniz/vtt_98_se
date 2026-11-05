@@ -39,7 +39,19 @@ const COLORS = [
   { value: '#800080', label: 'Roxo' },
   { value: '#808000', label: 'Oliva' },
 ]
-const SCALE_LABELS: Record<string, string> = { auto: 'Automática (nitidez máxima na sua tela)', 1: '100%', 1.5: '150%', 2: '200%' }
+const SCALE_LABELS: Record<string, string> = { auto: 'Automática (recomendado)', 1: '100%', 1.5: '150%', 2: '200%' }
+
+/**
+ * A fonte pixel só fica nítida quando cada "pixel" da letra ocupa um número inteiro de
+ * pixels físicos da tela, ou seja, quando escala × densidade da tela é inteiro. Com densidade 1,
+ * 150% deixaria as letras irregulares; com densidade 2 (telas retina) ele fica perfeito.
+ * Só oferecemos os degraus nítidos (e o que já estiver escolhido, para não esconder a sua opção).
+ */
+const density = import.meta.client ? window.devicePixelRatio || 1 : 1
+const isCrisp = (scale: number) => Math.abs(scale * density - Math.round(scale * density)) < 0.02
+const scaleOptions = computed(() => UI_SCALES
+  .filter(s => s === 'auto' || isCrisp(s) || s === prefs.preferences.value.uiScale || s === draft.uiScale)
+  .map(s => ({ value: s, label: SCALE_LABELS[String(s)] ?? String(s) })))
 
 // ---------- rascunho ----------
 function fromPrefs() {
@@ -155,12 +167,13 @@ const colorId = useId()
         <UiGroupBox label="Tamanho da interface">
           <UiRadioGroup
             v-model="draft.uiScale"
-            :options="UI_SCALES.map(s => ({ value: s, label: SCALE_LABELS[String(s)] ?? String(s) }))"
+            :options="scaleOptions"
             label="Tamanho da interface"
           />
           <p class="hint">
-            Fontes pixel ficam nítidas em múltiplos exatos do tamanho original. Os degraus disponíveis
-            evitam letras borradas. O mapa das cenas não é afetado — ele tem zoom próprio.
+            A fonte pixel só fica nítida em tamanhos que cabem em pixels inteiros da sua tela, por isso só aparecem os
+            degraus que funcionam bem nela. "Automática" escolhe o melhor para a sua tela. O mapa das cenas não é
+            afetado — ele tem zoom próprio.
           </p>
         </UiGroupBox>
       </template>

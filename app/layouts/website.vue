@@ -159,7 +159,7 @@ const currentYear = new Date().getFullYear()
   align-self: flex-start;
   color: #555555;
   text-decoration: underline;
-  font-size: 0.8rem;
+  font-size: var(--fs-1);
   margin-bottom: 0.5rem;
 }
 
@@ -169,7 +169,7 @@ const currentYear = new Date().getFullYear()
 }
 
 .website-wrapper {
-  font-family: "Times New Roman", Times, serif;
+  font-family: var(--font-ui);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -180,14 +180,13 @@ const currentYear = new Date().getFullYear()
   max-width: 860px;
   padding: 1.5rem 1.25rem;
   box-sizing: border-box;
-  font-size: 17px;
-  line-height: 1.6;
+  font-size: var(--fs-1);
+  line-height: var(--lh);
   text-align: left;
 }
 
 @media screen and (min-width: 768px) {
   .website-wrapper {
-    font-size: 19px;
     padding: 2rem 2rem;
   }
 }
@@ -198,27 +197,34 @@ const currentYear = new Date().getFullYear()
 .website-wrapper h4,
 .website-wrapper h5,
 .website-wrapper h6 {
-  font-family: "Times New Roman", Times, serif;
+  font-family: var(--font-display);
   text-align: center;
-  line-height: 1.3;
+  line-height: var(--lh-heading);
   margin-top: 1.5rem;
   margin-bottom: 0.75rem;
 }
 
+/* Degraus da escala: 32 px (h1 em negrito, h2) e 16 px (h3 em negrito, h4) */
 .website-wrapper h1 {
-  font-size: 2.2rem;
+  font-size: var(--fs-2);
+  font-weight: 700;
 }
 
 .website-wrapper h2 {
-  font-size: 1.85rem;
+  font-size: var(--fs-2);
+  font-weight: 400;
 }
 
 .website-wrapper h3 {
-  font-size: 1.45rem;
+  font-size: var(--fs-1);
+  font-weight: 700;
+  line-height: var(--lh);
 }
 
 .website-wrapper h4 {
-  font-size: 1.2rem;
+  font-size: var(--fs-1);
+  font-weight: 400;
+  line-height: var(--lh);
 }
 
 .website-wrapper p {
@@ -268,7 +274,7 @@ const currentYear = new Date().getFullYear()
 }
 
 .copyright {
-  font-size: 0.95rem;
+  font-size: var(--fs-1);
   margin-top: 1rem;
 }
 </style>

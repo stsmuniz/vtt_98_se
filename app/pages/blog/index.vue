@@ -83,7 +83,7 @@ useSeoMeta({
 
 .post-date {
   display: block;
-  font-size: 0.9rem;
+  font-size: var(--fs-1);
   color: #555555;
   margin-bottom: 0.5rem;
 }

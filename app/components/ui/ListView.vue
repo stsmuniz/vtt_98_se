@@ -361,9 +361,9 @@ function onResizePointerUp() {
   resizing = null
 }
 
-function sortArrow(key: string) {
-  if (sort.value?.key !== key) return ''
-  return sort.value.dir === 'asc' ? '▲' : '▼'
+/** Direção da seta de ordenação (desenhada em CSS: a fonte pixel não tem ▲ ▼). */
+function sortDir(key: string): 'asc' | 'desc' | null {
+  return sort.value?.key === key ? sort.value.dir : null
 }
 
 // Refs de função ficam no script: o template do Vue não enxerga globais como HTMLElement.
@@ -425,7 +425,7 @@ defineExpose({
         @keydown="onHeaderKeyDown(col, $event)"
       >
         <span class="ui-lv-header-label">{{ col.label }}</span>
-        <span class="ui-lv-sort" aria-hidden="true">{{ sortArrow(col.key) }}</span>
+        <span v-if="sortDir(col.key)" class="ui-lv-sort" :class="sortDir(col.key)" aria-hidden="true" />
         <span
           class="ui-lv-resize"
           aria-hidden="true"
@@ -645,8 +645,13 @@ defineExpose({
   text-overflow: ellipsis;
 }
 .ui-lv-sort {
-  font-size: 8px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
 }
+.ui-lv-sort.asc { border-bottom: 5px solid currentColor; }
+.ui-lv-sort.desc { border-top: 5px solid currentColor; }
 .ui-lv-resize {
   position: absolute;
   top: 0;

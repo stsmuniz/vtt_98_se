@@ -10,7 +10,7 @@ const id = useId()
     <label :for="id">Zoom:</label>
     <input :id="id" v-model.number="zoom" type="text" inputmode="numeric" class="zoom-input" data-test="zoom-input">
     <span>%</span>
-    <button type="button" title="Diminuir zoom" aria-label="Diminuir zoom" @click="emit('out')">−</button>
+    <button type="button" title="Diminuir zoom" aria-label="Diminuir zoom" @click="emit('out')">-</button>
     <button type="button" title="Aumentar zoom" aria-label="Aumentar zoom" @click="emit('in')">+</button>
     <button type="button" title="Tamanho real (100%)" @click="emit('reset')">100%</button>
     <button type="button" title="Ajustar à janela" data-test="zoom-fit" @click="emit('fit')">Ajustar</button>

@@ -146,8 +146,8 @@ useSeoMeta({
 
 .clippy-balloon p {
   margin: 0;
-  font-size: 0.85rem;
-  line-height: 1.35;
+  font-size: var(--fs-1);
+  line-height: var(--lh);
   text-align: left;
   font-style: normal;
 }
@@ -178,7 +178,7 @@ useSeoMeta({
 @media screen and (max-width: 480px) {
   .clippy-balloon {
     max-width: 180px;
-    font-size: 0.8rem;
+    font-size: var(--fs-1);
   }
 }
 
@@ -254,7 +254,7 @@ useSeoMeta({
 
 .news-date {
   display: block;
-  font-size: 0.9rem;
+  font-size: var(--fs-1);
   color: #555555;
   margin-bottom: 0.5rem;
 }
@@ -262,7 +262,7 @@ useSeoMeta({
 .see-more-link {
   color: #0000ee;
   text-decoration: underline;
-  font-size: 0.95rem;
+  font-size: var(--fs-1);
 }
 
 .cta-section {
@@ -271,7 +271,7 @@ useSeoMeta({
 }
 
 .cta-free-note {
-  font-size: 0.95rem;
+  font-size: var(--fs-1);
   color: #333333;
 }
 
@@ -293,7 +293,7 @@ useSeoMeta({
   box-shadow: inset 1px 1px 0px #dfdfdf, inset -1px -1px 0px #000000;
   text-decoration: none;
   font-weight: bold;
-  font-size: 1rem;
+  font-size: var(--fs-1);
   text-align: center;
   min-width: 150px;
 }

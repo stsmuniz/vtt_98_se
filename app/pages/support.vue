@@ -101,7 +101,7 @@ const copyToClipboard = async () => {
           @click="copyToClipboard"
         ><code>{{ chavePix }}</code></button>
         <small class="pix-tip">
-          {{ copied ? '✓ Chave Pix copiada para a área de transferência!' : 'Clique no quadro acima para copiar a chave.' }}
+          {{ copied ? 'Chave Pix copiada para a área de transferência!' : 'Clique no quadro acima para copiar a chave.' }}
         </small>
       </div>
 
@@ -138,8 +138,8 @@ const copyToClipboard = async () => {
   border: 1px solid #808080;
   border-collapse: collapse;
   width: 100%;
-  font-size: 1rem;
-  font-family: "Times New Roman", Times, serif;
+  font-size: var(--fs-1);
+  font-family: var(--font-ui);
 }
 
 .tech-table th,
@@ -195,7 +195,7 @@ const copyToClipboard = async () => {
   border: 2px solid;
   border-color: #808080 #dfdfdf #dfdfdf #808080;
   padding: 0.75rem 1rem;
-  font-size: 1rem;
+  font-size: var(--fs-1);
   cursor: pointer;
   max-width: 100%;
   overflow-x: auto;
@@ -204,7 +204,7 @@ const copyToClipboard = async () => {
 }
 
 #chave-pix code {
-  font-family: monospace;
+  font-family: var(--font-mono);
   word-break: break-all;
   white-space: pre-wrap;
   background: none;
@@ -223,7 +223,7 @@ const copyToClipboard = async () => {
 .pix-tip {
   color: #000080;
   font-weight: bold;
-  font-size: 0.85rem;
+  font-size: var(--fs-1);
   text-align: center;
 }
 </style>

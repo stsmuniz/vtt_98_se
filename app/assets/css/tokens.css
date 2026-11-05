@@ -5,25 +5,28 @@
  * (z-index). Componentes novos devem usar SOMENTE estas variáveis — nada de
  * font-size/cores/z-index soltos.
  *
- * Tamanhos de fonte: fontes pixel só ficam nítidas em múltiplos inteiros do
- * tamanho nativo da grade (ex.: uma fonte de grade 16px fica nítida em 16/32/48px).
- * Por isso a escala --fs-* é definida a partir de --fs-base, e não em rem
- * fracionário. Os valores definitivos dependem da fonte escolhida em /dev/fonts
- * (Fase 7); até lá os valores abaixo reproduzem a aparência atual.
+ * Fonte: Pixel Operator (CC0, grade nativa de 16 px: cada "pixel" da letra tem
+ * 1 px de tela quando o texto está em 16 px). Por isso a escala de tamanhos só
+ * tem MÚLTIPLOS INTEIROS de 16 (16, 32, 48, 64): em qualquer outro tamanho — 14, 17,
+ * 1.3rem… — os pixels da fonte viram frações de pixel de tela e as letras ficam
+ * borradas ou deformadas. Para um tamanho intermediário, escolha o degrau mais
+ * próximo ou use negrito; não invente valores.
  */
 :root {
   /* Fontes */
-  --font-ui: "Munro", "Pixelated MS Sans Serif", Arial, sans-serif;
-  --font-display: "Terminal Grotesque", "Pixelated MS Sans Serif", Arial, sans-serif;
-  --font-mono: "Perfect DOS VGA 437", "Courier New", monospace;
+  --font-ui: "Pixel Operator", "Pixelated MS Sans Serif", Arial, sans-serif;
+  --font-display: var(--font-ui);
+  --font-mono: "Pixel Operator Mono", "Perfect DOS VGA 437", "Courier New", monospace;
 
-  /* Escala tipográfica (múltiplos inteiros da grade da fonte) */
-  --fs-base: 14px;
-  --fs-1: var(--fs-base);              /* texto de interface */
-  --fs-2: calc(var(--fs-base) * 2);    /* títulos de seção */
-  --fs-3: calc(var(--fs-base) * 3);    /* destaques (resultado de dados, splash) */
-  --fs-4: calc(var(--fs-base) * 4);    /* títulos do site */
-  --lh: 1.25;
+  /* Escala tipográfica (múltiplos inteiros da grade de 16 px da fonte) */
+  --fs-base: 16px;
+  --fs-1: var(--fs-base);              /* texto de interface e de leitura */
+  --fs-2: calc(var(--fs-base) * 2);    /* títulos de página e de seção */
+  --fs-3: calc(var(--fs-base) * 3);    /* destaques (resultado de dados) */
+  --fs-4: calc(var(--fs-base) * 4);    /* telas cheias (desligar) */
+  /* Entrelinha em pixels inteiros: 24 px para texto, 40 px para títulos */
+  --lh: 24px;
+  --lh-heading: 40px;
 
   /* Escala da interface (Configurações > Aparência) */
   --ui-scale: 1;

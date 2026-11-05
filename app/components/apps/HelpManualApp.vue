@@ -76,8 +76,8 @@ const menus = computed<MenuDef[]>(() => [
     id: 'ir',
     label: '&Ir',
     items: [
-      { id: 'voltar', label: '&Voltar', shortcut: 'Alt+←', disabled: !canGoBack.value, action: goBack },
-      { id: 'avancar', label: '&Avançar', shortcut: 'Alt+→', disabled: !canGoForward.value, action: goForward },
+      { id: 'voltar', label: '&Voltar', shortcut: 'Alt+Esquerda', disabled: !canGoBack.value, action: goBack },
+      { id: 'avancar', label: '&Avançar', shortcut: 'Alt+Direita', disabled: !canGoForward.value, action: goForward },
     ],
   },
   {
@@ -104,8 +104,8 @@ win.shortcuts({
 <template>
   <div class="help-manual">
     <UiToolbar label="Navegação do manual">
-      <UiToolbarButton label="← Voltar" :disabled="!canGoBack" @click="goBack" />
-      <UiToolbarButton label="Avançar →" :disabled="!canGoForward" @click="goForward" />
+      <UiToolbarButton label="< Voltar" :disabled="!canGoBack" @click="goBack" />
+      <UiToolbarButton label="Avançar >" :disabled="!canGoForward" @click="goForward" />
       <UiToolbarSeparator />
       <UiToolbarButton label="Sumário" icon="help-contents" :pressed="isSidebarVisible" @click="isSidebarVisible = !isSidebarVisible" />
       <UiToolbarButton label="Imprimir" @click="printTopic" />
@@ -191,7 +191,7 @@ win.shortcuts({
   min-height: 0;
   overflow-y: auto;
   padding: 0.75rem 1rem;
-  font-family: Arial, sans-serif;
+  font-family: var(--font-ui);
   background: var(--c-window);
 }
 .help-empty {
@@ -200,25 +200,29 @@ win.shortcuts({
 }
 
 .markdown-body {
-  line-height: 1.6;
+  line-height: var(--lh);
   overflow-wrap: break-word;
   word-break: break-word;
 }
 .markdown-body h1 {
-  font-size: 1.3rem;
+  font-size: var(--fs-1);
+  font-weight: 700;
   color: #000080;
   margin: 0 0 0.75rem;
   border-bottom: 1px solid #808080;
   padding-bottom: 0.35rem;
 }
 .markdown-body :deep(h2) {
-  font-size: 1.1rem;
+  font-size: var(--fs-1);
+  font-weight: 700;
   color: #000080;
   margin-top: 1.25rem;
   margin-bottom: 0.5rem;
 }
 .markdown-body :deep(h3) {
-  font-size: 1rem;
+  font-size: var(--fs-1);
+  font-weight: 400;
+  text-decoration: underline;
   color: #000080;
   margin-top: 1rem;
   margin-bottom: 0.5rem;
@@ -256,8 +260,8 @@ win.shortcuts({
   background-color: #f0f0f0;
   border: 1px solid #dfdfdf;
   padding: 0.1rem 0.3rem;
-  font-family: monospace;
-  font-size: 0.9em;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
 }
 
 </style>

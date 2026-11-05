@@ -115,8 +115,8 @@ useSeoMeta({
   border: 1px solid #808080;
   border-collapse: collapse;
   width: 100%;
-  font-size: 1rem;
-  font-family: "Times New Roman", Times, serif;
+  font-size: var(--fs-1);
+  font-family: var(--font-ui);
 }
 
 .tech-table th,

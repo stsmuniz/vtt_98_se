@@ -210,8 +210,8 @@ defineExpose({
 .lightbox-caption {
   margin-top: 0.5rem;
   margin-bottom: 0.25rem;
-  font-size: 0.85rem;
+  font-size: var(--fs-1);
   text-align: center;
-  line-height: 1.2;
+  line-height: var(--lh);
 }
 </style>

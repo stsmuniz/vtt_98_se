@@ -60,9 +60,9 @@ function sortByValue() {
               >
             </td>
             <td class="actions-cell">
-              <button type="button" :disabled="index === 0" :aria-label="`Subir ${entry.name}`" title="Subir" @click="move(index, -1)">▲</button>
-              <button type="button" :disabled="index === list.length - 1" :aria-label="`Descer ${entry.name}`" title="Descer" @click="move(index, 1)">▼</button>
-              <button type="button" :aria-label="`Tirar ${entry.name} da iniciativa`" title="Remover" @click="remove(index)">✕</button>
+              <button type="button" :disabled="index === 0" :aria-label="`Subir ${entry.name}`" title="Subir" @click="move(index, -1)"><span class="arrow up" aria-hidden="true" /></button>
+              <button type="button" :disabled="index === list.length - 1" :aria-label="`Descer ${entry.name}`" title="Descer" @click="move(index, 1)"><span class="arrow down" aria-hidden="true" /></button>
+              <button type="button" :aria-label="`Tirar ${entry.name} da iniciativa`" title="Remover" @click="remove(index)">×</button>
             </td>
           </tr>
           <tr v-if="!list.length">
@@ -100,8 +100,20 @@ function sortByValue() {
   min-width: 22px;
   min-height: 0;
   padding: 0 2px;
-  font-size: 10px;
+  font-size: var(--fs-1);
+  line-height: 1;
 }
+/* Setas desenhadas em CSS: a fonte pixel não tem ▲ ▼ */
+.arrow {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  vertical-align: middle;
+}
+.arrow.up { border-bottom: 5px solid currentColor; }
+.arrow.down { border-top: 5px solid currentColor; }
 .empty {
   color: var(--c-text-disabled);
 }

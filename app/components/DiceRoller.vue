@@ -119,7 +119,7 @@ function rollTypeLabel(type: RollType) {
       <fieldset>
         <legend>Resultado</legend>
         <div class="result-container">
-          <span style="font-size: 3rem">{{rollResult ? rollResult.result : '—'}}</span>
+          <span style="font-size: var(--fs-3)">{{rollResult ? rollResult.result : '—'}}</span>
         </div>
       </fieldset>
       <fieldset>
@@ -188,19 +188,19 @@ function rollTypeLabel(type: RollType) {
               .attribute-item {
                 width: 3rem;
                 text-align: center;
-                font-size: 2rem;
+                font-size: var(--fs-2);
                 height: 2.5rem;
                 padding: 0.25rem;
               }
               select {
-                font-size: 2rem;
+                font-size: var(--fs-2);
                 height: 2.5rem;
               }
             }
           }
         }
         .roll-button {
-          font-size: 1.8rem;
+          font-size: var(--fs-2);
           height: 2.5rem;
           width: 100%;
         }
@@ -213,7 +213,7 @@ function rollTypeLabel(type: RollType) {
             align-items: center;
             gap: 0.35rem;
             padding: 0.25rem 0.5rem;
-            font-size: 1.2rem;
+            font-size: var(--fs-1);
             background-color: #dfdfdf;
             border: 2px solid;
             border-color: #ffffff #808080 #808080 #ffffff;
@@ -224,7 +224,7 @@ function rollTypeLabel(type: RollType) {
               height: 1.25rem;
               padding: 0;
               line-height: 1;
-              font-size: 1rem;
+              font-size: var(--fs-1);
             }
           }
         }
@@ -236,7 +236,7 @@ function rollTypeLabel(type: RollType) {
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 3rem;
+    font-size: var(--fs-3);
   }
   .history-container {
     width: 100%;
