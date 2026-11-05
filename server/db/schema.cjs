@@ -16,7 +16,7 @@ const user = pgTable('user', {
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
-})
+}).enableRLS()
 
 const session = pgTable(
   'session',
@@ -37,7 +37,7 @@ const session = pgTable(
       .references(() => user.id, { onDelete: 'cascade' }),
   },
   (table) => [index('session_userId_idx').on(table.userId)],
-)
+).enableRLS()
 
 const account = pgTable(
   'account',
@@ -67,7 +67,7 @@ const account = pgTable(
       .notNull(),
   },
   (table) => [index('account_userId_idx').on(table.userId)],
-)
+).enableRLS()
 
 const verification = pgTable(
   'verification',
@@ -85,7 +85,7 @@ const verification = pgTable(
       .notNull(),
   },
   (table) => [index('verification_identifier_idx').on(table.identifier)],
-)
+).enableRLS()
 
 const tokensTable = pgTable('tokens', {
   id: serial('id').primaryKey(),
@@ -98,7 +98,7 @@ const tokensTable = pgTable('tokens', {
   userId: text('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
-})
+}).enableRLS()
 
 const scenariosTable = pgTable('scenarios', {
   id: serial('id').primaryKey(),
@@ -110,7 +110,7 @@ const scenariosTable = pgTable('scenarios', {
   userId: text('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
-})
+}).enableRLS()
 
 const scenesTable = pgTable('scenes', {
   id: serial('id').primaryKey(),
@@ -131,7 +131,7 @@ const scenesTable = pgTable('scenes', {
   updatedAt: timestamp('updated_at', { mode: 'date' })
     .defaultNow()
     .$onUpdate(() => new Date()),
-})
+}).enableRLS()
 
 const roomsTable = pgTable('rooms', {
   id: serial('id').primaryKey(),
@@ -153,7 +153,7 @@ const roomsTable = pgTable('rooms', {
   updatedAt: timestamp('updated_at', { mode: 'date' })
     .defaultNow()
     .$onUpdate(() => new Date()),
-})
+}).enableRLS()
 
 const roomPlayersTable = pgTable(
   'room_players',
@@ -172,7 +172,7 @@ const roomPlayersTable = pgTable(
   (table) => ({
     unq: unique().on(table.roomId, table.userId),
   }),
-)
+).enableRLS()
 
 module.exports = {
   user,

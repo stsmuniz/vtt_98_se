@@ -68,7 +68,7 @@ export const user = pgTable('user', {
         .defaultNow()
         .$onUpdate(() => new Date())
         .notNull(),
-})
+}).enableRLS()
 
 export const session = pgTable(
     'session',
@@ -89,7 +89,7 @@ export const session = pgTable(
             .references(() => user.id, { onDelete: 'cascade' }),
     },
     (table) => [index('session_userId_idx').on(table.userId)],
-)
+).enableRLS()
 
 export const account = pgTable(
     'account',
@@ -119,7 +119,7 @@ export const account = pgTable(
             .notNull(),
     },
     (table) => [index('account_userId_idx').on(table.userId)],
-)
+).enableRLS()
 
 export const verification = pgTable(
     'verification',
@@ -137,7 +137,7 @@ export const verification = pgTable(
             .notNull(),
     },
     (table) => [index('verification_identifier_idx').on(table.identifier)],
-)
+).enableRLS()
 
 export const tokensTable = pgTable('tokens', {
     id: serial('id').primaryKey(),
@@ -150,7 +150,7 @@ export const tokensTable = pgTable('tokens', {
     userId: text('user_id')
         .notNull()
         .references(() => user.id, { onDelete: 'cascade' }),
-})
+}).enableRLS()
 
 export const scenariosTable = pgTable('scenarios', {
     id: serial('id').primaryKey(),
@@ -162,7 +162,7 @@ export const scenariosTable = pgTable('scenarios', {
     userId: text('user_id')
         .notNull()
         .references(() => user.id, { onDelete: 'cascade' }),
-})
+}).enableRLS()
 
 export const scenesTable = pgTable('scenes', {
     id: serial('id').primaryKey(),
@@ -184,7 +184,7 @@ export const scenesTable = pgTable('scenes', {
     updatedAt: timestamp('updated_at', { mode: 'date' })
         .defaultNow()
         .$onUpdate(() => new Date()),
-})
+}).enableRLS()
 
 export const roomsTable = pgTable('rooms', {
     id: serial('id').primaryKey(),
@@ -208,7 +208,7 @@ export const roomsTable = pgTable('rooms', {
     updatedAt: timestamp('updated_at', { mode: 'date' })
         .defaultNow()
         .$onUpdate(() => new Date()),
-})
+}).enableRLS()
 
 export const roomPlayersTable = pgTable(
     'room_players',
@@ -227,7 +227,7 @@ export const roomPlayersTable = pgTable(
     (table) => ({
         unq: unique().on(table.roomId, table.userId),
     }),
-)
+).enableRLS()
 
 export const userRelations = relations(user, ({ many }) => ({
     sessions: many(session),
