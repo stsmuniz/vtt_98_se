@@ -25,15 +25,21 @@ export function useDesktop() {
   /** Visitante sem conta (só acontece na página de sala). */
   const isGuest = computed(() => !session.value.isPending && !user.value)
 
-  function openApp(appId: string, props: Record<string, unknown> = {}): string | null {
+  function openApp(
+    appId: string,
+    extraProps: Record<string, unknown> = {},
+    opts: { ownerId?: string; title?: string } = {},
+  ): string | null {
     const app = getApp(appId)
     if (!app) return null
     if (isGuest.value && !app.guestAllowed) return null
+    const props = { ...app.defaultProps, ...extraProps }
     const id = appInstanceId(app, props)
     wm.register(id, 'app', {
       appId,
       props,
-      title: app.title,
+      ownerId: opts.ownerId,
+      title: opts.title ?? (app.titleFor?.(props) || app.title),
       icon: app.icon,
       rect: { w: app.size.w, h: app.size.h },
       minSize: app.minSize,
@@ -42,6 +48,22 @@ export function useDesktop() {
     })
     startMenuOpen.value = false
     return id
+  }
+
+  /**
+   * Abre uma pasta como seletor e devolve o registro escolhido, ou null se o
+   * usuário cancelar/fechar. `ownerId` (ex.: 'route') fecha o seletor junto
+   * com a janela dona.
+   */
+  function pick<T = Record<string, unknown>>(
+    resource: 'tokens' | 'scenarios' | 'scenes' | 'rooms',
+    opts: { ownerId?: string; title?: string; confirmLabel?: string } = {},
+  ): Promise<T | null> {
+    return new Promise((resolve) => {
+      const id = openApp(resource, { mode: 'pick', ownerId: opts.ownerId, confirmLabel: opts.confirmLabel, title: opts.title }, { ownerId: opts.ownerId })
+      if (!id) return resolve(null)
+      wm.setPickResolver(id, value => resolve(value as T | null))
+    })
   }
 
   function openHelp(topic?: string) {
@@ -67,5 +89,5 @@ export function useDesktop() {
     await navigateTo('/login')
   }
 
-  return { session, user, isGuest, startMenuOpen, openApp, openHelp, toggleFullscreen, logoff }
+  return { session, user, isGuest, startMenuOpen, openApp, pick, openHelp, toggleFullscreen, logoff }
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { iconUrl, type IconName } from '~/utils/icons'
 import {rollDiceGroups, type DiceGroup, type DiceType, type ModSignal, type RollResult, type RollType} from "~~/lib/rollDice.ts";
 
 const quantity = ref(1)
@@ -7,6 +8,7 @@ const mod = ref(0)
 const modSignal = ref<ModSignal>('+')
 const rollType = ref<RollType>('s')
 const validDice = ['4', '6', '8', '10', '12', '20']
+const diceIcon = (d: string) => iconUrl(`d${d}` as IconName)
 const lastRolls = ref<RollResult[]>([])
 const rollResult = ref<RollResult | null>(null)
 const diceGroups = ref<DiceGroup[]>([])
@@ -46,12 +48,17 @@ function rollTypeLabel(type: RollType) {
     <div class="dice-selector">
       <fieldset class="dice-selector-fieldset">
         <legend>Escolha o dado</legend>
-        <button class="dice-selector-button" v-for="d in validDice" :key="d">
-          <icon
-              size="lg"
-              :name="`D${d}`"
-              :icon="`dices/d${d}`"
-              @click="dice = d" />
+        <button
+            v-for="d in validDice"
+            :key="d"
+            type="button"
+            class="dice-selector-button"
+            :class="{ selected: dice === d }"
+            :aria-pressed="dice === d"
+            @click="dice = d"
+        >
+          <img :src="diceIcon(d)" alt="" class="dice-icon">
+          <span>D{{ d }}</span>
         </button>
       </fieldset>
     </div>
@@ -146,10 +153,18 @@ function rollTypeLabel(type: RollType) {
       justify-content: center;
     }
     .dice-selector-button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
       padding: 0.5rem;
-      button {
-        padding: 4px; box-sizing: border-box; margin: 0.25rem;
-      }
+    }
+    .dice-selector-button.selected {
+      box-shadow: var(--bevel-sunken);
+    }
+    .dice-icon {
+      width: 48px;
+      height: 48px;
     }
   }
   .modifiers {

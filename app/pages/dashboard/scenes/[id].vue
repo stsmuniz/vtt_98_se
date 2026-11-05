@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type {SceneToken} from "#server/db/schema.ts"
-import type { MenuDef } from "~/utils/menu"
+import type { MenuDef, MenuItemDef } from "~/utils/menu"
+import {useDialog} from "~~/composables/useDialog"
 import {useDesktop} from "~~/composables/useDesktop"
 import {useWindow} from "~~/composables/useWindow"
 import {useCanvasZoom} from "~~/composables/useCanvasZoom"
@@ -17,9 +18,7 @@ import {
   Transformer as VTransformer,
 } from 'vue-konva'
 
-import TokensWindow from "~/components/TokensWindow.vue"
 import FixedWindow from "~/components/FixedWIndow.vue"
-import ScenariosWindow from "~/components/ScenariosWindow.vue";
 
 definePageMeta({
   layout: 'desktop',
@@ -27,6 +26,7 @@ definePageMeta({
 })
 
 const desktop = useDesktop()
+const dialog = useDialog()
 const routeWindow = useWindow('route')
 const openHelpManual = () => desktop.openHelp()
 
@@ -44,12 +44,9 @@ const {data: currentScene} = useFetch(`/api/v1/scenes/${params.id}`)
 const { zoom: sceneZoom, scale: stageScale, zoomIn, zoomOut, resetZoom, handleWheel } = useCanvasZoom()
 
 const isTokenWindowOpen = ref(false)
-const isScenarioWindowOpen = ref(false)
 const { image: nameBgImage, load: loadNameBgImage } = usePreloadedImage()
 const { image: bgImageObj, load: loadBgImage } = usePreloadedImage()
 const { images: tokenImages, ensureLoaded: ensureTokenImageLoaded } = useImageMap()
-const isDeleteTokenAlertOpen = ref(false)
-const isReplaceTokenWindowOpen = ref(false)
 const activeClass = ref('all-tokens')
 
 
@@ -227,8 +224,7 @@ const addToken = async (token: Omit<Token, "tags"> & { x?: number; y?: number; }
   isTokenWindowOpen.value = false
 }
 
-const setScenario = async (scenario) => {
-  console.log(scenario)
+const setScenario = async (scenario: Scenario) => {
   try {
     const response = await fetch(`/api/v1/scenes/${params.id}`, {
       method: 'PATCH',
@@ -239,7 +235,6 @@ const setScenario = async (scenario) => {
     })
     if (response.ok) {
       const res = await response.json()
-      console.log(res)
       currentScene.value = res
     }
   } catch (error) {
@@ -302,16 +297,29 @@ const handleDeleteToken = async () => {
 
   // Persiste no backend (envie o array completo atualizado)
   await saveSceneTokens()
-  isDeleteTokenAlertOpen.value = false
 }
 
-const handleDeleteTokenAlertWindow = () => {
-  isDeleteTokenAlertOpen.value = true
+const handleDeleteTokenAlertWindow = async () => {
+  if (selectedTokenId.value === null) return
+  const ok = await dialog.confirm('Tem certeza de que deseja remover este token da cena?', { title: 'Remover token', icon: 'warning' })
+  if (ok) await handleDeleteToken()
 }
 
-const openReplaceTokenWindow = () => {
+const openReplaceTokenWindow = async () => {
   if (!selectedTokenId.value) return
-  isReplaceTokenWindowOpen.value = true
+  const token = await desktop.pick<Token>('tokens', { ownerId: 'route', title: 'Substituir token', confirmLabel: 'Substituir' })
+  if (token) await replaceToken(token)
+}
+
+// Seletores (janelas de pasta em modo "pick", que fecham junto com o editor)
+const pickTokenToAdd = async () => {
+  const token = await desktop.pick<Token>('tokens', { ownerId: 'route', title: 'Adicionar token à cena', confirmLabel: 'Adicionar na cena' })
+  if (token) await addToken(token)
+}
+
+const chooseScenario = async () => {
+  const scenario = await desktop.pick<Scenario>('scenarios', { ownerId: 'route', title: 'Trocar cenário', confirmLabel: 'Usar este cenário' })
+  if (scenario) await setScenario(scenario)
 }
 
 const replaceToken = async (token: Token) => {
@@ -340,12 +348,8 @@ const replaceToken = async (token: Token) => {
   ensureTokenImageLoaded(current.id, replaced.image)
 
   await saveSceneTokens()
-  isReplaceTokenWindowOpen.value = false
 }
 
-const closeDeleteAlert = () => {
-  isDeleteTokenAlertOpen.value = false
-}
 
 const setTokenTab = (tab: string) => {
   activeClass.value = tab
@@ -444,6 +448,17 @@ const onHandleMouseLeave = (e: any) => {
   container.style.cursor = 'default'
 }
 
+const tokenContextItems = computed<MenuItemDef[]>(() => [
+  { id: 'ctx-duplicar', label: '&Duplicar token', icon: 'copy', action: duplicateToken },
+  { id: 'ctx-substituir', label: '&Substituir token…', icon: 'token', action: openReplaceTokenWindow },
+  { type: 'separator' },
+  { id: 'ctx-inverter-h', label: 'Inverter &horizontalmente', action: hFlipToken },
+  { id: 'ctx-inverter-v', label: 'Inverter &verticalmente', action: vFlipToken },
+  { id: 'ctx-rotacao', label: '&Restaurar rotação', action: resetTokenRotation },
+  { type: 'separator' },
+  { id: 'ctx-remover', label: 'Re&mover token', icon: 'delete', shortcut: 'Del', action: handleDeleteTokenAlertWindow },
+])
+
 const windowTitle = computed(() => currentScene.value?.name ? `${currentScene.value.name} - Editor de cenas` : 'Editor de cenas')
 
 const editorMenus = computed<MenuDef[]>(() => [
@@ -460,8 +475,8 @@ const editorMenus = computed<MenuDef[]>(() => [
     id: 'inserir',
     label: '&Inserir',
     items: [
-      { id: 'inserir-token', label: '&Token…', icon: 'token', action: () => { isTokenWindowOpen.value = true } },
-      { id: 'trocar-cenario', label: '&Cenário…', icon: 'scenario', action: () => { isScenarioWindowOpen.value = true } },
+      { id: 'inserir-token', label: '&Token…', icon: 'token', action: pickTokenToAdd },
+      { id: 'trocar-cenario', label: '&Cenário…', icon: 'scenario', action: chooseScenario },
     ],
   },
   {
@@ -491,37 +506,20 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
     <template #toolbar>
       <UiToolbar label="Ferramentas do editor">
         <UiToolbarButton label="Tokens" icon="token" show-label @click="isTokenWindowOpen = true" />
-        <UiToolbarButton label="Cenário" icon="scenario" show-label @click="isScenarioWindowOpen = true" />
+        <UiToolbarButton label="Cenário" icon="scenario" show-label @click="chooseScenario" />
         <UiToolbarButton label="Salvar" icon="save" show-label @click="saveSceneTokens" />
         <UiToolbarSeparator />
         <UiToolbarButton label="Ajuda" icon="help" show-label @click="openHelpManual" />
       </UiToolbar>
     </template>
-    <ContextMenu
-        :show="menuState.show"
+    <UiContextMenu
+        :open="menuState.show"
         :x="menuState.x"
         :y="menuState.y"
+        :items="tokenContextItems"
+        label="Token"
         @close="menuState.show = false"
-    >
-      <li @click="duplicateToken">Duplicar Token</li>
-      <li @click="openReplaceTokenWindow">Substituir Token</li>
-      <li @click="hFlipToken">Inverter Horizontalmente</li>
-      <li @click="vFlipToken">Inverter Verticalmente</li>
-      <li @click="resetTokenRotation()">Restaurar Rotação</li>
-      <li @click="handleDeleteTokenAlertWindow()">Remover Token</li>
-    </ContextMenu>
-    <fixed-window
-        title="Substituir Token"
-        icon="tokens" v-if="isReplaceTokenWindowOpen"
-        @close-window="isReplaceTokenWindowOpen = false"
-    >
-      <tokens-window
-          add-token-to-scene="true"
-          add-button-label="Substituir Token"
-          @addTokenToScene="replaceToken"
-          @close-window="isReplaceTokenWindowOpen = false"
-      />
-    </fixed-window>
+    />
     <fixed-window
         title="Tokens"
         icon="tokens" v-if="isTokenWindowOpen"
@@ -577,36 +575,21 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
               </div>
             </div>
             <div class="tokens-tabs" :class="activeClass == 'all-tokens' ? 'active' : ''" id="all-tokens">
-              <tokens-window
-                  add-token-to-scene="true"
-                  @addTokenToScene="addToken"
-                  @close-window="isTokenWindowOpen = false"
-              />
+              <Suspense>
+                <AppsExplorerResourceExplorer
+                    resource="tokens"
+                    mode="pick"
+                    embedded
+                    confirm-label="Adicionar na cena"
+                    @pick="addToken"
+                    @cancel="isTokenWindowOpen = false"
+                />
+              </Suspense>
             </div>
           </div>
         </div>
       </div>
     </fixed-window>
-    <fixed-window
-        title="Cenários"
-        icon="scenario"
-        v-if="isScenarioWindowOpen"
-        @close-window="isScenarioWindowOpen = false">
-      <scenarios-window
-          set-scenario-to-scene="true"
-          @setScenarioToScene="setScenario"
-          @close-window="isScenarioWindowOpen = false"
-      />
-    </fixed-window>
-    <alert-window
-        v-if="isDeleteTokenAlertOpen"
-        icon="warning"
-        title="Apagar Token"
-        @alert-button-OK="handleDeleteToken"
-        :cancelAction="closeDeleteAlert"
-    >
-      Tem certeza que quer apagar este token?
-    </alert-window>
     <div class="scene-canvas">
       <!-- Adicionado eventos de click no Stage -->
       <v-stage

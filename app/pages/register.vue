@@ -1,14 +1,5 @@
 <template>
   <section>
-    <div v-if="err">
-      <alert-window
-          title="Erro ao registrar"
-          icon="warning"
-          @alert-button-OK="clearError"
-      >
-        {{ err }}
-      </alert-window>
-    </div>
     <div class="window login-window">
       <div class="title-bar">
         <div class="title-bar-text">Boas vindas ao VTT 98 SE</div>
@@ -69,6 +60,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import { useDialog } from "~~/composables/useDialog";
 import { authClient } from "@@/lib/auth-client.ts";
 import { useLoadingWindow } from "~~/composables/useLoadingWindow";
 
@@ -85,6 +77,13 @@ useSeoMeta({
 })
 
 const err = ref<string|null>(null)
+
+// Erros aparecem numa caixa de mensagem (DesktopDialogHost, em app.vue).
+watch(err, async (message) => {
+  if (!message) return
+  await useDialog().alert(message, { title: 'Não foi possível criar a conta', icon: 'warning' })
+  err.value = null
+})
 const isSubmitting = ref(false)
 const { withLoading } = useLoadingWindow()
 
@@ -126,9 +125,6 @@ const submitForm = async () => {
   }
 }
 
-const clearError = () => {
-  err.value = null
-}
 
 const form = reactive({
   password: '',

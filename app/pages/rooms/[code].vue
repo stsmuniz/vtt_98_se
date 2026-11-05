@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RoomToken, SceneAttribute, SceneInitiativeEntry } from "#server/db/schema.ts"
-import type { MenuDef } from "~/utils/menu"
+import type { MenuDef, MenuItemDef } from "~/utils/menu"
+import { useDialog } from "~~/composables/useDialog"
 import { useDesktop } from "~~/composables/useDesktop"
 import { useWindow } from "~~/composables/useWindow"
 import { useCanvasZoom } from "~~/composables/useCanvasZoom"
@@ -15,9 +16,6 @@ import {
   Transformer as VTransformer,
 } from 'vue-konva'
 
-import TokensWindow from "~/components/TokensWindow.vue"
-import ScenesWindow from "~/components/ScenesWindow.vue"
-import FixedWindow from "~/components/FixedWIndow.vue"
 import RoomPasswordWindow from "~/components/RoomPasswordWindow.vue"
 import RoomTokenAttributesWindow from "~/components/RoomTokenAttributesWindow.vue"
 import FloatingWindow from "~/components/FloatingWindow.vue";
@@ -490,14 +488,16 @@ async function saveRoomSnapshot() {
   }
 }
 
-const isDeleteTokenAlertOpen = ref(false)
-const handleDeleteTokenAlertWindow = () => { isDeleteTokenAlertOpen.value = true }
-const closeDeleteAlert = () => { isDeleteTokenAlertOpen.value = false }
-
-const isReplaceTokenWindowOpen = ref(false)
-const openReplaceTokenWindow = () => {
+async function handleDeleteTokenAlertWindow() {
   if (!selectedTokenId.value) return
-  isReplaceTokenWindowOpen.value = true
+  const ok = await dialog.confirm('Tem certeza de que deseja remover este token da sala?', { title: 'Remover token', icon: 'warning' })
+  if (ok) handleDeleteToken()
+}
+
+async function openReplaceTokenWindow() {
+  if (!selectedTokenId.value) return
+  const token = await desktop.pick('tokens', { ownerId: 'route', title: 'Substituir token', confirmLabel: 'Substituir' })
+  if (token) replaceToken(token)
 }
 
 const replaceToken = (token: any) => {
@@ -525,7 +525,6 @@ const replaceToken = (token: any) => {
   tokenImages[current.id] = null
   ensureTokenImageLoaded(current.id, replaced.image)
 
-  isReplaceTokenWindowOpen.value = false
 }
 
 const handleDeleteToken = () => {
@@ -545,7 +544,6 @@ const handleDeleteToken = () => {
   if (isTokenConfigWindowOpen) {
     isTokenConfigWindowOpen.value = false
   }
-  isDeleteTokenAlertOpen.value = false
 }
 
 const isTokenConfigWindowOpen = ref(false)
@@ -563,15 +561,18 @@ watch(selectedToken, (newToken) => {
 // ADICIONAR TOKEN (com atributos: atual/máximo/visibilidade)
 // ==========================================
 
-const isTokenPickerOpen = ref(false)
 const isTokenAttributesWindowOpen = ref(false)
 const pendingToken = ref<any>(null)
 
 function onTokenPicked(token: any) {
   if (!token) return
   pendingToken.value = token
-  isTokenPickerOpen.value = false
   isTokenAttributesWindowOpen.value = true
+}
+
+async function pickTokenToAdd() {
+  const token = await desktop.pick('tokens', { ownerId: 'route', title: 'Adicionar token à sala', confirmLabel: 'Adicionar à sala' })
+  if (token) onTokenPicked(token)
 }
 
 function closeTokenAttributesWindow() {
@@ -611,7 +612,10 @@ function onTokenAttributesConfirmed(attributes: SceneAttribute[]) {
 // MUDAR CENA (reconstrói o snapshot a partir da nova cena)
 // ==========================================
 
-const isSceneWindowOpen = ref(false)
+async function chooseRoomScene() {
+  const scene = await desktop.pick('scenes', { ownerId: 'route', title: 'Trocar cena da sala', confirmLabel: 'Usar esta cena' })
+  if (scene) await changeRoomScene(scene)
+}
 
 async function changeRoomScene(scene: any) {
   if (!scene || !room.value) return
@@ -629,8 +633,6 @@ async function changeRoomScene(scene: any) {
     }
   } catch (error) {
     console.error('Erro ao trocar a cena da sala:', error)
-  } finally {
-    isSceneWindowOpen.value = false
   }
 }
 
@@ -639,6 +641,7 @@ async function changeRoomScene(scene: any) {
 // ==========================================
 
 const desktop = useDesktop()
+const dialog = useDialog()
 const routeWindow = useWindow('route')
 const openHelpManual = () => desktop.openHelp()
 const openDiceRoller = () => desktop.openApp('dice')
@@ -658,9 +661,17 @@ const roomStatusText = computed(() => room.value ? `Sala ${room.value.isOpen ? '
 // ABRIR / FECHAR SALA (somente GM)
 // ==========================================
 
-const isToggleRoomOpenAlertOpen = ref(false)
-const openToggleRoomOpenAlert = () => { isToggleRoomOpenAlertOpen.value = true }
-const closeToggleRoomOpenAlert = () => { isToggleRoomOpenAlertOpen.value = false }
+async function openToggleRoomOpenAlert() {
+  if (!room.value) return
+  const closing = room.value.isOpen
+  const ok = await dialog.confirm(
+    closing
+      ? 'Tem certeza de que deseja fechar a sala?\nVisitantes não conseguirão entrar até que ela seja reaberta.'
+      : 'Tem certeza de que deseja abrir a sala?\nVisitantes poderão entrar novamente.',
+    { title: closing ? 'Fechar sala' : 'Abrir sala', icon: 'question' },
+  )
+  if (ok) await confirmToggleRoomOpen()
+}
 
 async function confirmToggleRoomOpen() {
   if (!room.value) return
@@ -677,8 +688,6 @@ async function confirmToggleRoomOpen() {
     }
   } catch (error) {
     console.error('Erro ao mudar o estado da sala:', error)
-  } finally {
-    isToggleRoomOpenAlertOpen.value = false
   }
 }
 
@@ -689,6 +698,17 @@ routeWindow.shortcuts({
 })
 
 
+
+const tokenContextItems = computed<MenuItemDef[]>(() => isGm.value ? [
+  { id: 'ctx-duplicar', label: '&Duplicar token', icon: 'copy', action: duplicateToken },
+  { id: 'ctx-substituir', label: '&Substituir token…', icon: 'token', action: openReplaceTokenWindow },
+  { type: 'separator' },
+  { id: 'ctx-inverter-h', label: 'Inverter &horizontalmente', action: hFlipToken },
+  { id: 'ctx-inverter-v', label: 'Inverter &verticalmente', action: vFlipToken },
+  { id: 'ctx-rotacao', label: '&Restaurar rotação', action: resetTokenRotation },
+  { type: 'separator' },
+  { id: 'ctx-remover', label: 'Re&mover token', icon: 'delete', shortcut: 'Del', action: handleDeleteTokenAlertWindow },
+] : [])
 
 const windowTitle = computed(() => room.value?.name ? `${room.value.name} - Sala` : 'Sala')
 
@@ -736,8 +756,8 @@ const roomMenus = computed<MenuDef[]>(() => {
       id: 'inserir',
       label: '&Inserir',
       items: [
-        { id: 'inserir-token', label: '&Token…', icon: 'token', action: () => { isTokenPickerOpen.value = true } },
-        { id: 'trocar-cena', label: '&Cena…', icon: 'scene', action: () => { isSceneWindowOpen.value = true } },
+        { id: 'inserir-token', label: '&Token…', icon: 'token', action: pickTokenToAdd },
+        { id: 'trocar-cena', label: '&Cena…', icon: 'scene', action: chooseRoomScene },
       ],
     },
     view,
@@ -754,8 +774,8 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
   <DesktopRouteWindow :title="windowTitle" icon="room" :close-to="desktop.isGuest.value ? '/' : '/dashboard'">
     <template v-if="room && isGm" #toolbar>
       <UiToolbar label="Ferramentas da sala">
-        <UiToolbarButton label="Token" icon="token" show-label @click="isTokenPickerOpen = true" />
-        <UiToolbarButton label="Cena" icon="scene" show-label @click="isSceneWindowOpen = true" />
+        <UiToolbarButton label="Token" icon="token" show-label @click="pickTokenToAdd" />
+        <UiToolbarButton label="Cena" icon="scene" show-label @click="chooseRoomScene" />
         <UiToolbarButton label="Salvar" icon="save" show-label @click="saveRoomSnapshot" />
         <UiToolbarSeparator />
         <UiToolbarButton label="Dados" icon="dice" show-label @click="openDiceRoller" />
@@ -766,47 +786,16 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
       </UiToolbar>
     </template>
     <template v-if="room">
-      <ContextMenu
-          :show="menuState.show"
+      <UiContextMenu
+          :open="menuState.show && tokenContextItems.length > 0"
           :x="menuState.x"
           :y="menuState.y"
+          :items="tokenContextItems"
+          label="Token"
           @close="menuState.show = false"
-      >
-        <li @click="duplicateToken">Duplicar Token</li>
-        <li @click="openReplaceTokenWindow">Substituir Token</li>
-        <li @click="hFlipToken">Inverter Horizontalmente</li>
-        <li @click="vFlipToken">Inverter Verticalmente</li>
-        <li @click="resetTokenRotation()">Restaurar Rotação</li>
-        <li @click="handleDeleteTokenAlertWindow()">Remover Token</li>
-      </ContextMenu>
+      />
 
-      <fixed-window
-          title="Tokens"
-          icon="tokens"
-          v-if="isTokenPickerOpen"
-          @close-window="isTokenPickerOpen = false"
-      >
-        <tokens-window
-            add-token-to-scene="true"
-            add-button-label="Adicionar à sala"
-            @addTokenToScene="onTokenPicked"
-            @close-window="isTokenPickerOpen = false"
-        />
-      </fixed-window>
 
-      <fixed-window
-          title="Substituir Token"
-          icon="tokens"
-          v-if="isReplaceTokenWindowOpen"
-          @close-window="isReplaceTokenWindowOpen = false"
-      >
-        <tokens-window
-            add-token-to-scene="true"
-            add-button-label="Substituir Token"
-            @addTokenToScene="replaceToken"
-            @close-window="isReplaceTokenWindowOpen = false"
-        />
-      </fixed-window>
 
       <RoomTokenAttributesWindow
           v-if="isTokenAttributesWindowOpen && pendingToken"
@@ -815,18 +804,6 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
           @close-window="closeTokenAttributesWindow"
       />
 
-      <fixed-window
-          title="Cenas"
-          icon="scenes"
-          v-if="isSceneWindowOpen"
-          @close-window="isSceneWindowOpen = false"
-      >
-        <scenes-window
-            select-scene-for-room="true"
-            @selectSceneForRoom="changeRoomScene"
-            @close-window="isSceneWindowOpen = false"
-        />
-      </fixed-window>
       <floating-window
           title="Iniciativa"
           icon="initiative"
@@ -847,25 +824,7 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
             @delete-token="handleDeleteToken"
         />
       </floating-window>
-      <alert-window
-          v-if="isDeleteTokenAlertOpen"
-          icon="warning"
-          title="Apagar Token"
-          @alert-button-OK="handleDeleteToken"
-          :cancelAction="closeDeleteAlert"
-      >
-        Tem certeza que quer apagar este token?
-      </alert-window>
 
-      <alert-window
-          v-if="isToggleRoomOpenAlertOpen"
-          :icon="room.isOpen ? 'restrict' : 'success'"
-          :title="room.isOpen ? 'Fechar Sala' : 'Abrir Sala'"
-          @alert-button-OK="confirmToggleRoomOpen"
-          :cancelAction="closeToggleRoomOpenAlert"
-      >
-        Tem certeza que quer {{ room.isOpen ? 'fechar' : 'abrir' }} a sala? {{ room.isOpen ? 'Visitantes não conseguirão mais entrar até que ela seja reaberta.' : 'Visitantes poderão entrar novamente.' }}
-      </alert-window>
 
 
       <div class="scene-canvas">

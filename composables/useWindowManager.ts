@@ -79,6 +79,8 @@ export const MOBILE_BREAKPOINT = 768
 const shortcutsById = new Map<string, ShortcutMap>()
 const beforeCloseById = new Map<string, () => boolean | Promise<boolean>>()
 const keyHandlerById = new Map<string, (event: KeyboardEvent) => boolean>()
+/** Seletores abertos com pick(): resolvem com o item escolhido, ou null se a janela fechar. */
+const pickResolverById = new Map<string, (value: unknown) => void>()
 
 /** Normaliza um evento para o formato das chaves de atalho: 'ctrl+shift+s', 'delete', 'f2'. */
 export function eventToShortcut(event: KeyboardEvent): string {
@@ -200,6 +202,9 @@ export function useWindowManager() {
     shortcutsById.delete(id)
     beforeCloseById.delete(id)
     keyHandlerById.delete(id)
+    const resolvePending = pickResolverById.get(id)
+    pickResolverById.delete(id)
+    resolvePending?.(null)
     if (state.value.activeId === id) activateTopmost()
   }
 
@@ -341,6 +346,20 @@ export function useWindowManager() {
     else beforeCloseById.delete(id)
   }
 
+  /** Associa uma Promise de seleção à janela (substitui — e cancela — uma anterior). */
+  function setPickResolver(id: string, resolve: (value: unknown) => void) {
+    pickResolverById.get(id)?.(null)
+    pickResolverById.set(id, resolve)
+  }
+
+  /** Entrega o item escolhido a quem chamou pick() e fecha o seletor. */
+  function resolvePick(id: string, value: unknown) {
+    const resolve = pickResolverById.get(id)
+    pickResolverById.delete(id)
+    resolve?.(value)
+    unregister(id)
+  }
+
   function setKeyHandler(id: string, fn: ((event: KeyboardEvent) => boolean) | null) {
     if (fn) keyHandlerById.set(id, fn)
     else keyHandlerById.delete(id)
@@ -391,6 +410,8 @@ export function useWindowManager() {
     setShortcuts,
     setBeforeClose,
     setKeyHandler,
+    setPickResolver,
+    resolvePick,
     dispatchKey,
   }
 }
