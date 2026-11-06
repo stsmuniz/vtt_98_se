@@ -39,13 +39,19 @@ export interface AppDefinition {
   guestAllowed?: boolean
 }
 
+/**
+ * Selo do ícone de uma pasta: as pastas (Tokens, Documentos, Cenários, Cenas, Salas) usam todas a
+ * imagem de pasta, e o selo (o mesmo ícone que identifica o item dentro da pasta) as diferencia.
+ */
+export const folderOverlay = (app: AppDefinition): IconName | undefined => (app.desktopIcon ? app.icon : undefined)
+
 const lazy = (loader: () => Promise<{ default: Component }>) => defineAsyncComponent(loader)
 
 const explorer = lazy(() => import('~/components/apps/ExplorerApp.vue'))
 /** Pasta normal = uma janela por recurso; seletor (pick) = uma por janela dona. */
 const explorerKey = (props: Record<string, unknown>) =>
   props.mode === 'pick' ? `pick:${props.ownerId ?? 'desktop'}` : null
-const PICK_TITLES: Record<string, string> = { tokens: 'Selecionar token', scenarios: 'Selecionar cenário', scenes: 'Selecionar cena', rooms: 'Selecionar sala' }
+const PICK_TITLES: Record<string, string> = { tokens: 'Selecionar token', documents: 'Selecionar documento', scenarios: 'Selecionar cenário', scenes: 'Selecionar cena', rooms: 'Selecionar sala' }
 const explorerTitle = (kind: string) => (props: Record<string, unknown>) =>
   props.mode === 'pick' ? String(props.title ?? PICK_TITLES[kind]) : ''
 
@@ -59,6 +65,20 @@ export const APPS: AppDefinition[] = [
     defaultProps: { resource: 'tokens' },
     instanceKey: explorerKey,
     titleFor: explorerTitle('tokens'),
+    size: { w: 820, h: 560 },
+    minSize: { w: 420, h: 300 },
+    startMenu: 'programs',
+    onDesktop: true,
+  },
+  {
+    id: 'documents',
+    title: 'Documentos',
+    icon: 'image',
+    desktopIcon: 'folder',
+    component: explorer,
+    defaultProps: { resource: 'documents' },
+    instanceKey: explorerKey,
+    titleFor: explorerTitle('documents'),
     size: { w: 820, h: 560 },
     minSize: { w: 420, h: 300 },
     startMenu: 'programs',
@@ -155,6 +175,8 @@ export const APPS: AppDefinition[] = [
     instanceKey: props => String(props.src),
     size: { w: 720, h: 520 },
     minSize: { w: 300, h: 220 },
+    // Visitantes da sala (sem conta) abrem os documentos da mesa neste visualizador.
+    guestAllowed: true,
   },
   {
     id: 'settings',

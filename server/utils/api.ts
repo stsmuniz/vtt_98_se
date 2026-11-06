@@ -150,7 +150,25 @@ type UploadableResourceOptions = {
     storagePrefix?: string
     skipImageResize?: boolean
     requireImageOnCreate?: boolean
+    /** Documentos: gera miniatura + versão grande (WebP) em vez de uma imagem só. */
+    storeVariants?: boolean
+    /** Campos copiados do corpo JSON ao duplicar, sem passar pelos `fields` (ex.: URLs da versão grande). */
+    copyOnDuplicate?: string[]
     transformUpdate?: (updateData: Record<string, unknown>, rawFields: Record<string, string>) => void | Promise<void>
+}
+
+/** Grava o arquivo enviado e devolve as colunas de imagem da linha (uma imagem, ou miniatura + versão grande). */
+async function storeUploadedImage(file: { filename: string; data: Buffer }, options: UploadableResourceOptions): Promise<Record<string, unknown>> {
+    if (options.storeVariants) {
+        const { thumb, full } = await storeImageVariants(options.storagePrefix!, String(Date.now()), file.data)
+        return {
+            image: thumb.url, width: thumb.width, height: thumb.height,
+            fullImage: full.url, fullWidth: full.width, fullHeight: full.height,
+        }
+    }
+    const fileExtension = file.filename.split('.').pop()
+    const stored = await storeImage(options.storagePrefix!, `${Date.now()}.${fileExtension}`, file.data, options.skipImageResize)
+    return { image: stored.url, width: stored.width, height: stored.height }
 }
 
 /**
@@ -180,6 +198,7 @@ export async function createUploadableResource(event: any, options: UploadableRe
         for (const field of options.fields) {
             values[field.name] = coerceField(field, body[field.name], true)
         }
+        for (const key of options.copyOnDuplicate ?? []) values[key] = body[key]
 
         return db.insert(options.table).values(values).returning()
     }
@@ -212,12 +231,7 @@ export async function createUploadableResource(event: any, options: UploadableRe
     }
 
     if (options.hasImage && file) {
-        const fileExtension = file.filename.split('.').pop()
-        const uniqueFileName = `${Date.now()}.${fileExtension}`
-        const stored = await storeImage(options.storagePrefix!, uniqueFileName, file.data, options.skipImageResize)
-        values.image = stored.url
-        values.width = stored.width
-        values.height = stored.height
+        Object.assign(values, await storeUploadedImage(file, options))
     }
 
     return db.insert(options.table).values(values).returning()
@@ -271,12 +285,7 @@ export async function updateUploadableResource(event: any, options: UploadableRe
     }
 
     if (options.hasImage && file) {
-        const fileExtension = file.filename.split('.').pop()
-        const uniqueFileName = `${Date.now()}.${fileExtension}`
-        const stored = await storeImage(options.storagePrefix!, uniqueFileName, file.data, options.skipImageResize)
-        updateData.image = stored.url
-        updateData.width = stored.width
-        updateData.height = stored.height
+        Object.assign(updateData, await storeUploadedImage(file, options))
     }
 
     if (options.transformUpdate) {

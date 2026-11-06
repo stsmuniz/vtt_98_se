@@ -76,12 +76,14 @@ async function changePassword() {
 // ---------- Excluir conta ----------
 const lists = {
   tokens: (await useResourceList('tokens')).data,
+  documents: (await useResourceList('documents')).data,
   scenarios: (await useResourceList('scenarios')).data,
   scenes: (await useResourceList('scenes')).data,
   rooms: (await useResourceList('rooms')).data,
 }
 const counts = computed(() => ({
   tokens: lists.tokens.value?.length ?? 0,
+  documents: lists.documents.value?.length ?? 0,
   scenarios: lists.scenarios.value?.length ?? 0,
   scenes: lists.scenes.value?.length ?? 0,
   rooms: lists.rooms.value?.length ?? 0,
@@ -171,6 +173,7 @@ const nameId = useId()
         <UiGroupBox label="Será apagado">
           <ul class="delete-list" data-test="account-delete-counts">
             <li>{{ counts.tokens }} token(s)</li>
+            <li>{{ counts.documents }} documento(s)</li>
             <li>{{ counts.scenarios }} cenário(s)</li>
             <li>{{ counts.scenes }} cena(s)</li>
             <li>{{ counts.rooms }} sala(s) — os jogadores conectados serão desconectados</li>

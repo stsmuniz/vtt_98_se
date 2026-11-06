@@ -37,10 +37,11 @@ function isOwnBlobUrl(url: unknown): url is string {
 
 export async function collectUserAssets(userId: string): Promise<UserAssets> {
     const db = useDrizzle()
-    const { tokensTable, scenariosTable, scenesTable, roomsTable } = schema
+    const { tokensTable, documentsTable, scenariosTable, scenesTable, roomsTable } = schema
 
-    const [tokens, scenarios, scenes, rooms] = await Promise.all([
+    const [tokens, documents, scenarios, scenes, rooms] = await Promise.all([
         db.select({ image: tokensTable.image }).from(tokensTable).where(eq(tokensTable.userId, userId)),
+        db.select({ image: documentsTable.image, fullImage: documentsTable.fullImage }).from(documentsTable).where(eq(documentsTable.userId, userId)),
         db.select({ image: scenariosTable.image }).from(scenariosTable).where(eq(scenariosTable.userId, userId)),
         db.select({ tokens: scenesTable.tokens }).from(scenesTable).where(eq(scenesTable.userId, userId)),
         db.select({ code: roomsTable.code, snapshot: roomsTable.snapshot }).from(roomsTable).where(eq(roomsTable.userId, userId)),
@@ -49,9 +50,11 @@ export async function collectUserAssets(userId: string): Promise<UserAssets> {
     const candidates = new Set<string>()
     const add = (url: unknown) => { if (isOwnBlobUrl(url)) candidates.add(url) }
     tokens.forEach(t => add(t.image))
+    documents.forEach((d) => { add(d.image); add(d.fullImage) })
     scenarios.forEach(s => add(s.image))
-    scenes.forEach(s => s.tokens?.forEach(t => add(t.image)))
-    rooms.forEach(r => r.snapshot?.tokens?.forEach(t => add(t.image)))
+    // Documentos colocados na mesa guardam também a URL da versão grande (`fullImage`).
+    scenes.forEach(s => s.tokens?.forEach((t) => { add(t.image); add(t.fullImage) }))
+    rooms.forEach(r => r.snapshot?.tokens?.forEach((t) => { add(t.image); add(t.fullImage) }))
 
     // Uma imagem só pode ser apagada se ninguém mais a usa. Isso não deveria
     // acontecer (duplicar reaproveita a URL só dentro do mesmo usuário), mas o
@@ -68,27 +71,34 @@ export async function collectUserAssets(userId: string): Promise<UserAssets> {
 
 async function findUrlsUsedByOthers(userId: string, urls: string[]): Promise<Set<string>> {
     const db = useDrizzle()
-    const { tokensTable, scenariosTable } = schema
-    const imageInUrls = inArray(sql`t->>'image'`, urls)
+    const { tokensTable, documentsTable, scenariosTable } = schema
+    // Cada item de cena/sala pode apontar para duas imagens (`image` e, nos documentos, `fullImage`).
+    const urlInUrls = inArray(sql`u.url`, urls)
 
-    const [tokens, scenarios, sceneTokens, roomTokens] = await Promise.all([
+    const [tokens, documentThumbs, documentFulls, scenarios, sceneTokens, roomTokens] = await Promise.all([
         db.select({ url: tokensTable.image }).from(tokensTable)
             .where(and(ne(tokensTable.userId, userId), inArray(tokensTable.image, urls))),
+        db.select({ url: documentsTable.image }).from(documentsTable)
+            .where(and(ne(documentsTable.userId, userId), inArray(documentsTable.image, urls))),
+        db.select({ url: documentsTable.fullImage }).from(documentsTable)
+            .where(and(ne(documentsTable.userId, userId), inArray(documentsTable.fullImage, urls))),
         db.select({ url: scenariosTable.image }).from(scenariosTable)
             .where(and(ne(scenariosTable.userId, userId), inArray(scenariosTable.image, urls))),
         db.execute<{ url: string }>(sql`
-            select distinct t->>'image' as url
+            select distinct u.url as url
             from scenes s
             cross join lateral jsonb_array_elements(coalesce(s.tokens, '[]'::jsonb)) t
-            where s.user_id <> ${userId} and ${imageInUrls}`),
+            cross join lateral (values (t->>'image'), (t->>'fullImage')) as u(url)
+            where s.user_id <> ${userId} and ${urlInUrls}`),
         db.execute<{ url: string }>(sql`
-            select distinct t->>'image' as url
+            select distinct u.url as url
             from rooms r
             cross join lateral jsonb_array_elements(coalesce(r.snapshot->'tokens', '[]'::jsonb)) t
-            where r.user_id <> ${userId} and ${imageInUrls}`),
+            cross join lateral (values (t->>'image'), (t->>'fullImage')) as u(url)
+            where r.user_id <> ${userId} and ${urlInUrls}`),
     ])
 
-    return new Set([...tokens, ...scenarios, ...sceneTokens, ...roomTokens].map(r => r.url))
+    return new Set([...tokens, ...documentThumbs, ...documentFulls, ...scenarios, ...sceneTokens, ...roomTokens].map(r => r.url))
 }
 
 export async function purgeUserAssets(assets: UserAssets | undefined) {

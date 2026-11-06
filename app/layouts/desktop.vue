@@ -95,11 +95,11 @@ function activeWindowHasMenuKey(key: string): boolean {
  * Windows). Sem janela ativa ou sem capítulo específico, abre o manual no começo.
  */
 const HELP_TOPIC_BY_APP: Record<string, string> = {
-  tokens: 'pastas', scenarios: 'pastas', scenes: 'pastas', rooms: 'pastas', properties: 'pastas',
+  tokens: 'pastas', documents: 'pastas', scenarios: 'pastas', scenes: 'pastas', rooms: 'pastas', properties: 'pastas',
   'room-wizard': 'salas', 'image-viewer': 'cenarios', dice: 'dados-e-iniciativa',
   settings: 'configuracoes', 'user-account': 'conta',
 }
-const HELP_TOPIC_BY_RESOURCE: Record<string, string> = { tokens: 'tokens', scenarios: 'cenarios', scenes: 'cenas-e-editor', rooms: 'salas' }
+const HELP_TOPIC_BY_RESOURCE: Record<string, string> = { tokens: 'tokens', documents: 'documentos', scenarios: 'cenarios', scenes: 'cenas-e-editor', rooms: 'salas' }
 const HELP_TOPIC_BY_INLINE: Record<string, string> = { 'tokens-da-cena': 'cenas-e-editor', iniciativa: 'dados-e-iniciativa', 'token-config': 'salas', 'token-atributos': 'tokens' }
 
 function helpTopicForActiveWindow(): string | undefined {

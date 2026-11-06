@@ -69,7 +69,7 @@ const toc = [
       <h3>3.1. Dados que você nos fornece</h3>
       <ul>
         <li><strong>Cadastro:</strong> nome, endereço de e-mail e senha. A senha nunca é armazenada em texto: guardamos apenas um <em>hash</em> criptográfico, que não permite recuperá-la.</li>
-        <li><strong>Conteúdo do jogo:</strong> imagens que você envia (tokens e cenários), nomes, tags, atributos de personagens, cenas, salas, ordem de iniciativa e, se você definir, a senha de uma sala (também guardada apenas como <em>hash</em>).</li>
+        <li><strong>Conteúdo do jogo:</strong> imagens que você envia (tokens, documentos e cenários), nomes, tags, atributos de personagens, cenas, salas, ordem de iniciativa e, se você definir, a senha de uma sala (também guardada apenas como <em>hash</em>).</li>
         <li><strong>Preferências:</strong> configurações da interface, como papel de parede, escala da tela, sons e modo de exibição das pastas.</li>
       </ul>
       <h3>3.2. Dados gerados pelo uso</h3>

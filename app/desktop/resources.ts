@@ -45,6 +45,8 @@ export interface ResourceDescriptor {
     hasImage: boolean
     /** Cenários guardam o mapa na resolução original. */
     keepImageResolution?: boolean
+    /** Documentos: o navegador reduz imagens acima de ~4 MB antes de enviar (limite de corpo da Vercel). */
+    downscaleLargeImages?: boolean
     hasAttributes?: boolean
     /** Cena: escolher o cenário. */
     scenarioPicker?: boolean
@@ -76,6 +78,22 @@ export const RESOURCES: Record<ResourceKind, ResourceDescriptor> = {
       { label: 'Atributos', value: String(Array.isArray(raw.attributes) ? raw.attributes.length : 0) },
     ],
     form: { hasImage: true, hasAttributes: true, insertWith: 'form' },
+  },
+  documents: {
+    kind: 'documents',
+    title: 'Documentos',
+    singular: 'documento',
+    article: 'o',
+    itemIcon: 'image',
+    endpoint: '/api/v1/documents',
+    description: 'Imagens (cartas, pistas, handouts) que os jogadores abrem em tamanho grande durante o jogo.',
+    defaultVerb: 'view-image',
+    defaultVerbLabel: '&Visualizar',
+    thumb: raw => str(raw.image),
+    previewFields: raw => [
+      { label: 'Tamanho', value: raw.fullWidth && raw.fullHeight ? `${raw.fullWidth} × ${raw.fullHeight} px` : dims(raw) },
+    ],
+    form: { hasImage: true, downscaleLargeImages: true, insertWith: 'form' },
   },
   scenarios: {
     kind: 'scenarios',

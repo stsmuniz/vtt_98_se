@@ -8,6 +8,7 @@ import type { SceneToken } from '#server/db/schema.ts'
 import type { MenuDef, MenuItemDef } from '~/utils/menu'
 import type { ResourceRecord } from '~/desktop/resources'
 import { buildTokenMenu } from '~/utils/tokenMenu'
+import { documentTokenBase, isDocument, openDocumentViewer, type DocumentRecord } from '~/utils/documents'
 import { useDialog } from '~~/composables/useDialog'
 import { useDesktop } from '~~/composables/useDesktop'
 import { useWindow } from '~~/composables/useWindow'
@@ -131,6 +132,28 @@ async function addToken(token: TokenTemplate) {
   await saveSceneTokens()
 }
 
+/** Coloca um documento cadastrado na cena (miniatura; abre a versão grande ao clicar). */
+async function addDocument(doc: DocumentRecord) {
+  const sceneToken: SceneToken = {
+    id: Date.now(),
+    ...documentTokenBase(doc, sceneWidth.value / 2, sceneHeight.value / 2),
+  }
+  localTokens.value = [sceneToken, ...localTokens.value]
+  selectToken(sceneToken.id)
+  ensureTokenImageLoaded(sceneToken.id, sceneToken.image)
+  await saveSceneTokens()
+}
+
+function openSelectedDocument() {
+  const token = selectedToken.value
+  if (token && isDocument(token)) openDocumentViewer(desktop, token)
+}
+
+function onTokenDblClick(id: number) {
+  const token = localTokens.value.find(t => t.id === id)
+  if (token && isDocument(token)) openDocumentViewer(desktop, token)
+}
+
 function duplicateToken() {
   const token = selectedToken.value
   if (!token) return
@@ -156,8 +179,24 @@ async function removeSelectedToken() {
   await saveSceneTokens()
 }
 
+async function replaceSelectedDocument() {
+  const index = localTokens.value.findIndex(t => t.id === selectedTokenId.value)
+  if (index === -1) return
+  const doc = await desktop.pick<DocumentRecord>('documents', { ownerId: 'route', title: 'Substituir documento', confirmLabel: 'Substituir' })
+  if (!doc) return
+  const current = localTokens.value[index]!
+  // Mantém a altura do documento na cena e ajusta a largura à proporção do novo.
+  const width = doc.width && doc.height ? current.height * (doc.width / doc.height) : current.width
+  const base = documentTokenBase(doc, 0, 0)
+  localTokens.value.splice(index, 1, { ...current, documentId: base.documentId, name: base.name, image: base.image, fullImage: base.fullImage, width })
+  tokenImages[current.id] = null
+  ensureTokenImageLoaded(current.id, base.image)
+  await saveSceneTokens()
+}
+
 async function replaceSelectedToken() {
   if (selectedTokenId.value === null) return
+  if (isDocument(selectedToken.value)) return replaceSelectedDocument()
   const token = await desktop.pick<TokenTemplate>('tokens', { ownerId: 'route', title: 'Substituir token', confirmLabel: 'Substituir' })
   const index = localTokens.value.findIndex(t => t.id === selectedTokenId.value)
   if (!token || index === -1) return
@@ -187,7 +226,8 @@ const tokenMenuItems = computed<MenuItemDef[]>(() => buildTokenMenu({
   vFlip: withSelected(id => stage.value?.vFlip(id)),
   resetRotation: withSelected(id => stage.value?.resetRotation(id)),
   remove: removeSelectedToken,
-}, { disabled: selectedTokenId.value === null }))
+  open: openSelectedDocument,
+}, { disabled: selectedTokenId.value === null, document: isDocument(selectedToken.value) }))
 
 // ---------- seletores ----------
 async function pickTokenToAdd() {
@@ -204,6 +244,11 @@ async function chooseScenario() {
     console.error('Erro ao trocar o cenário:', error)
     await dialog.alert('Não foi possível trocar o cenário.', { title: 'Erro', icon: 'error' })
   }
+}
+
+async function pickDocumentToAdd() {
+  const doc = await desktop.pick<DocumentRecord>('documents', { ownerId: 'route', title: 'Adicionar documento à cena', confirmLabel: 'Adicionar na cena' })
+  if (doc) await addDocument(doc)
 }
 
 // ---------- zoom ----------
@@ -273,6 +318,7 @@ const editorMenus = computed<MenuDef[]>(() => [
     label: '&Inserir',
     items: [
       { id: 'inserir-token', label: '&Token…', icon: 'token', action: pickTokenToAdd },
+      { id: 'inserir-documento', label: '&Documento…', icon: 'image', action: pickDocumentToAdd },
       { id: 'trocar-cenario', label: '&Cenário…', icon: 'scenario', action: chooseScenario },
     ],
   },
@@ -312,6 +358,7 @@ routeWindow.shortcuts({
     <template #toolbar>
       <UiToolbar label="Ferramentas do editor">
         <UiToolbarButton label="Tokens" icon="token" show-label :pressed="isTokenWindowOpen" data-test="tb-tokens" @click="isTokenWindowOpen = !isTokenWindowOpen" />
+        <UiToolbarButton label="Documento" icon="image" show-label @click="pickDocumentToAdd" />
         <UiToolbarButton label="Cenário" icon="scenario" show-label @click="chooseScenario" />
         <UiToolbarButton label="Salvar" icon="save" show-label data-test="tb-salvar" @click="saveSceneTokens" />
         <UiToolbarSeparator />
@@ -332,6 +379,7 @@ routeWindow.shortcuts({
         resizable
         @select="selectToken"
         @context="onTokenContext"
+        @dblclick="onTokenDblClick"
         @zoom="sceneZoom = $event"
         @resized="updateSceneSize"
       />
@@ -355,6 +403,7 @@ routeWindow.shortcuts({
       @duplicate="duplicateToken"
       @center="centerToken"
       @add="addToken"
+      @add-document="addDocument"
     />
 
     <template #statusbar>

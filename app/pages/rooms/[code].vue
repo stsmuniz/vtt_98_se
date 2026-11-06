@@ -7,6 +7,7 @@ import { useWindow } from "~~/composables/useWindow"
 import { useCanvasZoom } from "~~/composables/useCanvasZoom"
 import { usePreloadedImage, useImageMap } from "~~/composables/useImagePreloader"
 import { buildTokenMenu } from "~/utils/tokenMenu"
+import { documentTokenBase, isDocument, openDocumentViewer, type DocumentRecord } from "~/utils/documents"
 
 
 
@@ -212,11 +213,13 @@ watch(localTokens, (newTokens) => {
 
   disambiguateTokenNames(newTokens)
 
-  const tokenIds = new Set(newTokens.map(token => token.id))
+  // Documentos (imagens da mesa) não entram na iniciativa.
+  const initiativeTokens = newTokens.filter(token => !isDocument(token))
+  const tokenIds = new Set(initiativeTokens.map(token => token.id))
   const survivors = initiativeList.value.filter(entry => tokenIds.has(entry.tokenId))
 
   const existingIds = new Set(survivors.map(entry => entry.tokenId))
-  const newEntries = newTokens
+  const newEntries = initiativeTokens
       .filter(token => !existingIds.has(token.id))
       .map(token => ({ tokenId: token.id, name: token.name, value: '' }))
 
@@ -348,13 +351,22 @@ const duplicateToken = () => {
 const menuState = reactive({ show: false, x: 0, y: 0 })
 
 function onTokenContext(payload: { x: number; y: number }) {
-  if (!isGm.value) return
+  // Visitantes só têm menu sobre documentos (para abri-los).
+  if (!isGm.value && !isDocument(selectedToken.value)) return
   Object.assign(menuState, { show: true, x: payload.x, y: payload.y })
 }
 
 function onTokenDblClick(id: number) {
   selectToken(id)
-  if (isGm.value) isTokenConfigWindowOpen.value = true
+  const token = localTokens.value.find(t => t.id === id)
+  // Documento: todos (mestre e visitantes) abrem a versão grande; o resto abre as configurações, só para o mestre.
+  if (token && isDocument(token)) openDocumentViewer(desktop, token)
+  else if (isGm.value) isTokenConfigWindowOpen.value = true
+}
+
+function openSelectedDocument() {
+  const token = selectedToken.value
+  if (token && isDocument(token)) openDocumentViewer(desktop, token)
 }
 
 function fitToWindow() {
@@ -460,8 +472,23 @@ async function handleDeleteTokenAlertWindow() {
   if (ok) handleDeleteToken()
 }
 
+async function openReplaceDocumentWindow() {
+  const index = localTokens.value.findIndex(t => t.id === selectedTokenId.value)
+  if (index === -1) return
+  const doc = await desktop.pick<DocumentRecord>('documents', { ownerId: 'route', title: 'Substituir documento', confirmLabel: 'Substituir' })
+  if (!doc) return
+  const current = localTokens.value[index]
+  // Mantém a altura do documento na sala e ajusta a largura à proporção do novo.
+  const width = doc.width && doc.height ? current.height * (doc.width / doc.height) : current.width
+  const base = documentTokenBase(doc, 0, 0)
+  localTokens.value.splice(index, 1, { ...current, documentId: base.documentId, name: base.name, image: base.image, fullImage: base.fullImage, width })
+  tokenImages[current.id] = null
+  ensureTokenImageLoaded(current.id, base.image)
+}
+
 async function openReplaceTokenWindow() {
   if (!selectedTokenId.value) return
+  if (isDocument(selectedToken.value)) return openReplaceDocumentWindow()
   const token = await desktop.pick('tokens', { ownerId: 'route', title: 'Substituir token', confirmLabel: 'Substituir' })
   if (token) replaceToken(token)
 }
@@ -533,6 +560,20 @@ function onTokenPicked(token: any) {
 async function pickTokenToAdd() {
   const token = await desktop.pick('tokens', { ownerId: 'route', title: 'Adicionar token à sala', confirmLabel: 'Adicionar à sala' })
   if (token) onTokenPicked(token)
+}
+
+/** Documento na sala: entra direto, sem o diálogo de atributos (documentos não têm atributos). */
+async function pickDocumentToAdd() {
+  const doc = await desktop.pick<DocumentRecord>('documents', { ownerId: 'route', title: 'Adicionar documento à sala', confirmLabel: 'Adicionar à sala' })
+  if (!doc) return
+  const roomToken: RoomToken = {
+    id: Date.now(),
+    status: 'normal',
+    ...documentTokenBase(doc, sceneWidth.value / 2, sceneHeight.value / 2),
+  }
+  localTokens.value = [roomToken, ...localTokens.value]
+  selectToken(roomToken.id)
+  ensureTokenImageLoaded(roomToken.id, roomToken.image)
 }
 
 function closeTokenAttributesWindow() {
@@ -661,15 +702,23 @@ routeWindow.shortcuts({
 
 
 
-const tokenContextItems = computed<MenuItemDef[]>(() => isGm.value ? buildTokenMenu({
-  configure: () => { isTokenConfigWindowOpen.value = true },
-  duplicate: duplicateToken,
-  replace: openReplaceTokenWindow,
-  hFlip: hFlipToken,
-  vFlip: vFlipToken,
-  resetRotation: resetTokenRotation,
-  remove: handleDeleteTokenAlertWindow,
-}, { disabled: selectedTokenId.value === null }) : [])
+const tokenContextItems = computed<MenuItemDef[]>(() => {
+  const document = isDocument(selectedToken.value)
+  if (!isGm.value) {
+    // Visitante: só "Abrir documento", e só quando o item selecionado é um documento.
+    return document ? [{ id: 'tk-abrir', label: '&Abrir documento', icon: 'image', default: true, action: openSelectedDocument }] : []
+  }
+  return buildTokenMenu({
+    configure: () => { isTokenConfigWindowOpen.value = true },
+    open: openSelectedDocument,
+    duplicate: duplicateToken,
+    replace: openReplaceTokenWindow,
+    hFlip: hFlipToken,
+    vFlip: vFlipToken,
+    resetRotation: resetTokenRotation,
+    remove: handleDeleteTokenAlertWindow,
+  }, { disabled: selectedTokenId.value === null, document })
+})
 
 const windowTitle = computed(() => room.value?.name ? `${room.value.name} - Sala` : 'Sala')
 
@@ -720,6 +769,7 @@ const roomMenus = computed<MenuDef[]>(() => {
       label: '&Inserir',
       items: [
         { id: 'inserir-token', label: '&Token…', icon: 'token', action: pickTokenToAdd },
+        { id: 'inserir-documento', label: '&Documento…', icon: 'image', action: pickDocumentToAdd },
         { id: 'trocar-cena', label: '&Cena…', icon: 'scene', action: chooseRoomScene },
       ],
     },
@@ -738,6 +788,7 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
     <template v-if="room && isGm" #toolbar>
       <UiToolbar label="Ferramentas da sala">
         <UiToolbarButton label="Token" icon="token" show-label @click="pickTokenToAdd" />
+        <UiToolbarButton label="Documento" icon="image" show-label @click="pickDocumentToAdd" />
         <UiToolbarButton label="Cena" icon="scene" show-label @click="chooseRoomScene" />
         <UiToolbarButton label="Salvar" icon="save" show-label @click="saveRoomSnapshot" />
         <UiToolbarSeparator />

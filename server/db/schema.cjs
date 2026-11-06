@@ -105,6 +105,26 @@ const tokensTable = pgTable('tokens', {
     .$onUpdate(() => new Date()),
 }, (table) => [index('tokens_user_id_idx').on(table.userId)]).enableRLS()
 
+const documentsTable = pgTable('documents', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  image: text('image').notNull(),
+  width: integer('width').notNull(),
+  height: integer('height').notNull(),
+  fullImage: text('full_image').notNull(),
+  fullWidth: integer('full_width').notNull(),
+  fullHeight: integer('full_height').notNull(),
+  tags: jsonb('tags'),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { mode: 'date', withTimezone: true })
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+}, (table) => [index('documents_user_id_idx').on(table.userId)]).enableRLS()
+
 const scenariosTable = pgTable('scenarios', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
@@ -209,6 +229,7 @@ module.exports = {
   account,
   verification,
   tokensTable,
+  documentsTable,
   scenariosTable,
   scenesTable,
   roomsTable,

@@ -22,6 +22,7 @@ export function errorMessage(error: unknown, fallback: string): string {
 }
 
 const DELETE_WARNINGS: Partial<Record<ResourceKind, string>> = {
+  documents: 'As cenas e salas que já usam este documento continuam mostrando a imagem.',
   scenarios: 'As cenas que usam este cenário também serão excluídas.',
   scenes: 'Salas criadas a partir desta cena continuam existindo.',
   rooms: 'Os jogadores conectados serão desconectados.',
@@ -106,7 +107,7 @@ export function useResourceActions(kind: ResourceKind) {
       case 'edit':
         return openEdit(raw)
       case 'view-image':
-        return desktop.openApp('image-viewer', { src: raw.image, name: raw.name }, { title: `${raw.name} - Visualizador de imagens` })
+        return desktop.openApp('image-viewer', { src: raw.fullImage ?? raw.image, name: raw.name }, { title: `${raw.name} - Visualizador de imagens` })
       case 'open-editor':
         return navigateTo(`/dashboard/scenes/${raw.id}`)
       case 'enter-room':

@@ -11,6 +11,7 @@ import { useDesktop } from '~~/composables/useDesktop'
 import { useDialog } from '~~/composables/useDialog'
 import { useLoadingWindow } from '~~/composables/useLoadingWindow'
 import { useWindow } from '~~/composables/useWindow'
+import { ImageUploadError, prepareImageForUpload } from '~~/composables/useImageDownscale'
 
 const props = defineProps<{ resource: ResourceKind; id?: number }>()
 
@@ -70,7 +71,7 @@ async function validate(): Promise<boolean> {
   return false
 }
 
-function buildForm(): FormData {
+function buildForm(imageUpload: File | null): FormData {
   const fd = new FormData()
   fd.append('name', name.value.trim())
   fd.append('tags', JSON.stringify(tags.value))
@@ -78,7 +79,7 @@ function buildForm(): FormData {
     // O servidor regrava largura/altura: sem imagem nova, reenvia as dimensões atuais.
     fd.append('width', String(imageDims.value?.width ?? original.value?.width ?? 0))
     fd.append('height', String(imageDims.value?.height ?? original.value?.height ?? 0))
-    if (imageFile.value) fd.append('image', imageFile.value)
+    if (imageUpload) fd.append('image', imageUpload)
   }
   if (desc.form.hasAttributes) fd.append('attributes', JSON.stringify(attributes.value))
   if (desc.form.scenarioPicker && scenario.value && !isEdit.value) {
@@ -98,10 +99,16 @@ async function submit() {
   submitting.value = true
   const verb = isEdit.value ? 'Atualizando' : 'Salvando'
   try {
+    // Documentos: imagens acima de ~4 MB são reduzidas aqui (limite de corpo da Vercel); as muito grandes, recusadas.
+    let upload = imageFile.value
+    if (upload && desc.form.downscaleLargeImages) {
+      const original = upload
+      upload = await withLoading(() => prepareImageForUpload(original), 'Reduzindo a imagem...')
+    }
     await withLoading(
       () => $fetch(isEdit.value ? `${desc.endpoint}/${props.id}` : desc.endpoint, {
         method: isEdit.value ? 'PUT' : 'POST',
-        body: buildForm(),
+        body: buildForm(upload),
       }),
       `${verb} ${withArticle(desc)}...`,
     )
@@ -109,7 +116,7 @@ async function submit() {
     if (props.resource === 'scenarios') await refreshNuxtData(resourceCacheKey('scenes'))
     await win.close()
   } catch (error) {
-    await dialog.alert(errorMessage(error, `Não foi possível salvar ${withArticle(desc)}.`), { title: 'Erro', icon: 'error' })
+    await dialog.alert(error instanceof ImageUploadError ? error.message : errorMessage(error, `Não foi possível salvar ${withArticle(desc)}.`), { title: error instanceof ImageUploadError ? 'Imagem grande demais' : 'Erro', icon: 'error' })
   } finally {
     submitting.value = false
   }

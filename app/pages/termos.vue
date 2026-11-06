@@ -46,8 +46,8 @@ const toc = [
     <section id="servico">
       <h2>2. O serviço</h2>
       <p>
-        O VTT 98 SE é uma ferramenta para organizar e conduzir sessões de RPG de mesa pela internet: cadastro de tokens e
-        cenários, montagem de cenas e salas de jogo compartilhadas em tempo real. O serviço é oferecido gratuitamente,
+        O VTT 98 SE é uma ferramenta para organizar e conduzir sessões de RPG de mesa pela internet: cadastro de tokens,
+        documentos e cenários, montagem de cenas e salas de jogo compartilhadas em tempo real. O serviço é oferecido gratuitamente,
         atualmente em fase de testes (<em>beta</em>). Funcionalidades podem ser criadas, alteradas ou removidas a qualquer
         momento.
       </p>

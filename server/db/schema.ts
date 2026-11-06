@@ -30,6 +30,11 @@ export type SceneToken = {
     opacity: number
     rotation: number
     attributes: Attribute[]
+    /** Ausente = token. 'document' = miniatura de um Documento (abre a versão grande ao clicar). */
+    kind?: 'token' | 'document'
+    documentId?: number
+    /** Documento: URL da versão grande (a miniatura fica em `image`). */
+    fullImage?: string
 }
 
 export type RoomToken = Omit<SceneToken, "attributes"> & {
@@ -158,6 +163,31 @@ export const tokensTable = pgTable('tokens', {
         .$onUpdate(() => new Date()),
 }, (table) => [index('tokens_user_id_idx').on(table.userId)]).enableRLS()
 
+/**
+ * Documento: imagem cadastrada pelo usuário (carta, pista, handout). Guarda duas versões geradas
+ * no upload: miniatura (`image`, até 500 px, é o que aparece na mesa) e versão grande (`fullImage`,
+ * até 2048 px, WebP). O arquivo original não é guardado.
+ */
+export const documentsTable = pgTable('documents', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(),
+    image: text('image').notNull(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    fullImage: text('full_image').notNull(),
+    fullWidth: integer('full_width').notNull(),
+    fullHeight: integer('full_height').notNull(),
+    tags: jsonb('tags').$type<string[]>(),
+    userId: text('user_id')
+        .notNull()
+        .references(() => user.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { mode: 'date', withTimezone: true })
+        .defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true })
+        .defaultNow()
+        .$onUpdate(() => new Date()),
+}, (table) => [index('documents_user_id_idx').on(table.userId)]).enableRLS()
+
 export const scenariosTable = pgTable('scenarios', {
     id: serial('id').primaryKey(),
     name: text('name').notNull(),
@@ -269,6 +299,7 @@ export const userRelations = relations(user, ({ many, one }) => ({
     sessions: many(session),
     accounts: many(account),
     tokens: many(tokensTable),
+    documents: many(documentsTable),
     scenarios: many(scenariosTable),
     scenes: many(scenesTable),
     ownedRooms: many(roomsTable),
@@ -293,6 +324,13 @@ export const accountRelations = relations(account, ({ one }) => ({
 export const tokensRelations = relations(tokensTable, ({ one }) => ({
     user: one(user, {
         fields: [tokensTable.userId],
+        references: [user.id],
+    }),
+}))
+
+export const documentsRelations = relations(documentsTable, ({ one }) => ({
+    user: one(user, {
+        fields: [documentsTable.userId],
         references: [user.id],
     }),
 }))

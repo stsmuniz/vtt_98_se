@@ -3,6 +3,7 @@
  * Iniciar, efetuar logoff. Escopo de janela fica em useWindow().
  */
 import { authClient } from '~~/lib/auth-client'
+import type { ResourceKind } from '~~/lib/preferences'
 import { appInstanceId, getApp } from '~/desktop/apps'
 import { useWindowManager } from '~~/composables/useWindowManager'
 import { useDialog } from '~~/composables/useDialog'
@@ -61,7 +62,7 @@ export function useDesktop() {
    * com a janela dona.
    */
   function pick<T = Record<string, unknown>>(
-    resource: 'tokens' | 'scenarios' | 'scenes' | 'rooms',
+    resource: ResourceKind,
     opts: { ownerId?: string; title?: string; confirmLabel?: string } = {},
   ): Promise<T | null> {
     return new Promise((resolve) => {

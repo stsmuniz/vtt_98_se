@@ -7,7 +7,7 @@
  * podem mudar no futuro sem migração de dados.
  */
 
-export const RESOURCE_KINDS = ['tokens', 'scenarios', 'scenes', 'rooms'] as const
+export const RESOURCE_KINDS = ['tokens', 'documents', 'scenarios', 'scenes', 'rooms'] as const
 export type ResourceKind = (typeof RESOURCE_KINDS)[number]
 
 export const EXPLORER_VIEWS = ['icons', 'list', 'details'] as const
@@ -68,6 +68,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   sounds: true,
   explorer: {
     tokens: { ...DEFAULT_EXPLORER },
+    documents: { ...DEFAULT_EXPLORER },
     scenarios: { ...DEFAULT_EXPLORER },
     scenes: { ...DEFAULT_EXPLORER },
     rooms: { ...DEFAULT_EXPLORER },

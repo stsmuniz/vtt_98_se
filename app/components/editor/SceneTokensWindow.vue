@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
  * Janela "Tokens" do editor: aba com os tokens da cena (lista em Detalhes,
- * com remover/duplicar/centralizar) e aba com os tokens cadastrados (pasta de
- * Tokens embutida em modo seletor) para adicionar à cena.
+ * com remover/duplicar/centralizar; documentos também aparecem aqui) e abas com os
+ * tokens e os documentos cadastrados (pastas embutidas em modo seletor) para
+ * adicionar à cena.
  */
 import type { SceneToken } from '#server/db/schema.ts'
 import type { ResourceRecord } from '~/desktop/resources'
@@ -20,12 +21,14 @@ const emit = defineEmits<{
   duplicate: []
   center: []
   add: [token: ResourceRecord]
+  'add-document': [document: ResourceRecord]
 }>()
 
 const tab = ref('cena')
 const tabs = [
   { id: 'cena', label: 'Tokens da cena' },
   { id: 'catalogo', label: 'Tokens cadastrados' },
+  { id: 'documentos', label: 'Documentos cadastrados' },
 ]
 
 const columns: ListViewColumn[] = [
@@ -37,7 +40,7 @@ const columns: ListViewColumn[] = [
 const items = computed<ListViewItem[]>(() => props.tokens.map(t => ({
   id: t.id,
   name: t.name,
-  icon: 'token',
+  icon: t.kind === 'document' ? 'image' : 'token',
   position: `${Math.round(t.x)}, ${Math.round(t.y)}`,
   size: `${Math.round(t.width)} × ${Math.round(t.height)}`,
 })))
@@ -78,6 +81,18 @@ const selectedModel = computed<ListViewItemId | null>({
             empty-text="Nenhum token na cena. Adicione pela aba &quot;Tokens cadastrados&quot;."
             @delete="emit('remove')"
           />
+        </template>
+        <template #documentos>
+          <Suspense>
+            <AppsExplorerResourceExplorer
+              resource="documents"
+              mode="pick"
+              embedded
+              confirm-label="Adicionar na cena"
+              @pick="emit('add-document', $event)"
+              @cancel="open = false"
+            />
+          </Suspense>
         </template>
         <template #catalogo>
           <Suspense>
