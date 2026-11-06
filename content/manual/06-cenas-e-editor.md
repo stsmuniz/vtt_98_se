@@ -41,7 +41,8 @@ Clique num token para selecioná-lo. Então:
 
 ## Zoom e tamanho do mapa
 
-- Na barra de status, digite o zoom em porcentagem ou use **−**, **+**, **100%** e **Ajustar**, que faz o mapa inteiro caber na janela. **Ctrl + roda do mouse** também dá zoom.
+- Na barra de status, digite o zoom em porcentagem ou use **−**, **+**, **100%** e **Ajustar**, que faz o mapa inteiro caber na janela. 
+- O mapa ocupa toda a janela e abre já ajustado e centralizado. Use a **roda do mouse** para dar zoom em torno do cursor e **arraste o fundo** (ou use o **botão do meio** do mouse) para mover o mapa.
 - Para mudar o **tamanho do mapa**, arraste o quadradinho azul no canto inferior direito. O novo tamanho é gravado ao soltar.
 
 ## Salvando

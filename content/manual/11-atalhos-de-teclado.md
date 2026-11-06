@@ -44,7 +44,8 @@ Cada menu tem uma letra sublinhada. Pressione **Alt** e a letra para abri-lo —
 | --- | --- |
 | **Ctrl+S** | Salvar a cena (ou a sala, para o mestre). |
 | **Delete** | Remover o token selecionado, depois de confirmar. |
-| **Ctrl + roda do mouse** | Zoom no mapa. |
+| **Roda do mouse** | Zoom no mapa, em torno do cursor. |
+| **Arrastar o fundo** (ou botão do meio) | Mover o mapa. |
 
 ## No manual
 

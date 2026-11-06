@@ -157,13 +157,12 @@ onUnmounted(() => {
 // CANVAS (mesmo padrão do editor de cenas)
 // ==========================================
 
-const { zoom: sceneZoom, scale: stageScale, zoomIn, zoomOut, resetZoom, handleWheel, fitTo } = useCanvasZoom()
+const { zoom: sceneZoom, scale: stageScale, zoomIn, zoomOut, resetZoom } = useCanvasZoom()
 const { image: bgImageObj, load: loadBgImage } = usePreloadedImage()
 const { images: tokenImages, ensureLoaded: ensureTokenImageLoaded } = useImageMap()
 
-type StageApi = { hFlip: (id: number) => void; vFlip: (id: number) => void; resetRotation: (id: number) => void }
+type StageApi = { hFlip: (id: number) => void; vFlip: (id: number) => void; resetRotation: (id: number) => void; fit: () => void }
 const stage = ref<StageApi | null>(null)
-const canvasWrap = ref<HTMLElement | null>(null)
 const selectedTokenId = ref<number | null>(null)
 
 const initiativeList = ref<SceneInitiativeEntry[]>([])
@@ -359,8 +358,7 @@ function onTokenDblClick(id: number) {
 }
 
 function fitToWindow() {
-  const area = canvasWrap.value?.parentElement
-  if (area) fitTo(area.clientWidth - 24, area.clientHeight - 24, sceneWidth.value, sceneHeight.value)
+  stage.value?.fit()
 }
 
 // ==========================================
@@ -778,7 +776,7 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
 
 
 
-      <div ref="canvasWrap" class="canvas-wrap">
+      <div class="canvas-wrap">
         <EditorStage
             ref="stage"
             v-model:tokens="localTokens"
@@ -793,7 +791,7 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
             @select="selectToken"
             @context="onTokenContext"
             @dblclick="onTokenDblClick"
-            @wheel="handleWheel"
+            @zoom="sceneZoom = $event"
         />
       </div>
     </template>
@@ -829,8 +827,10 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
 }
 
 .canvas-wrap {
+  position: relative; /* o canvas ocupa toda a área (position: absolute) */
   flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
   background: var(--c-shadow);
 }
 

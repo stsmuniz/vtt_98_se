@@ -20,7 +20,7 @@ definePageMeta({
 })
 
 type TokenTemplate = ResourceRecord & { image?: string; width?: number; height?: number; attributes?: SceneToken['attributes'] }
-type StageApi = { hFlip: (id: number) => void; vFlip: (id: number) => void; resetRotation: (id: number) => void }
+type StageApi = { hFlip: (id: number) => void; vFlip: (id: number) => void; resetRotation: (id: number) => void; fit: () => void }
 
 const desktop = useDesktop()
 const dialog = useDialog()
@@ -28,12 +28,11 @@ const routeWindow = useWindow('route')
 const params = useRoute().params
 
 const { data: currentScene } = useFetch<Record<string, any>>(`/api/v1/scenes/${params.id}`)
-const { zoom: sceneZoom, scale: stageScale, zoomIn, zoomOut, resetZoom, handleWheel, fitTo } = useCanvasZoom()
+const { zoom: sceneZoom, scale: stageScale, zoomIn, zoomOut, resetZoom } = useCanvasZoom()
 const { image: bgImageObj, load: loadBgImage } = usePreloadedImage()
 const { images: tokenImages, ensureLoaded: ensureTokenImageLoaded } = useImageMap()
 
 const stage = ref<StageApi | null>(null)
-const canvasWrap = ref<HTMLElement | null>(null)
 const isTokenWindowOpen = ref(false)
 const selectedTokenId = ref<number | null>(null)
 const localTokens = ref<SceneToken[]>([])
@@ -209,8 +208,7 @@ async function chooseScenario() {
 
 // ---------- zoom ----------
 function fitToWindow() {
-  const area = canvasWrap.value?.parentElement
-  if (area) fitTo(area.clientWidth - 24, area.clientHeight - 24, sceneWidth.value, sceneHeight.value)
+  stage.value?.fit()
 }
 
 // ---------- menu de contexto do canvas ----------
@@ -321,7 +319,7 @@ routeWindow.shortcuts({
       </UiToolbar>
     </template>
 
-    <div ref="canvasWrap" class="canvas-wrap">
+    <div class="canvas-wrap">
       <EditorStage
         ref="stage"
         v-model:tokens="localTokens"
@@ -334,7 +332,7 @@ routeWindow.shortcuts({
         resizable
         @select="selectToken"
         @context="onTokenContext"
-        @wheel="handleWheel"
+        @zoom="sceneZoom = $event"
         @resized="updateSceneSize"
       />
     </div>
@@ -375,8 +373,10 @@ routeWindow.shortcuts({
 
 <style scoped>
 .canvas-wrap {
+  position: relative; /* o canvas ocupa toda a área (position: absolute) */
   flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
   background: var(--c-shadow);
 }
 .zoom-field {
