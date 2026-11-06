@@ -7,7 +7,9 @@ const dice = ref('4')
 const mod = ref(0)
 const modSignal = ref<ModSignal>('+')
 const rollType = ref<RollType>('s')
-const validDice = ['4', '6', '8', '10', '12', '20']
+const validDice = ['2', '4', '6', '8', '10', '12', '20', '100']
+// d100 não tem imagem própria: mostra um selo de texto no lugar do ícone.
+const TEXT_BADGE: Record<string, string> = { '100': '%' }
 const diceIcon = (d: string) => iconUrl(`d${d}` as IconName)
 const lastRolls = ref<RollResult[]>([])
 const rollResult = ref<RollResult | null>(null)
@@ -57,7 +59,8 @@ function rollTypeLabel(type: RollType) {
             :aria-pressed="dice === d"
             @click="dice = d"
         >
-          <img :src="diceIcon(d)" alt="" class="dice-icon">
+          <span v-if="TEXT_BADGE[d]" class="dice-icon dice-icon-text" aria-hidden="true">{{ TEXT_BADGE[d] }}</span>
+          <img v-else :src="diceIcon(d)" alt="" class="dice-icon">
           <span>D{{ d }}</span>
         </button>
       </fieldset>
@@ -165,6 +168,13 @@ function rollTypeLabel(type: RollType) {
     .dice-icon {
       width: 48px;
       height: 48px;
+    }
+    .dice-icon-text {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--fs-2);
+      line-height: 48px;
     }
   }
   .modifiers {

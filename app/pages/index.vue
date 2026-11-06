@@ -79,7 +79,7 @@ useSeoMeta({
         <dt>Biblioteca de Tokens</dt>
         <dd>Suba suas próprias imagens de personagens, monstros e NPCs de forma simples.</dd>
         <dt>Rolador de Dados</dt>
-        <dd>Janela flutuante para rolagem de dados rápidos (d4, d6, d8, d10, d12, d20).</dd>
+        <dd>Janela flutuante para rolagem de dados rápidos (d2, d4, d6, d8, d10, d12, d20, d100).</dd>
         <dt>Lista de Iniciativa</dt>
         <dd>Organize a ordem de turno do combate de forma ágil para acompanhar todo o grupo.</dd>
       </dl>

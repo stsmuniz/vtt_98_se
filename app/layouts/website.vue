@@ -148,6 +148,13 @@ const currentYear = new Date().getFullYear()
         <span aria-hidden="true">·</span>
         <NuxtLink to="/termos">Termos de Uso</NuxtLink>
       </nav>
+      <nav class="footer-social" aria-label="Redes sociais">
+        <a href="https://x.com/vtt98se" target="_blank" rel="noopener noreferrer">X (Twitter)</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://www.instagram.com/vtt98se" target="_blank" rel="noopener noreferrer">Instagram</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://bsky.app/profile/vtt98se.bsky.social" target="_blank" rel="noopener noreferrer">Bluesky</a>
+      </nav>
       <p class="copyright">
         &copy; {{ currentYear }} VTT 98 SE. Todos os direitos reservados. Criado por <NuxtLink to="https://github.com/stsmuniz" target="_blank" rel="noopener noreferrer">@stsmuniz</NuxtLink>.
       </p>
@@ -271,6 +278,7 @@ const currentYear = new Date().getFullYear()
   transform: translateY(-2px);
 }
 
+.footer-social,
 .footer-legal {
   display: flex;
   flex-wrap: wrap;

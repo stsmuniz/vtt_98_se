@@ -11,7 +11,7 @@ O **Rolador de Dados** fica na área de trabalho, em **Iniciar > Programas > Ace
 
 Na janela você configura:
 
-- **Escolha o dado** — d4, d6, d8, d10, d12 ou d20.
+- **Escolha o dado** — d2, d4, d6, d8, d10, d12, d20 ou d100.
 - **Qtde** — quantos dados rolar.
 - **Mod** — um modificador, positivo ou negativo, somado ao resultado final.
 - **Rolagem** — como o resultado é calculado: **Soma** (todos os dados somados), **Maior** (o maior valor rolado) ou **Menor** (o menor valor rolado).

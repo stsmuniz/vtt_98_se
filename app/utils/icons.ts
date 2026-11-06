@@ -38,6 +38,7 @@ const MISSING_SIZES: Partial<Record<Chicago95Icon, IconSize[]>> = {
 
 /** Ícones próprios do projeto (tamanho único; o arquivo é usado em qualquer tamanho). */
 const CUSTOM_ICONS = {
+  d2: '/assets/icons/dices/d2.png', // moeda (gerada para o projeto)
   d4: '/assets/icons/dices/d4.png',
   d6: '/assets/icons/dices/d6.png',
   d8: '/assets/icons/dices/d8.png',

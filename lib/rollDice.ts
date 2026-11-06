@@ -1,5 +1,5 @@
 export type RollType = 's' | 'h' | 'l'
-export type DiceType = 4 | 6 | 8 | 10 | 12 | 20 | 100
+export type DiceType = 2 | 4 | 6 | 8 | 10 | 12 | 20 | 100
 export type ModSignal = '+' | '-'
 
 export interface DiceGroup {
@@ -14,7 +14,7 @@ export interface RollResult {
     type: RollType
 }
 
-const VALID_DICE = new Set<DiceType>([4, 6, 8, 10, 12, 20, 100])
+const VALID_DICE = new Set<DiceType>([2, 4, 6, 8, 10, 12, 20, 100])
 
 function rollSingleDie(max: number): number {
     return Math.floor(Math.random() * max) + 1
