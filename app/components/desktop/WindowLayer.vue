@@ -5,6 +5,9 @@ import { useWindowManager } from '~~/composables/useWindowManager'
 
 const wm = useWindowManager()
 const appWindows = computed(() => wm.windows.value.filter(w => w.kind === 'app' && w.appId && getApp(w.appId)))
+
+/** Pastas (Tokens, Cenários, Cenas, Salas) mostram a animação de pasta enquanto carregam. */
+const isFolder = (appId: string) => Boolean(getApp(appId)?.defaultProps?.resource)
 </script>
 
 <template>
@@ -18,7 +21,10 @@ const appWindows = computed(() => wm.windows.value.filter(w => w.kind === 'app' 
       <Suspense>
         <component :is="getApp(win.appId!)!.component" v-bind="win.props" @close-window="wm.close(win.id)" />
         <template #fallback>
-          <p class="app-loading">Carregando…</p>
+          <div v-if="isFolder(win.appId!)" class="folder-loading" role="status" aria-label="Carregando…">
+            <img src="/assets/gifs/folder.gif" alt="">
+          </div>
+          <p v-else class="app-loading">Carregando…</p>
         </template>
       </Suspense>
     </div>
@@ -34,6 +40,16 @@ const appWindows = computed(() => wm.windows.value.filter(w => w.kind === 'app' 
 }
 .app-content.padded {
   padding: var(--sp-3);
+}
+.folder-loading {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+.folder-loading img {
+  image-rendering: pixelated;
 }
 .app-loading {
   margin: var(--sp-4);
