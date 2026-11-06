@@ -6,6 +6,11 @@ export default defineNuxtConfig({
     '@nuxt/content',
     '@vercel/analytics'
   ],
+  content: {
+    // Usa o node:sqlite do Node (>= 22.5) em vez do addon nativo better-sqlite3: na Vercel o addon falha ao carregar
+    // ("Module did not self-register") e toda consulta do @nuxt/content (blog e manual) respondia 500.
+    experimental: { sqliteConnector: 'native' },
+  },
   app: {
     head: {
       htmlAttrs: {
