@@ -75,6 +75,8 @@ function next() {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
+  /* Preenche a janela: o conteúdo cresce e os botões ficam sempre no rodapé. */
+  flex: 1 1 auto;
   min-height: 0;
   font-family: var(--font-ui);
   font-size: var(--fs-1);
@@ -86,16 +88,18 @@ function next() {
   flex: 1 1 auto;
 }
 .ui-wizard-image {
-  flex: 0 0 auto;
+  /* A imagem acompanha a altura da página (position: absolute evita que ela mesma defina a altura). */
+  position: relative;
+  flex: 0 0 144px;
   box-shadow: var(--bevel-sunken);
-  padding: 2px;
   background: var(--c-shadow);
 }
 .ui-wizard-image img {
+  position: absolute;
+  inset: 2px;
   display: block;
-  width: 140px;
-  height: 100%;
-  max-height: 320px;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
   object-fit: cover;
 }
 .ui-wizard-page {
