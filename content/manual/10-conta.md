@@ -1,6 +1,6 @@
 ---
 title: Conta do usuário
-order: 10
+order: 11
 icon: users
 description: Como alterar o nome, trocar a senha, ver o plano e excluir a conta.
 ---
@@ -26,7 +26,7 @@ Durante o **beta**, todos os recursos estão liberados sem custo. O botão **Mud
 
 ## Excluir conta
 
-Excluir a conta apaga **permanentemente** os seus dados e tudo o que você criou: tokens, cenários, cenas e salas, inclusive as imagens enviadas. Os jogadores conectados às suas salas são desconectados. A aba lista quantos itens de cada tipo serão apagados.
+Excluir a conta apaga **permanentemente** os seus dados e tudo o que você criou: tokens, documentos, cenários, cenas e salas, inclusive as imagens enviadas. Os jogadores conectados às suas salas são desconectados. A aba lista quantos itens de cada tipo serão apagados.
 
 Para confirmar, digite a sua senha, marque **Entendo que esta ação não pode ser desfeita** e clique em **Excluir minha conta**. Não há como desfazer.
 

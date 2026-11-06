@@ -2,10 +2,10 @@
 title: Pastas
 order: 3
 icon: folder-open
-description: Como usar as pastas de Tokens, Cenários, Cenas e Salas — exibições, busca, ordenação e menu de contexto.
+description: Como usar as pastas de Tokens, Documentos, Cenários, Cenas e Salas — exibições, busca, ordenação e menu de contexto.
 ---
 
-As quatro pastas — **Tokens**, **Cenários**, **Cenas** e **Salas** — funcionam do mesmo jeito. Você não cria nem renomeia pastas: elas existem para mostrar e organizar o que você cadastra.
+As cinco pastas — **Tokens**, **Documentos**, **Cenários**, **Cenas** e **Salas** — funcionam do mesmo jeito. Você não cria nem renomeia pastas: elas existem para mostrar e organizar o que você cadastra.
 
 ## A janela da pasta
 
@@ -45,6 +45,7 @@ Clique num item para selecioná-lo. **Dois cliques** (ou **Enter**) fazem a aç�
 | Pasta | O que "Abrir" faz |
 | --- | --- |
 | Tokens | abre o token para **editar** |
+| Documentos | abre a versão grande no **visualizador** |
 | Cenários | abre a imagem no **visualizador** |
 | Cenas | abre a cena no **editor de cenas** |
 | Salas | **entra** na sala |

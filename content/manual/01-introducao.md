@@ -22,7 +22,7 @@ O VTT 98 SE ajuda o mestre a mostrar, em tempo real, onde cada personagem, monst
 
 Depois de entrar, você vê uma **área de trabalho**, como num computador de verdade:
 
-- **Ícones** — uma pasta para cada ferramenta (**Tokens**, **Cenários**, **Cenas** e **Salas**) e o **Rolador de Dados**. Clique uma vez para selecionar e dê **dois cliques** para abrir.
+- **Ícones** — uma pasta para cada ferramenta (**Tokens**, **Documentos**, **Cenários**, **Cenas** e **Salas**) e o **Rolador de Dados**. Clique uma vez para selecionar e dê **dois cliques** para abrir.
 - **Janelas** — cada ferramenta abre numa janela própria. Você pode ter várias abertas ao mesmo tempo. Veja o capítulo **Janelas**.
 - **Barra de tarefas** — no rodapé, com o botão **Iniciar**, um botão para cada janela aberta e o relógio.
 

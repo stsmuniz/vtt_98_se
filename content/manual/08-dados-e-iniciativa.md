@@ -1,6 +1,6 @@
 ---
 title: Dados e iniciativa
-order: 8
+order: 9
 icon: dice
 description: Como rolar dados e organizar a ordem de turnos durante a sessão.
 ---

@@ -1,6 +1,6 @@
 ---
 title: Cenas e editor
-order: 6
+order: 7
 icon: scene
 description: Como montar uma cena e usar o editor de cenas.
 ---
@@ -19,7 +19,7 @@ O editor abre numa janela própria, com estes menus:
 | --- | --- |
 | **Arquivo** | **Salvar** e **Fechar**. |
 | **Editar** | As ações sobre o token selecionado (veja abaixo). |
-| **Inserir** | **Token…** (adiciona à cena) e **Cenário…** (troca o mapa de fundo). |
+| **Inserir** | **Token…** e **Documento…** (adicionam à cena) e **Cenário…** (troca o mapa de fundo). |
 | **Exibir** | A janela de tokens, o zoom, **Ajustar à janela** e **Tela cheia**. |
 | **Ajuda** | Este manual. |
 
@@ -28,6 +28,7 @@ A barra de ferramentas repete os atalhos mais usados: **Tokens**, **Cenário**, 
 ## Colocando tokens
 
 - **Inserir > Token…** abre a pasta de Tokens em modo de seleção; escolha um (dois cliques) e ele entra no centro do mapa.
+- **Inserir > Documento…** faz o mesmo com a pasta de Documentos. Dois cliques num documento da cena (ou **Abrir documento** no menu de contexto) abrem a imagem em tamanho grande. Veja o capítulo **Documentos**.
 - O botão **Tokens** abre a **janela de tokens**, com duas abas: **Tokens da cena**, onde você vê o que já está no mapa e pode **Remover**, **Duplicar** ou **Centralizar** o token selecionado, e **Tokens cadastrados**, para adicionar mais.
 
 ## Mexendo nos tokens
@@ -41,8 +42,8 @@ Clique num token para selecioná-lo. Então:
 
 ## Zoom e tamanho do mapa
 
-- Na barra de status, digite o zoom em porcentagem ou use **−**, **+**, **100%** e **Ajustar**, que faz o mapa inteiro caber na janela. 
-- O mapa ocupa toda a janela e abre já ajustado e centralizado. Use a **roda do mouse** para dar zoom em torno do cursor e **arraste o fundo** (ou use o **botão do meio** do mouse) para mover o mapa.
+- Na barra de status, digite o zoom em porcentagem ou use **−**, **+**, **100%** e **Ajustar**, que faz o mapa inteiro caber na janela e o centraliza.
+- O mapa ocupa toda a janela e abre já ajustado e centralizado. Use a **roda do mouse** para dar zoom em torno do cursor e **arraste o fundo** (ou use o **botão do meio** do mouse) para mover o mapa. Arrastar um token move só o token.
 - Para mudar o **tamanho do mapa**, arraste o quadradinho azul no canto inferior direito. O novo tamanho é gravado ao soltar.
 
 ## Salvando

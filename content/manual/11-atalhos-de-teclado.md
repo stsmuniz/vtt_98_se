@@ -1,6 +1,6 @@
 ---
 title: Atalhos de teclado
-order: 11
+order: 12
 icon: properties
 description: Lista dos atalhos de teclado do sistema, das pastas, do editor e da sala.
 ---
@@ -46,6 +46,14 @@ Cada menu tem uma letra sublinhada. Pressione **Alt** e a letra para abri-lo —
 | **Delete** | Remover o token selecionado, depois de confirmar. |
 | **Roda do mouse** | Zoom no mapa, em torno do cursor. |
 | **Arrastar o fundo** (ou botão do meio) | Mover o mapa. |
+
+## No visualizador de imagens
+
+| Atalho | O que faz |
+| --- | --- |
+| **Roda do mouse** | Zoom em torno do cursor. |
+| **Arrastar** | Mover a imagem. |
+| **Dois cliques** | Alternar entre ajustada à janela e tamanho real. |
 
 ## No manual
 

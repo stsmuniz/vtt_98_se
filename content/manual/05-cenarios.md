@@ -1,6 +1,6 @@
 ---
 title: Cenários
-order: 5
+order: 6
 icon: scenario
 description: Como cadastrar mapas e imagens de fundo.
 ---
@@ -18,7 +18,7 @@ Diferente dos tokens, os cenários **mantêm a resolução original** da imagem,
 
 ## Vendo um cenário
 
-Dê dois cliques num cenário para abri-lo no **visualizador de imagens**. Nele você escolhe entre **Ajustar à janela** e **Tamanho real**; a barra de status mostra as dimensões da imagem.
+Dê dois cliques num cenário para abri-lo no **visualizador de imagens**. Ela abre ajustada à janela. Use a **roda do mouse** para dar zoom em torno do cursor, **arraste** para mover e dê **dois cliques** para alternar entre ajustada e tamanho real; a barra de ferramentas também tem botões de zoom, e a barra de status mostra as dimensões da imagem e o zoom atual.
 
 ## Editando e excluindo
 

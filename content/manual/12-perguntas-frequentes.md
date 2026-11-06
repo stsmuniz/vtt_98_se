@@ -1,13 +1,21 @@
 ---
 title: Perguntas frequentes
-order: 12
+order: 13
 icon: help
 description: Respostas rápidas para as dúvidas mais comuns.
 ---
 
+## Não recebi o e-mail de confirmação da conta.
+
+Confira a caixa de spam. Se não estiver lá, tente entrar com o seu e-mail: a tela leva você a uma página com o botão **Enviar e-mail de confirmação**, que reenvia a mensagem (há um intervalo de 60 segundos entre os envios). O link vale por 1 hora.
+
+## Esqueci a minha senha.
+
+Na tela de entrada, clique em **Esqueci minha senha**, digite o seu e-mail e abra o link que enviamos para criar uma nova.
+
 ## Preciso de conta para jogar?
 
-Não. Quem recebe o link de uma sala entra direto, sem conta. A conta é necessária para **criar** tokens, cenários, cenas e salas.
+Não. Quem recebe o link de uma sala entra direto, sem conta. A conta é necessária para **criar** tokens, documentos, cenários, cenas e salas.
 
 ## Os jogadores veem o que eu faço antes de salvar?
 
@@ -23,7 +31,11 @@ Nada com o que já está em cenas e salas: cada cena e sala guarda a própria c�
 
 ## Por que minha imagem ficou menor?
 
-Imagens de **tokens** com mais de 500 pixels de lado são reduzidas, mantendo a proporção. Os **cenários** mantêm a resolução original.
+Imagens de **tokens** com mais de 500 pixels de lado são reduzidas, mantendo a proporção. Os **cenários** mantêm a resolução original. Os **documentos** geram uma miniatura de até 500 pixels e uma versão grande de até 2048 pixels.
+
+## Posso enviar uma imagem muito grande como documento?
+
+Arquivos de até cerca de 4 MB seguem direto; os de até 25 MB são reduzidos pelo navegador antes do envio. Acima disso, o sistema pede para você reduzir a imagem antes.
 
 ## Os jogadores não conseguem entrar na sala.
 

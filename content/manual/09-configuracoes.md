@@ -1,6 +1,6 @@
 ---
 title: Configurações
-order: 9
+order: 10
 icon: settings
 description: Como mudar o papel de parede, o tamanho da interface e os sons do sistema.
 ---
