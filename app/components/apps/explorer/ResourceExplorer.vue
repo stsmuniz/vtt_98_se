@@ -256,7 +256,7 @@ const tagId = useId()
       <aside class="explorer-sidebar" :aria-label="`Sobre ${desc.title}`">
         <div class="sidebar-head">
           <img :src="iconUrl(isPick ? 'folder-open' : 'folder', 48)" alt="" width="48" height="48">
-          <h2 class="sidebar-title">{{ desc.title }}</h2>
+          <h2 class="sidebar-title no-aa">{{ desc.title }}</h2>
         </div>
         <div class="sidebar-rainbow" aria-hidden="true" />
         <div v-if="selectedItem" class="sidebar-preview" data-test="preview">
@@ -366,9 +366,10 @@ const tagId = useId()
   min-height: 0;
   padding: var(--sp-1);
   gap: 0;
+  box-shadow: var(--bevel-sunken);
 }
 
-/* Barra lateral "Exibir como página da Web" do Explorer do Win98, com nuvens */
+/* Barra lateral "Exibir como página da Web" do Explorer do Win98: fundo branco com as nuvens no canto superior esquerdo, sem borda à direita */
 .explorer-sidebar {
   display: flex;
   flex-direction: column;
@@ -376,9 +377,10 @@ const tagId = useId()
   min-height: 0;
   overflow: auto;
   padding: var(--sp-4) var(--sp-3);
-  background: var(--c-window) url('/assets/backgrounds/clouds_background.jpg') center top / cover no-repeat;
-  box-shadow: var(--bevel-sunken);
+  background: var(--c-window) url('/assets/backgrounds/directory_sidebar_bg.jpg') left top / auto no-repeat;
+  box-shadow: inset 1px 1px var(--c-shadow), inset 0 -1px var(--c-highlight);
   color: var(--c-text);
+  background-size: 250px;
 }
 .sidebar-head {
   display: flex;
@@ -391,9 +393,10 @@ const tagId = useId()
 }
 .sidebar-title {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--fs-2);
-  line-height: 1;
+  font-family: var(--font-sidebar);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
   overflow-wrap: anywhere;
 }
 .sidebar-rainbow {
@@ -404,7 +407,6 @@ const tagId = useId()
 .sidebar-info p,
 .sidebar-preview p {
   margin: 0 0 var(--sp-2);
-  text-shadow: 0 0 2px var(--c-window);
 }
 .preview-image {
   display: flex;

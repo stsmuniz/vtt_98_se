@@ -29,6 +29,77 @@
   font-display: swap;
 }
 
+/*
+ * Fontes vetoriais de licença aberta (cada arquivo traz a licença ao lado, em public/fonts):
+ * - Tinos (Apache 2.0 / OFL) — equivalente métrico do Times New Roman: páginas do site
+ * - Liberation Sans (OFL) — equivalente métrico do Arial: títulos da barra lateral das pastas
+ * - Open Sans (OFL) — tela "Desligar"
+ * Tinos e Open Sans estão no subconjunto latino (cobre todo o português).
+ */
+@font-face {
+  font-family: "Tinos";
+  src: url("/fonts/tinos-latin-400-normal.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Tinos";
+  src: url("/fonts/tinos-latin-400-italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Tinos";
+  src: url("/fonts/tinos-latin-700-normal.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Tinos";
+  src: url("/fonts/tinos-latin-700-italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Liberation Sans";
+  src: url("/fonts/LiberationSans-Regular.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Liberation Sans";
+  src: url("/fonts/LiberationSans-Bold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Open Sans";
+  src: url("/fonts/open-sans-latin-400-normal.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Open Sans";
+  src: url("/fonts/open-sans-latin-700-normal.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
 /* Só a tela de erro (estilo "tela azul") e o fallback mono usam a fonte VGA */
 @font-face {
   font-family: "Perfect DOS VGA 437";
@@ -42,10 +113,16 @@ html,
 body {
   font-family: var(--font-ui);
   font-size: var(--fs-1);
-  /* Sem suavização: o texto é desenhado em pixels inteiros */
+  /* Pede texto sem suavização onde o navegador respeita (Safari/Firefox no macOS). No Chrome para Windows isso é
+     ignorado: lá só o filtro .no-aa (abaixo) tira o anti-aliasing, e só de texto sobre fundo transparente. */
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: unset;
   font-smooth: never;
+}
+
+/* Texto de fonte vetorial sem anti-aliasing (o filtro #no-aa fica em app.vue) */
+.no-aa {
+  filter: url("#no-aa");
 }
 
 /* O 98.css fixa fonte e tamanho nos controles; aqui voltam a seguir os tokens */

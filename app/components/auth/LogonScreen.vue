@@ -25,7 +25,6 @@ const emit = defineEmits<{ submit: [] }>()
 <template>
   <main class="logon" :aria-busy="busy">
     <div class="logon-stack">
-      <img class="logon-logo" src="/assets/logos/vtt_98_se_logo_v1.png" alt="VTT 98 SE" width="128" height="128">
       <UiWindow :title="title" :icon="icon" variant="dialog" class="logon-window" @close="navigateTo(closeTo)">
         <form class="logon-form" novalidate @submit.prevent="emit('submit')">
           <div class="logon-intro">
@@ -55,7 +54,7 @@ const emit = defineEmits<{ submit: [] }>()
   min-height: 100dvh;
   padding: var(--sp-5);
   box-sizing: border-box;
-  background: #6fa3d8 url('/assets/backgrounds/clouds_background.jpg') center / cover no-repeat;
+  background: var(--c-desktop);
 }
 .logon-stack {
   display: flex;

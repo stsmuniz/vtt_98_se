@@ -528,7 +528,6 @@ defineExpose({
   flex: 1 1 auto;
   overflow: auto;
   background: var(--c-window);
-  box-shadow: var(--bevel-sunken);
   padding: 2px;
   font-family: var(--font-ui);
   font-size: var(--fs-1);

@@ -2,7 +2,7 @@
 const currentYear = new Date().getFullYear()
 </script>
 <template>
-  <div class="website-wrapper">
+  <div class="website-wrapper no-aa">
     <a href="#main-content" class="skip-link">Pular para o conteúdo</a>
     <website-header />
     <main id="main-content" class="main-section" tabindex="-1">
@@ -169,7 +169,13 @@ const currentYear = new Date().getFullYear()
 }
 
 .website-wrapper {
-  font-family: var(--font-ui);
+  /* O site usa Tinos (visual "web 1.0", como o Times New Roman): tudo o que lê --font-ui/--font-display
+     aqui dentro herda a fonte; a grade de 16 px vale só para a fonte pixel da área de trabalho. */
+  --font-ui: var(--font-web);
+  --font-display: var(--font-web);
+  --fs-1: 18px;
+  --lh: 26px;
+  font-family: var(--font-web);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -204,26 +210,26 @@ const currentYear = new Date().getFullYear()
   margin-bottom: 0.75rem;
 }
 
-/* Degraus da escala: 32 px (h1 em negrito, h2) e 16 px (h3 em negrito, h4) */
+/* Títulos em negrito, como nos navegadores antigos */
 .website-wrapper h1 {
-  font-size: var(--fs-2);
+  font-size: 34px;
   font-weight: 700;
 }
 
 .website-wrapper h2 {
-  font-size: var(--fs-2);
-  font-weight: 400;
+  font-size: 27px;
+  font-weight: 700;
 }
 
 .website-wrapper h3 {
-  font-size: var(--fs-1);
+  font-size: 21px;
   font-weight: 700;
   line-height: var(--lh);
 }
 
 .website-wrapper h4 {
   font-size: var(--fs-1);
-  font-weight: 400;
+  font-weight: 700;
   line-height: var(--lh);
 }
 

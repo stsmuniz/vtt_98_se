@@ -17,6 +17,10 @@
   --font-ui: "Pixel Operator", "Pixelated MS Sans Serif", Arial, sans-serif;
   --font-display: var(--font-ui);
   --font-mono: "Pixel Operator Mono", "Perfect DOS VGA 437", "Courier New", monospace;
+  /* Fontes vetoriais (não seguem a grade de 16 px): site público, títulos da barra lateral das pastas e tela "Desligar" */
+  --font-web: "Tinos", "Times New Roman", Times, serif;
+  --font-sidebar: "Liberation Sans", Arial, Helvetica, sans-serif;
+  --font-turnoff: "Open Sans", "Segoe UI", Arial, sans-serif;
 
   /* Escala tipográfica (múltiplos inteiros da grade de 16 px da fonte) */
   --fs-base: 16px;

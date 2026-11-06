@@ -82,6 +82,7 @@ useSeoMeta({
       <ul class="credits-list">
         <li><strong>Pixel Operator</strong>, de Jayvee Enaguas (HarvettFox96) — a fonte de toda a interface, em domínio público (CC0).</li>
         <li><strong>Chicago95</strong> — os ícones das janelas, pastas e menus, sob GPL-3.0 ou superior / MIT.</li>
+        <li><strong>Tinos</strong> (equivalente livre do Times New Roman), <strong>Liberation Sans</strong> (equivalente livre do Arial) e <strong>Open Sans</strong> — as fontes do site, dos títulos das pastas e da tela de desligamento, sob a licença SIL Open Font License.</li>
         <li><strong>98.css</strong>, de Jordan Scales — o estilo dos botões, janelas e controles, sob licença MIT.</li>
       </ul>
       <p>Windows é marca registrada da Microsoft. O VTT 98 SE é um projeto independente, sem qualquer ligação com a empresa.</p>
