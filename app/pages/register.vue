@@ -85,8 +85,11 @@ const submitForm = async () => {
       email: form.email,
       password: form.password,
     }, {
-      onSuccess: (ctx) => {
-          navigateTo(loginLink.value)
+      onSuccess: () => {
+          // A conta só funciona depois de confirmar o e-mail (enviado no cadastro).
+          const q = new URLSearchParams({ email: form.email, enviado: '1' })
+          if (redirectQuery.value) q.set('redirect', redirectQuery.value)
+          navigateTo(`/confirmar-email?${q}`)
       },
       onError: (ctx) => {
         err.value = authErrorMessage(ctx.error)

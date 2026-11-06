@@ -39,6 +39,9 @@ const emit = defineEmits<{ submit: [] }>()
           <div class="logon-buttons">
             <slot name="buttons" />
           </div>
+          <p v-if="$slots.footer" class="logon-footer">
+            <slot name="footer" />
+          </p>
         </form>
       </UiWindow>
     </div>
@@ -101,6 +104,9 @@ const emit = defineEmits<{ submit: [] }>()
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: var(--sp-2);
+}
+.logon-footer {
+  margin: 0;
 }
 .logon-buttons :deep(button) {
   min-width: 80px;

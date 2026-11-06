@@ -13,6 +13,10 @@
       <button type="button" :disabled="isSubmitting" @click="navigateTo('/')">Cancelar</button>
       <button id="register" type="button" :disabled="isSubmitting" @click="navigateTo(registerLink)">Registrar…</button>
     </template>
+
+    <template #footer>
+      <NuxtLink :to="forgotLink">Esqueci minha senha</NuxtLink>
+    </template>
   </AuthLogonScreen>
 </template>
 <script setup lang="ts">
@@ -81,6 +85,11 @@ const submitForm = async () => {
         navigateTo(redirectTarget.value)
       },
       onError: (ctx) => {
+        // E-mail ainda não confirmado: leva à página onde se pede um novo e-mail de confirmação.
+        if (ctx.error.code === 'EMAIL_NOT_VERIFIED') {
+          navigateTo(confirmLink.value)
+          return
+        }
         err.value = authErrorMessage(ctx.error)
       }
     }), 'Entrando...')
@@ -91,6 +100,14 @@ const submitForm = async () => {
 
 
 const registerLink = computed(() => redirectQuery.value ? `/register?redirect=${encodeURIComponent(redirectQuery.value)}` : '/register')
+
+const forgotLink = computed(() => form.email ? `/esqueci-senha?email=${encodeURIComponent(form.email)}` : '/esqueci-senha')
+
+const confirmLink = computed(() => {
+  const q = new URLSearchParams({ email: form.email })
+  if (redirectQuery.value) q.set('redirect', redirectQuery.value)
+  return `/confirmar-email?${q}`
+})
 
 const form = reactive({
   email: '',

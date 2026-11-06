@@ -15,6 +15,11 @@ Mostra o seu nome, o seu e-mail e a data em que a conta foi criada. Você pode a
 
 Digite a **senha atual**, a **nova senha** (pelo menos 8 caracteres) e a confirmação, e clique em **Alterar senha**. Ao trocar a senha, as **outras sessões abertas** — em outros navegadores e aparelhos — são desconectadas.
 
+## Confirmar o e-mail e recuperar a senha
+
+- **Confirmação de e-mail** — ao criar a conta, enviamos uma mensagem para o endereço informado. Clique no link dela (vale por 1 hora) para ativar a conta. Enquanto o e-mail não for confirmado, não é possível entrar: a tela de entrada leva você a uma página com o botão **Enviar e-mail de confirmação**, para pedir uma nova mensagem. Confira também a caixa de spam.
+- **Esqueci minha senha** — na tela de entrada, clique em **Esqueci minha senha**, digite o seu e-mail e abra o link que enviamos (vale por 1 hora) para escolher uma nova senha. Ao redefinir, todas as sessões abertas são desconectadas.
+
 ## Plano
 
 Durante o **beta**, todos os recursos estão liberados sem custo. O botão **Mudar plano…** está desativado por enquanto.

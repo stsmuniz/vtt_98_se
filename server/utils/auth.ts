@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { useDrizzle } from "./drizzle.ts"
 import * as schema from "../db/schema"
+import { sendPasswordResetMail, sendVerificationMail } from "./mailer"
 import { collectUserAssets, purgeUserAssets, type UserAssets } from "./accountCleanup"
 
 const db = useDrizzle()
@@ -46,6 +47,23 @@ export const auth = betterAuth({
     }),
     emailAndPassword: {
         enabled: true,
+        // Sem e-mail confirmado não há sessão: o login responde 403 EMAIL_NOT_VERIFIED e a tela
+        // leva o usuário a /confirmar-email, onde ele pede um novo e-mail de confirmação.
+        requireEmailVerification: true,
+        resetPasswordTokenExpiresIn: 60 * 60,
+        // Trocar a senha encerra as sessões abertas (quem a roubou perde o acesso).
+        revokeSessionsOnPasswordReset: true,
+        sendResetPassword: async ({ user, url }) => {
+            await sendPasswordResetMail(user, url)
+        },
+    },
+    emailVerification: {
+        sendOnSignUp: true,
+        autoSignInAfterVerification: true,
+        expiresIn: 60 * 60,
+        sendVerificationEmail: async ({ user, url }) => {
+            await sendVerificationMail(user, url)
+        },
     },
     user: {
         // Excluir conta (Usuário > Excluir conta). O cliente sempre envia a senha
