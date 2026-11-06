@@ -10,14 +10,16 @@ Outra coisa que foi feita nessa atualização: o rolador de dados recebeu uma at
 
 ::lightbox
 ---
-src: /assets/screenshots/vtt_98_diceroller.png
-thumbnail: /assets/screenshots/vtt_98_diceroller.avif
-alt: Rolador de dados atualizado
-title: Rolador de dados atualizado
-width: 487
-height: 634
+src: /assets/screenshots/rolador_dados.png
+thumbnail: /assets/screenshots/rolador_dados.avif
+alt: Rolador de dados
+title: Rolador de dados
+width: 420
+height: 636
 ---
 ::
+
+*A imagem acima mostra a versão atual do rolador, que desde o Beta 1.0 também tem D2 e D100.*
 
 Essa atualização visa dar suporte a rolagens de dados de vários RPGs diferentes, como:
 

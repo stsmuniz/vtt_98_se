@@ -26,9 +26,9 @@ export default defineNuxtConfig({
         { name: 'description', content: 'Mesa virtual gratuita e leve para RPG de mesa com visual nostálgico de Windows 98, suporte a tokens, mapas e sincronização em tempo real.' },
         { property: 'og:site_name', content: 'VTT 98 SE' },
         { property: 'og:type', content: 'website' },
-        { property: 'og:image', content: '/assets/screenshots/vtt_98_screenshot_7.png' },
+        { property: 'og:image', content: '/assets/screenshots/compartilhamento.jpg' },
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:image', content: '/assets/screenshots/vtt_98_screenshot_7.png' }
+        { name: 'twitter:image', content: '/assets/screenshots/compartilhamento.jpg' }
       ]
     }
   },

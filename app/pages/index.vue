@@ -12,11 +12,11 @@ useSeoMeta({
   ogTitle: 'VTT 98 SE - Virtual Tabletop Retrô para RPG de Mesa',
   description: 'Mesa virtual gratuita e leve para RPG de mesa com visual nostálgico de Windows 98, suporte a tokens, mapas e sincronização em tempo real.',
   ogDescription: 'Mesa virtual gratuita e leve para RPG de mesa com visual nostálgico de Windows 98, suporte a tokens, mapas e sincronização em tempo real.',
-  ogImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  ogImage: '/assets/screenshots/compartilhamento.jpg',
   twitterCard: 'summary_large_image',
   twitterTitle: 'VTT 98 SE - Virtual Tabletop Retrô para RPG de Mesa',
   twitterDescription: 'Mesa virtual gratuita e leve para RPG de mesa com visual nostálgico de Windows 98, suporte a tokens, mapas e sincronização em tempo real.',
-  twitterImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  twitterImage: '/assets/screenshots/compartilhamento.jpg',
 })
 </script>
 <template>
@@ -56,12 +56,12 @@ useSeoMeta({
 
       <div class="media-container">
         <WebsiteLightbox
-          src="/assets/screenshots/vtt_98_screenshot_7.png"
-          thumbnail="/assets/screenshots/vtt_98_screenshot_7.avif"
+          src="/assets/screenshots/sala_dados_iniciativa.png"
+          thumbnail="/assets/screenshots/sala_dados_iniciativa.avif"
           width="854"
-          height="406"
-          alt="Tela inicial do sistema"
-          title="VTT 98 SE - Tela inicial"
+          height="421"
+          alt="Sala de jogo do VTT 98 SE com mapa, tokens, lista de iniciativa e rolador de dados em janelas flutuantes"
+          title="VTT 98 SE - Sala de jogo"
         />
       </div>
       <p class="see-more">
@@ -72,16 +72,22 @@ useSeoMeta({
     <section class="content-section">
       <h2>Recursos Principais</h2>
       <dl class="features-list">
+        <dt>Área de trabalho</dt>
+        <dd>Uma interface de desktop como a do Windows 98, com pastas, menu Iniciar e várias janelas abertas ao mesmo tempo.</dd>
         <dt>Canvas Realtime</dt>
-        <dd>Posicione mapas de fundo e mova miniaturas com sincronização instantânea em tempo real.</dd>
+        <dd>Posicione mapas de fundo e mova miniaturas com sincronização instantânea em tempo real. Zoom na roda do mouse e mapa móvel, como nos outros VTTs.</dd>
         <dt>Gerenciador de Cenas</dt>
         <dd>Alterne rapidamente entre mapas, cenários de exploração e telas de descanso.</dd>
         <dt>Biblioteca de Tokens</dt>
         <dd>Suba suas próprias imagens de personagens, monstros e NPCs de forma simples.</dd>
+        <dt>Documentos</dt>
+        <dd>Cartas, pistas e mapas que os jogadores abrem em tamanho grande, com zoom, direto na mesa.</dd>
         <dt>Rolador de Dados</dt>
         <dd>Janela flutuante para rolagem de dados rápidos (d2, d4, d6, d8, d10, d12, d20, d100).</dd>
         <dt>Lista de Iniciativa</dt>
         <dd>Organize a ordem de turno do combate de forma ágil para acompanhar todo o grupo.</dd>
+        <dt>Manual integrado</dt>
+        <dd>Aperte F1 em qualquer janela e o manual abre direto no assunto.</dd>
       </dl>
     </section>
 

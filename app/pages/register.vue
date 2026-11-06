@@ -32,11 +32,11 @@ useSeoMeta({
   ogTitle: 'Criar Conta - VTT 98 SE',
   description: 'Cadastre-se gratuitamente no VTT 98 SE e comece a mestrar suas sessões de RPG com facilidade.',
   ogDescription: 'Cadastre-se gratuitamente no VTT 98 SE e comece a mestrar suas sessões de RPG com facilidade.',
-  ogImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  ogImage: '/assets/screenshots/compartilhamento.jpg',
   twitterCard: 'summary_large_image',
   twitterTitle: 'Criar Conta - VTT 98 SE',
   twitterDescription: 'Cadastre-se gratuitamente no VTT 98 SE e comece a mestrar suas sessões de RPG com facilidade.',
-  twitterImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  twitterImage: '/assets/screenshots/compartilhamento.jpg',
 })
 
 const route = useRoute()

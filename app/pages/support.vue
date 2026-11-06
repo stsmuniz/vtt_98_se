@@ -10,11 +10,11 @@ useSeoMeta({
   ogTitle: 'Apoie o VTT 98 SE - Contribua com o Projeto',
   description: 'Ajude a manter os servidores ativos, apoie os custos operacionais via Pix e confira o roadmap de funcionalidades do VTT 98 SE.',
   ogDescription: 'Ajude a manter os servidores ativos, apoie os custos operacionais via Pix e confira o roadmap de funcionalidades do VTT 98 SE.',
-  ogImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  ogImage: '/assets/screenshots/compartilhamento.jpg',
   twitterCard: 'summary_large_image',
   twitterTitle: 'Apoie o VTT 98 SE - Contribua com o Projeto',
   twitterDescription: 'Ajude a manter os servidores ativos, apoie os custos operacionais via Pix e confira o roadmap de funcionalidades do VTT 98 SE.',
-  twitterImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  twitterImage: '/assets/screenshots/compartilhamento.jpg',
 })
 
 const chavePix = '198de8e9-ed9f-4f73-8a18-5045bb98436c'
@@ -67,7 +67,7 @@ const copyToClipboard = async () => {
 
       <p>
         Conforme mais grupos utilizam o sistema, as cotas gratuitas mensais chegam perto do limite.
-        O objetivo de arrecadação é cobrir os custos operacionais de servidor e adquirir um domínio próprio (.com ou .com.br).
+        O objetivo de arrecadação é cobrir os custos operacionais de servidor e a renovação anual do domínio próprio, vtt98se.com.br.
       </p>
     </section>
 
@@ -76,8 +76,6 @@ const copyToClipboard = async () => {
       <p>Com o apoio da comunidade, os próximos passos do projeto incluem:</p>
       <div class="list-wrapper">
         <ul>
-          <li>Domínio Próprio</li>
-          <li>Envio de e-mails para alertas, mudança de senha, etc.</li>
           <li>Atribuição de tokens para jogadores</li>
           <li>Fog of War</li>
           <li>E o que mais a comunidade opinar e for possível.</li>
@@ -107,6 +105,12 @@ const copyToClipboard = async () => {
 
       <h3>2. Feedback e Divulgação</h3>
       <p>Reporte bugs, sugira melhorias e indique o VTT 98 SE para seu grupo de RPG e amigos mestres!</p>
+      <p>
+        Acompanhe as novidades e fale com a gente nas redes sociais:
+        <a href="https://x.com/vtt98se" target="_blank" rel="noopener noreferrer">X (Twitter)</a>,
+        <a href="https://www.instagram.com/vtt98se" target="_blank" rel="noopener noreferrer">Instagram</a> e
+        <a href="https://bsky.app/profile/vtt98se.bsky.social" target="_blank" rel="noopener noreferrer">Bluesky</a>.
+      </p>
     </section>
   </article>
 </template>

@@ -8,11 +8,11 @@ useSeoMeta({
   ogTitle: 'Sobre - VTT 98 SE',
   description: 'Conheça a história, filosofia e arquitetura do VTT 98 SE, uma plataforma virtual tabletop simples e rápida inspirada na era Windows 98.',
   ogDescription: 'Conheça a história, filosofia e arquitetura do VTT 98 SE, uma plataforma virtual tabletop simples e rápida inspirada na era Windows 98.',
-  ogImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  ogImage: '/assets/screenshots/compartilhamento.jpg',
   twitterCard: 'summary_large_image',
   twitterTitle: 'Sobre - VTT 98 SE',
   twitterDescription: 'Conheça a história, filosofia e arquitetura do VTT 98 SE, uma plataforma virtual tabletop simples e rápida inspirada na era Windows 98.',
-  twitterImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  twitterImage: '/assets/screenshots/compartilhamento.jpg',
 })
 </script>
 <template>

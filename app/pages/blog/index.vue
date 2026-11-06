@@ -12,11 +12,11 @@ useSeoMeta({
   ogTitle: 'Blog - VTT 98 SE',
   description: 'Acompanhe novidades, notas de atualização e bastidores do desenvolvimento do VTT 98 SE.',
   ogDescription: 'Acompanhe novidades, notas de atualização e bastidores do desenvolvimento do VTT 98 SE.',
-  ogImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  ogImage: '/assets/screenshots/compartilhamento.jpg',
   twitterCard: 'summary_large_image',
   twitterTitle: 'Blog - VTT 98 SE',
   twitterDescription: 'Acompanhe novidades, notas de atualização e bastidores do desenvolvimento do VTT 98 SE.',
-  twitterImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  twitterImage: '/assets/screenshots/compartilhamento.jpg',
 })
 </script>
 <template>

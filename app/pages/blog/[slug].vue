@@ -15,11 +15,11 @@ useSeoMeta({
   description: () => post.value?.description || 'Notas de atualização e bastidores do desenvolvimento do VTT 98 SE.',
   ogDescription: () => post.value?.description || 'Notas de atualização e bastidores do desenvolvimento do VTT 98 SE.',
   ogType: 'article',
-  ogImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  ogImage: '/assets/screenshots/compartilhamento.jpg',
   twitterCard: 'summary_large_image',
   twitterTitle: () => post.value ? `${post.value.title} - VTT 98 SE` : 'Artigo - VTT 98 SE',
   twitterDescription: () => post.value?.description || 'Notas de atualização e bastidores do desenvolvimento do VTT 98 SE.',
-  twitterImage: '/assets/screenshots/vtt_98_screenshot_7.png',
+  twitterImage: '/assets/screenshots/compartilhamento.jpg',
 })
 </script>
 <template>
