@@ -11,7 +11,35 @@ const db = useDrizzle()
 // requisição de exclusão.
 const pendingCleanup = new Map<string, UserAssets>()
 
+/**
+ * Origens que podem chamar /api/auth/* (o better-auth responde 403 "Invalid origin" às demais).
+ * Sem isso só a origem de BETTER_AUTH_URL funcionava: entrar por vtt98se.com.br falhava enquanto o
+ * endereço *.vercel.app (o da env) funcionava. Entram: o domínio de produção, as URLs que a própria
+ * Vercel injeta em cada deploy (produção, branch e deploy específico) e, opcionalmente,
+ * BETTER_AUTH_TRUSTED_ORIGINS (lista separada por vírgula, ex.: um domínio novo).
+ */
+const PRODUCTION_ORIGINS = ['https://vtt98se.com.br', 'https://www.vtt98se.com.br']
+
+function trustedOrigins(): string[] {
+    const asOrigin = (value?: string) => {
+        if (!value) return null
+        const url = value.trim()
+        return /^https?:\/\//.test(url) ? url.replace(/\/+$/, '') : `https://${url}`
+    }
+    const fromEnv = (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? '').split(',')
+    const candidates = [
+        process.env.BETTER_AUTH_URL,
+        ...PRODUCTION_ORIGINS,
+        process.env.VERCEL_URL,
+        process.env.VERCEL_BRANCH_URL,
+        process.env.VERCEL_PROJECT_PRODUCTION_URL,
+        ...fromEnv,
+    ]
+    return [...new Set(candidates.map(asOrigin).filter((o): o is string => Boolean(o)))]
+}
+
 export const auth = betterAuth({
+    trustedOrigins: trustedOrigins(),
     database: drizzleAdapter(db, {
         schema,
         provider: "pg"
