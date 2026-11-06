@@ -4,8 +4,8 @@
  * Clique seleciona, duplo clique (ou Enter) abre, setas mudam a seleção.
  * Sem menu de contexto (pastas não são criadas nem renomeadas pelo usuário).
  */
-import { APPS } from '~/desktop/apps'
-import { iconUrl } from '~/utils/icons'
+import { APPS, folderOverlay } from '~/desktop/apps'
+import { iconUrl, overlayMetrics } from '~/utils/icons'
 import { useDesktop } from '~~/composables/useDesktop'
 
 const desktop = useDesktop()
@@ -60,8 +60,15 @@ function onBackground(event: PointerEvent) {
       @pointerdown="select(app.id)"
       @dblclick="open(app.id)"
     >
-      <span class="desktop-icon-img" :style="{ '--icon-url': `url(${iconUrl(app.desktopIcon ?? app.icon, 32)})` }">
+      <span
+        class="desktop-icon-img"
+        :style="{
+          '--icon-url': `url(${iconUrl(app.desktopIcon ?? app.icon, 32)})`,
+          ...(folderOverlay(app) ? { '--overlay-url': `url(${overlayMetrics(folderOverlay(app)!, 32).url})`, '--overlay-size': `${overlayMetrics(folderOverlay(app)!, 32).px}px` } : {}),
+        }"
+      >
         <img :src="iconUrl(app.desktopIcon ?? app.icon, 32)" alt="" width="32" height="32" draggable="false">
+        <img v-if="folderOverlay(app)" class="desktop-icon-overlay" :src="overlayMetrics(folderOverlay(app)!, 32).url" alt="" :width="overlayMetrics(folderOverlay(app)!, 32).px" :height="overlayMetrics(folderOverlay(app)!, 32).px" draggable="false">
       </span>
       <span class="desktop-icon-label">{{ app.title }}</span>
     </button>
@@ -114,14 +121,20 @@ function onBackground(event: PointerEvent) {
 .desktop-icon-img img {
   image-rendering: pixelated;
 }
+.desktop-icon-overlay {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+}
 .desktop-icon.selected .desktop-icon-img::after {
   content: "";
   position: absolute;
   inset: 0;
   background-image: repeating-conic-gradient(var(--c-selection) 0 25%, transparent 0 50%);
   background-size: 2px 2px;
-  -webkit-mask: var(--icon-url) center / contain no-repeat;
-  mask: var(--icon-url) center / contain no-repeat;
+  /* O selo também recebe o padrão pontilhado da seleção (segunda camada da máscara). */
+  -webkit-mask: var(--overlay-url, none) right bottom / var(--overlay-size, 0) var(--overlay-size, 0) no-repeat, var(--icon-url) center / contain no-repeat;
+  mask: var(--overlay-url, none) right bottom / var(--overlay-size, 0) var(--overlay-size, 0) no-repeat, var(--icon-url) center / contain no-repeat;
 }
 
 .desktop-icon-label {

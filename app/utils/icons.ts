@@ -60,6 +60,15 @@ export function isIconName(name: string): name is IconName {
   return chicagoSet.has(name) || name in CUSTOM_ICONS
 }
 
+/**
+ * Selo (ícone de sobreposição): metade do tamanho do ícone de base, no canto inferior direito.
+ * Usa o arquivo mais próximo do tamanho final (16 px para bases de até 32 px, senão 32 px).
+ */
+export function overlayMetrics(name: IconName, basePx: number): { url: string; px: number } {
+  const px = Math.max(8, Math.round(basePx / 2))
+  return { url: iconUrl(name, px <= 16 ? 16 : 32), px }
+}
+
 /** Resolve o caminho público de um ícone no tamanho pedido (ou o mais próximo disponível). */
 export function iconUrl(name: IconName, size: IconSize = 32): string {
   if (name in CUSTOM_ICONS) return CUSTOM_ICONS[name as CustomIcon]

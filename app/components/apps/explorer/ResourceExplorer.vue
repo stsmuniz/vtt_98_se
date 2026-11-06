@@ -11,7 +11,6 @@
  * `embedded` desliga menus/atalhos de janela (uso dentro de outra janela).
  */
 import type { MenuDef, MenuItemDef } from '~/utils/menu'
-import { iconUrl } from '~/utils/icons'
 import { formatDateTime, matchesSearch, toDate, type ListViewColumn, type ListViewItemId, type ListViewMode, type ListViewSort } from '~/utils/listView'
 import { RESOURCES, toExplorerItem, type ExplorerItem, type ResourceKind, type ResourceRecord } from '~/desktop/resources'
 import type { ExplorerColumn } from '~~/lib/preferences'
@@ -255,7 +254,7 @@ const tagId = useId()
     <div class="explorer-body">
       <aside class="explorer-sidebar" :aria-label="`Sobre ${desc.title}`">
         <div class="sidebar-head">
-          <img :src="iconUrl(isPick ? 'folder-open' : 'folder', 48)" alt="" width="48" height="48">
+          <UiIcon :name="isPick ? 'folder-open' : 'folder'" :size="48" :overlay="desc.itemIcon" />
           <h2 class="sidebar-title no-aa">{{ desc.title }}</h2>
         </div>
         <div class="sidebar-rainbow" aria-hidden="true" />
