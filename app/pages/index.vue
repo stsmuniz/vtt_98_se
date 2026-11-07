@@ -25,13 +25,21 @@ useSeoMeta({
       <h1>VTT 98 SE</h1>
       <p class="subtitle">Um virtual tabletop gratuito, leve, sincronizado e sem complicação</p>
       <div class="clippy-tip">
-        <img
-          src="/assets/gifs/clippit.gif"
-          alt="Clippit, o assistente virtual do Office 97"
-          class="clippy-gif"
-          width="80"
-          height="70"
-        />
+        <div class="dicey-window" aria-hidden="false">
+          <div class="dicey-titlebar">
+            <span class="dicey-buttons" aria-hidden="true">
+              <span class="dicey-btn">_</span>
+              <span class="dicey-btn">&times;</span>
+            </span>
+          </div>
+          <img
+            src="/assets/gifs/dicey_wink.gif"
+            alt="Dicey, o d20 mascote do VTT 98 SE, piscando"
+            class="clippy-gif"
+            width="160"
+            height="160"
+          />
+        </div>
         <div class="clippy-balloon">
           <p>Parece que você está vendo um site de 1998. Quer saber um segredo? Por baixo do visual, a tecnologia é de 2026.</p>
         </div>
@@ -128,14 +136,66 @@ useSeoMeta({
 
 .clippy-tip {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   margin: 1rem auto 0;
 }
 
-.clippy-gif {
+.dicey-window {
   flex-shrink: 0;
-  image-rendering: pixelated;
+  background: #c0c0c0;
+  padding: 2px;
+  box-shadow:
+    inset -1px -1px #0a0a0a,
+    inset 1px 1px #dfdfdf,
+    inset -2px -2px #808080,
+    inset 2px 2px #ffffff;
+}
+
+.dicey-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 18px;
+  padding: 2px 2px 2px 3px;
+  margin-bottom: 2px;
+  background: linear-gradient(90deg, #000080, #1084d0);
+  color: #ffffff;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.dicey-buttons {
+  display: flex;
+  gap: 2px;
+}
+
+.dicey-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 14px;
+  background: #c0c0c0;
+  color: #000000;
+  font-size: 11px;
+  font-weight: bold;
+  box-shadow:
+    inset -1px -1px #0a0a0a,
+    inset 1px 1px #ffffff,
+    inset -2px -2px #808080,
+    inset 2px 2px #dfdfdf;
+}
+
+.clippy-gif {
+  display: block;
+  box-shadow:
+    inset 1px 1px #808080,
+    inset -1px -1px #ffffff;
+  outline: 1px solid #808080;
+  outline-offset: -1px;
 }
 
 .clippy-balloon {
@@ -145,7 +205,6 @@ useSeoMeta({
   border-radius: 12px;
   padding: 0.6rem 0.9rem;
   margin-left: 1rem;
-  margin-bottom: 0.5rem;
   max-width: 260px;
   box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.25);
 }
@@ -162,7 +221,8 @@ useSeoMeta({
 .clippy-balloon::after {
   content: "";
   position: absolute;
-  bottom: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   border-style: solid;
   border-top-color: transparent;
   border-bottom-color: transparent;
