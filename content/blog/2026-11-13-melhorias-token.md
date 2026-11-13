@@ -4,7 +4,9 @@ date: "2026-11-13"
 description: "Várias melhorias na exibição dos tokens e criação do painel de controle"
 ---
 
-### Status dos Tokens
+Oi gente, hoje eu vim trazer várias atualizações que só viviam na minha cabeça até agora e que finalmente estou colocando no VTT. São coisas básicas, mas procurei pensar em uma forma de fazer com que seja fácil de usar e que fizesse sentido dentro do sistema de UI do VTT.
+
+## Status dos Tokens
 
 Eu já tava com vontade de fazer essa funcionalidade dos status faz tempo, e agora tô implementando. Isso vai servir pra representar aplicação de status como envenenamento, enfeitiçado, em chamas, atordoado, enfeitiçado, etc.
 
@@ -14,15 +16,15 @@ Além disso, você pode criar seu próprio status. Basta cadastrar o nome e a co
 
 ![Criar status](/assets/screenshots/status_janela.png)
 
-Além do Status, outra melhoria que está sendo implementada é a das barras de atributos variáveis e finalmente a opção de mostrar o nome do token.
+## Barras e Nome do Token
 
-### Barras e Nome do Token
+Além do Status, outra melhoria que está sendo implementada é a das barras de atributos variáveis e finalmente a opção de mostrar o nome do token.
 
 ![Barras e Nome do token](/assets/screenshots/barras.png)
 
 Eu queria adicionar isso há um tempo, mas não sabia bem como encaixar no visual do personagem. No fim das contas, acabei optando pela abordagem mais simples. Achei que ficou bom, mas aceito sugestões.
 
-### Painel de Controle
+## Painel de Controle
 
 A lista de status pode ser vista no menu `Ferramentas > Status...` na janela de `Cenas`, ou no novo ítem do menu Iniciar: Painel de Controle
 
