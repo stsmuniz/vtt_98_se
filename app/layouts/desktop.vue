@@ -28,6 +28,7 @@ const sounds = useSystemSounds()
 const WALLPAPER_URLS: Record<string, string | null> = {
   none: null,
   clouds: '/assets/backgrounds/clouds_background.jpg',
+  setup: '/assets/backgrounds/setup_wallpaper.png',
 }
 
 const desktopStyle = computed(() => {

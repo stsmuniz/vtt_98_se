@@ -26,7 +26,7 @@ export interface ExplorerPreferences {
   sort: { key: ExplorerColumn; dir: SortDir }
 }
 
-export const WALLPAPERS = ['none', 'clouds'] as const
+export const WALLPAPERS = ['none', 'clouds', 'setup'] as const
 export type Wallpaper = (typeof WALLPAPERS)[number]
 
 export const WALLPAPER_MODES = ['center', 'tile', 'stretch'] as const

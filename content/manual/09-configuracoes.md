@@ -11,7 +11,7 @@ Use **OK** para gravar e fechar, **Aplicar** para gravar e continuar com a janel
 
 ## Plano de fundo
 
-- **Papel de parede** — escolha **(nenhum)** ou **Nuvens**. Em **Exibir** você decide se a imagem fica **Centralizada**, **Lado a lado** ou **Esticada**.
+- **Papel de parede** — escolha **(nenhum)**, **Nuvens** ou **Setup**. Em **Exibir** você decide se a imagem fica **Centralizada**, **Lado a lado** ou **Esticada**.
 - **Cor** — a cor sólida da área de trabalho, que aparece atrás da imagem ou no lugar dela. A cor padrão é o verde-azulado clássico.
 
 ## Aparência

@@ -23,6 +23,7 @@ const tabs = [
 const WALLPAPERS: { id: Wallpaper; label: string; url: string | null }[] = [
   { id: 'none', label: '(nenhum)', url: null },
   { id: 'clouds', label: 'Nuvens', url: '/assets/backgrounds/clouds_background.jpg' },
+  { id: 'setup', label: 'Setup', url: '/assets/backgrounds/setup_wallpaper.png' },
 ]
 const MODES: { value: WallpaperMode; label: string }[] = [
   { value: 'center', label: 'Centralizar' },
