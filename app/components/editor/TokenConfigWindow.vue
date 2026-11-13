@@ -4,6 +4,7 @@
  * objeto do token diretamente — a sala transmite cada alteração ao vivo.
  */
 import type { RoomToken } from '#server/db/schema.ts'
+import { defaultBarColor } from '~~/lib/tokenBars'
 
 const props = defineProps<{ token: RoomToken | null }>()
 const open = defineModel<boolean>('open', { default: false })
@@ -12,6 +13,15 @@ const emit = defineEmits<{ remove: [] }>()
 const t = computed(() => props.token)
 const nameId = useId()
 const opacityId = useId()
+const showNameId = useId()
+
+function setBarColor(attribute: { barColor?: string }, event: Event) {
+  attribute.barColor = (event.target as HTMLInputElement).value
+}
+
+function colorOf(attribute: { barColor?: string }, index: number) {
+  return attribute.barColor || defaultBarColor(index)
+}
 </script>
 
 <template>
@@ -20,8 +30,8 @@ const opacityId = useId()
     v-model:open="open"
     :title="t ? `Configurações de ${t.name}` : 'Configurações do token'"
     icon="properties"
-    :width="460"
-    :height="420"
+    :width="560"
+    :height="440"
   >
     <p v-if="!t" class="empty">Selecione um token na sala.</p>
     <template v-else>
@@ -29,6 +39,10 @@ const opacityId = useId()
         <div class="field-row-stacked config-row">
           <label :for="nameId">Nome:</label>
           <input :id="nameId" v-model="t.name" type="text" data-test="token-config-name">
+        </div>
+        <div class="field-row">
+          <input :id="showNameId" v-model="t.showName" type="checkbox" data-test="token-config-show-name">
+          <label :for="showNameId">Exibir nome sobre o token</label>
         </div>
         <div class="config-row">
           <label :for="opacityId">Opacidade: {{ t.opacity ?? 100 }}%</label>
@@ -44,18 +58,28 @@ const opacityId = useId()
               <th>Atual</th>
               <th>Máximo</th>
               <th>Visibilidade</th>
+              <th>Cor</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(attribute, idx) in t.attributes" :key="idx">
               <td>{{ attribute.name }}</td>
               <td><input v-model="attribute.currentValue" type="number" :aria-label="`${attribute.name}: valor atual`"></td>
-              <td><input v-model="attribute.value" type="number" :aria-label="`${attribute.name}: máximo`"></td>
+              <td><input v-model="attribute.maxValue" type="number" :aria-label="`${attribute.name}: máximo`"></td>
               <td>
-                <select v-model="attribute.visibility" :aria-label="`${attribute.name}: visibilidade`">
-                  <option value="visible">Visível</option>
-                  <option value="hidden">Oculto</option>
+                <select v-model="attribute.showBar" :aria-label="`${attribute.name}: visibilidade`">
+                  <option :value="true">Visível</option>
+                  <option :value="false">Oculto</option>
                 </select>
+              </td>
+              <td>
+                <input
+                  type="color"
+                  :value="colorOf(attribute, idx)"
+                  :disabled="!attribute.showBar"
+                  :aria-label="`${attribute.name}: cor da barra`"
+                  @input="setBarColor(attribute, $event)"
+                >
               </td>
             </tr>
           </tbody>
@@ -94,6 +118,10 @@ const opacityId = useId()
   box-sizing: border-box;
   height: auto;
   font: inherit;
+}
+.attributes-table input[type=color] {
+  height: 22px;
+  padding: 0;
 }
 .empty {
   color: var(--c-text-disabled);

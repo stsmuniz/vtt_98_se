@@ -13,6 +13,10 @@ export type SceneAttribute = Attribute & {
     visibility?: 'visible' | 'hidden'
     currentValue?: string
     maxValue?: string
+    /** Exibe o atributo como barra sob o token na sala. */
+    showBar?: boolean
+    /** Cor da barra (#rrggbb); ausente = cor padrão pela posição do atributo. */
+    barColor?: string
 }
 
 export type SceneToken = {
@@ -30,6 +34,8 @@ export type SceneToken = {
     opacity: number
     rotation: number
     attributes: Attribute[]
+    /** Exibe o nome do token sobre ele na sala. */
+    showName?: boolean
     /** Ausente = token. 'document' = miniatura de um Documento (abre a versão grande ao clicar). */
     kind?: 'token' | 'document'
     documentId?: number

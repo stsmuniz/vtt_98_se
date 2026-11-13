@@ -37,7 +37,9 @@ A barra de ferramentas da sala tem:
 - **Dados** e **Iniciativa** — abrem essas janelas (veja o capítulo seguinte).
 - **Fechar sala** / **Abrir sala** — controla se novos visitantes conseguem entrar.
 
-Os tokens funcionam como no editor de cenas: arraste, redimensione, gire, duplique, use o menu de contexto e o menu **Editar**. **Dois cliques** num token abrem as **Configurações do token**: nome, opacidade e os atributos (atual, máximo e visibilidade).
+Os tokens funcionam como no editor de cenas: arraste, redimensione, gire, duplique, use o menu de contexto e o menu **Editar**. **Dois cliques** num token abrem as **Configurações do token**: nome, opacidade e os atributos (atual e máximo).
+
+Marque **Exibir nome sobre o token** para mostrar o nome acima do token. Em cada atributo, a coluna **Visibilidade** define se ele aparece como uma barra logo abaixo do token (preenchida conforme atual/máximo): **Visível** ou **Oculto**. A coluna **Cor** escolhe a cor da barra. Esse seletor é o único controle: em **Oculto**, a barra não aparece para ninguém.
 
 ## Documentos na sala
 

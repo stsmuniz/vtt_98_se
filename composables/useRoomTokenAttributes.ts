@@ -9,7 +9,7 @@ export function useRoomTokenAttributes() {
             ...attribute,
             currentValue: attribute.value,
             maxValue: attribute.value,
-            visibility: 'visible' as const,
+            showBar: false,
         }))
     }
 

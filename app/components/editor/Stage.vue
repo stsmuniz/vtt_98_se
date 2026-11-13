@@ -17,18 +17,24 @@
  * janela e centralizada. `scale` vem de fora (controle de zoom da barra de
  * status); o zoom feito aqui dentro (roda, "Ajustar") volta pelo evento `zoom`.
  */
-import type { SceneToken } from '#server/db/schema.ts'
+import type { SceneAttribute, SceneToken } from '#server/db/schema.ts'
 import {
   Stage as VStage,
   Layer as VLayer,
   Rect as VRect,
   Image as VImage,
   Group as VGroup,
+  Text as VText,
   Transformer as VTransformer,
 } from 'vue-konva'
 import { useTokenTransform } from '~~/composables/useTokenTransform'
+import { barFraction, defaultBarColor } from '~~/lib/tokenBars'
 
-type StageToken = Pick<SceneToken, 'id' | 'x' | 'y' | 'width' | 'height' | 'scaleX' | 'scaleY' | 'rotation' | 'opacity'>
+type StageToken = Pick<SceneToken, 'id' | 'x' | 'y' | 'width' | 'height' | 'scaleX' | 'scaleY' | 'rotation' | 'opacity'> & {
+  name?: string
+  showName?: boolean
+  attributes?: Pick<SceneAttribute, 'name' | 'value' | 'currentValue' | 'maxValue' | 'showBar' | 'barColor'>[]
+}
 
 const props = withDefaults(defineProps<{
   scale: number
@@ -243,8 +249,56 @@ const tokenGroups = computed(() => [...tokens.value].reverse().map((token) => {
   const w = token.width || 100
   const h = token.height || 100
   const pos = !props.editable && props.positions ? (props.positions[token.id] ?? token) : token
+  // Extensão do token já escalado e girado (caixa envolvente, em torno do centro da imagem).
+  const sw = w * Math.abs(token.scaleX ?? 1)
+  const sh = h * Math.abs(token.scaleY ?? 1)
+  const rad = ((token.rotation || 0) * Math.PI) / 180
+  const halfW = (Math.abs(sw * Math.cos(rad)) + Math.abs(sh * Math.sin(rad))) / 2
+  const halfH = (Math.abs(sw * Math.sin(rad)) + Math.abs(sh * Math.cos(rad))) / 2
+  const cx = w / 2
+  const cy = h / 2
+
+  // Tamanhos constantes na tela, qualquer que seja o zoom.
+  const px = 1 / props.scale
+  const barH = 8 * px
+  const barGap = 2 * px
+  const barW = Math.max(sw, 24 * px)
+  let barY = cy + halfH + 4 * px
+  const bars = (token.attributes ?? []).flatMap((attribute, index) => {
+    if (!attribute.showBar) return []
+    const fraction = barFraction(attribute)
+    if (fraction === null) return []
+    const y = barY
+    barY += barH + barGap
+    return [{
+      key: `${token.id}-${index}`,
+      back: { x: cx - barW / 2, y, width: barW, height: barH, fill: '#000000', stroke: '#ffffff', strokeWidth: px, listening: false },
+      fill: { x: cx - barW / 2, y, width: barW * fraction, height: barH, fill: attribute.barColor || defaultBarColor(index), listening: false },
+    }]
+  })
+
+  const nameFont = 14 * px
+  const nameConfig = token.showName && token.name
+    ? {
+        text: token.name,
+        x: cx - Math.max(barW, 160 * px) / 2,
+        y: cy - halfH - nameFont - 4 * px,
+        width: Math.max(barW, 160 * px),
+        align: 'center',
+        fontSize: nameFont,
+        fontFamily: 'Pixel Operator, sans-serif',
+        fill: '#ffffff',
+        stroke: '#000000',
+        strokeWidth: 3 * px,
+        fillAfterStrokeEnabled: true,
+        listening: false,
+      }
+    : null
+
   return {
     id: token.id,
+    bars,
+    nameConfig,
     groupConfig: {
       x: pos.x,
       y: pos.y,
@@ -390,6 +444,11 @@ defineExpose({
           @dblclick="emit('dblclick', group.id)"
         >
           <VImage :config="group.imageConfig" @transformend="(e: any) => onTransformEnd(e, group.id)" />
+          <VText v-if="group.nameConfig" :config="group.nameConfig" />
+          <template v-for="bar in group.bars" :key="bar.key">
+            <VRect :config="bar.back" />
+            <VRect :config="bar.fill" />
+          </template>
         </VGroup>
 
         <VTransformer v-if="editable" ref="transformerRef" :config="transformerConfig" />

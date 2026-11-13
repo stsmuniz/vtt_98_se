@@ -5,12 +5,17 @@
  */
 import type { Attribute, SceneAttribute } from '#server/db/schema.ts'
 import { useRoomTokenAttributes } from '~~/composables/useRoomTokenAttributes'
+import { defaultBarColor } from '~~/lib/tokenBars'
 
 const props = defineProps<{
   token: { name: string; image?: string | null; attributes?: Attribute[] | null } | null
 }>()
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ confirm: [attributes: SceneAttribute[]] }>()
+
+function setBarColor(attribute: { barColor?: string }, event: Event) {
+  attribute.barColor = (event.target as HTMLInputElement).value
+}
 
 const { attributes, loadFromToken } = useRoomTokenAttributes()
 watch(() => props.token, t => loadFromToken(t?.attributes), { immediate: true })
@@ -37,18 +42,28 @@ watch(() => props.token, t => loadFromToken(t?.attributes), { immediate: true })
           <th>Atual</th>
           <th>Máximo</th>
           <th>Visibilidade</th>
+          <th>Cor</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="attribute in attributes" :key="attribute.name">
+        <tr v-for="(attribute, index) in attributes" :key="attribute.name">
           <td>{{ attribute.name }}</td>
           <td><input v-model="attribute.currentValue" type="text" :aria-label="`${attribute.name}: atual`"></td>
           <td><input v-model="attribute.maxValue" type="text" :aria-label="`${attribute.name}: máximo`"></td>
           <td>
-            <select v-model="attribute.visibility" :aria-label="`${attribute.name}: visibilidade`">
-              <option value="visible">Visível</option>
-              <option value="hidden">Oculto</option>
+            <select v-model="attribute.showBar" :aria-label="`${attribute.name}: visibilidade`">
+              <option :value="true">Visível</option>
+              <option :value="false">Oculto</option>
             </select>
+          </td>
+          <td>
+            <input
+              type="color"
+              :value="attribute.barColor || defaultBarColor(index)"
+              :disabled="!attribute.showBar"
+              :aria-label="`${attribute.name}: cor da barra`"
+              @input="setBarColor(attribute, $event)"
+            >
           </td>
         </tr>
       </tbody>
@@ -74,6 +89,10 @@ watch(() => props.token, t => loadFromToken(t?.attributes), { immediate: true })
 .attributes-table {
   width: 100%;
   border-collapse: collapse;
+}
+.attributes-table input[type=color] {
+  height: 22px;
+  padding: 0;
 }
 .attributes-table th {
   text-align: left;
