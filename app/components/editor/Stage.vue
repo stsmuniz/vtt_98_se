@@ -33,6 +33,7 @@ import { barFraction, defaultBarColor } from '~~/lib/tokenBars'
 type StageToken = Pick<SceneToken, 'id' | 'x' | 'y' | 'width' | 'height' | 'scaleX' | 'scaleY' | 'rotation' | 'opacity'> & {
   name?: string
   showName?: boolean
+  kind?: SceneToken['kind']
   attributes?: Pick<SceneAttribute, 'name' | 'value' | 'currentValue' | 'maxValue' | 'showBar' | 'barColor'>[]
 }
 
@@ -297,6 +298,7 @@ const tokenGroups = computed(() => [...tokens.value].reverse().map((token) => {
 
   return {
     id: token.id,
+    isDocument: token.kind === 'document',
     bars,
     nameConfig,
     groupConfig: {
@@ -399,6 +401,15 @@ function setCursor(e: any, cursor: string) {
   e.target.getStage().container().style.cursor = cursor
 }
 
+// Miniaturas de documento abrem a versão grande: o ponteiro vira a "mãozinha".
+function onGroupEnter(e: any, isDocument: boolean) {
+  if (isDocument && !pan) setCursor(e, 'pointer')
+}
+
+function onGroupLeave(e: any, isDocument: boolean) {
+  if (isDocument && !pan) setCursor(e, '')
+}
+
 function onBackgroundEnter(e: any) {
   if (!pan) setCursor(e, 'grab')
 }
@@ -437,6 +448,8 @@ defineExpose({
           v-for="group in tokenGroups"
           :key="group.id"
           :config="group.groupConfig"
+          @mouseenter="(e: any) => onGroupEnter(e, group.isDocument)"
+          @mouseleave="(e: any) => onGroupLeave(e, group.isDocument)"
           @mousedown="onGroupDown(group.id)"
           @touchstart="onGroupDown(group.id)"
           @dragend="(e: any) => onDragEnd(e, group.id)"
