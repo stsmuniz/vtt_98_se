@@ -16,7 +16,7 @@ const CHICAGO95_BASE = '/assets/icons/chicago95'
 
 /** Nomes disponíveis no conjunto Chicago95 copiado para o projeto. */
 export const CHICAGO95_ICONS = [
-  'accessories', 'computer', 'copy', 'delete', 'desktop', 'display', 'edit', 'error',
+  'accessories', 'computer', 'control-panel', 'copy', 'delete', 'desktop', 'display', 'edit', 'error',
   'folder', 'folder-open', 'fullscreen', 'games', 'help', 'help-contents', 'image', 'info',
   'link', 'lock', 'logoff', 'network', 'new', 'open', 'password', 'programs', 'properties',
   'question', 'refresh', 'room', 'save', 'scenario', 'scene', 'search', 'settings',

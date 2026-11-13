@@ -5,6 +5,7 @@
  */
 import type { RoomToken } from '#server/db/schema.ts'
 import { defaultBarColor } from '~~/lib/tokenBars'
+import { useStatuses } from '~~/composables/useStatuses'
 
 const props = defineProps<{ token: RoomToken | null }>()
 const open = defineModel<boolean>('open', { default: false })
@@ -14,6 +15,22 @@ const t = computed(() => props.token)
 const nameId = useId()
 const opacityId = useId()
 const showNameId = useId()
+
+// ---------- Status (condições temporárias) ----------
+const { catalog: statusCatalog } = useStatuses()
+
+function hasStatus(id: string) {
+  return !!t.value?.statuses?.some(s => s.id === id)
+}
+
+/** Copia nome e cor para o token (visitantes não têm acesso ao catálogo). O último marcado dá a cor. */
+function toggleStatus(status: { id: string; name: string; color: string; effect?: 'grayscale' }, on: boolean) {
+  const token = t.value
+  if (!token) return
+  const rest = (token.statuses ?? []).filter(s => s.id !== status.id)
+  const entry = { id: status.id, name: status.name, color: status.color, ...(status.effect ? { effect: status.effect } : {}) }
+  token.statuses = on ? [...rest, entry] : rest
+}
 
 function setBarColor(attribute: { barColor?: string }, event: Event) {
   attribute.barColor = (event.target as HTMLInputElement).value
@@ -31,7 +48,7 @@ function colorOf(attribute: { barColor?: string }, index: number) {
     :title="t ? `Configurações de ${t.name}` : 'Configurações do token'"
     icon="properties"
     :width="560"
-    :height="440"
+    :height="560"
   >
     <p v-if="!t" class="empty">Selecione um token na sala.</p>
     <template v-else>
@@ -47,6 +64,18 @@ function colorOf(attribute: { barColor?: string }, index: number) {
         <div class="config-row">
           <label :for="opacityId">Opacidade: {{ t.opacity ?? 100 }}%</label>
           <input :id="opacityId" v-model.number="t.opacity" type="range" min="0" max="100" class="has-box-indicator">
+        </div>
+      </UiGroupBox>
+      <UiGroupBox label="Status">
+        <div class="status-grid" data-test="token-config-statuses">
+          <UiCheckbox
+            v-for="s in statusCatalog"
+            :key="s.id"
+            :model-value="hasStatus(s.id)"
+            @update:model-value="toggleStatus(s, $event)"
+          >
+            <span class="status-swatch" :style="{ background: s.color }" aria-hidden="true" />{{ s.name }}
+          </UiCheckbox>
         </div>
       </UiGroupBox>
       <UiGroupBox label="Atributos">
@@ -118,6 +147,19 @@ function colorOf(attribute: { barColor?: string }, index: number) {
   box-sizing: border-box;
   height: auto;
   font: inherit;
+}
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-1) var(--sp-3);
+}
+.status-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: var(--sp-1);
+  box-shadow: 0 0 0 1px #000;
+  vertical-align: middle;
 }
 .attributes-table input[type=color] {
   height: 22px;

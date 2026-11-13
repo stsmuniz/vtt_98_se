@@ -47,7 +47,7 @@ Sim. Na exibição **Detalhes**, arraste o título de uma coluna para outra posi
 
 ## As letras ficam serrilhadas ou borradas.
 
-A fonte é de pixels e só fica nítida em certos tamanhos de interface. Abra **Iniciar > Configurações > Aparência** e escolha **Automática (recomendado)**. Se você usa o zoom do navegador, volte para 100%.
+A fonte é de pixels e só fica nítida em certos tamanhos de interface. Abra **Iniciar > Painel de Controle > Vídeo > Aparência** e escolha **Automática (recomendado)**. Se você usa o zoom do navegador, volte para 100%.
 
 ## Como excluo a minha conta?
 

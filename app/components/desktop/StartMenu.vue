@@ -45,7 +45,7 @@ const items = computed<MenuItemDef[]>(() => {
         { id: 'start-accessories', label: '&Acessórios', icon: 'accessories', items: appItems('accessories') },
       ],
     },
-    { id: 'start-settings', label: '&Configurações', icon: 'settings', action: () => desktop.openApp('settings') },
+    { id: 'start-settings', label: 'Painel de &Controle', icon: 'control-panel', action: () => desktop.openApp('control-panel') },
     { id: 'start-help', label: 'Aj&uda', icon: 'help', action: () => desktop.openHelp() },
     { id: 'start-user', label: 'U&suário', icon: 'users', action: () => desktop.openApp('user-account') },
     { type: 'separator' },

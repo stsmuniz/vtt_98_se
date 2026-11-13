@@ -29,11 +29,60 @@ import {
 } from 'vue-konva'
 import { useTokenTransform } from '~~/composables/useTokenTransform'
 import { barFraction, defaultBarColor } from '~~/lib/tokenBars'
+import { statusInitial, statusTextColor, type TokenStatusEntry } from '~~/lib/tokenStatuses'
+
+/**
+ * Versão da imagem do token "recolorida" por um status: a cor é pintada só onde a imagem
+ * tem pixels (source-atop), preservando a transparência/contorno do token. Memoizada por
+ * imagem e cor para não redesenhar a cada renderização.
+ */
+const tintCache = new WeakMap<HTMLImageElement, Map<string, HTMLCanvasElement>>()
+function tintedImage(img: HTMLImageElement, color: string): HTMLCanvasElement | null {
+  if (!img.complete || !img.naturalWidth) return null
+  let byColor = tintCache.get(img)
+  if (!byColor) tintCache.set(img, (byColor = new Map()))
+  let canvas = byColor.get(color)
+  if (!canvas) {
+    canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(img, 0, 0)
+    ctx.globalCompositeOperation = 'source-atop'
+    ctx.fillStyle = color
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    byColor.set(color, canvas)
+  }
+  return canvas
+}
+
+/** Versão em preto-e-branco da imagem (status com efeito 'grayscale'). Memoizada por imagem. */
+const grayCache = new WeakMap<HTMLImageElement, HTMLCanvasElement>()
+function grayscaleImage(img: HTMLImageElement): HTMLCanvasElement | null {
+  if (!img.complete || !img.naturalWidth) return null
+  let canvas = grayCache.get(img)
+  if (!canvas) {
+    canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    const ctx = canvas.getContext('2d')
+    // Sem suporte a ctx.filter (ex.: Safari antigo) o token segue colorido.
+    if (!ctx || !('filter' in ctx)) return null
+    ctx.filter = 'grayscale(1)'
+    ctx.drawImage(img, 0, 0)
+    grayCache.set(img, canvas)
+  }
+  return canvas
+}
+
+const MAX_BADGES = 6
 
 type StageToken = Pick<SceneToken, 'id' | 'x' | 'y' | 'width' | 'height' | 'scaleX' | 'scaleY' | 'rotation' | 'opacity'> & {
   name?: string
   showName?: boolean
   kind?: SceneToken['kind']
+  statuses?: TokenStatusEntry[]
   attributes?: Pick<SceneAttribute, 'name' | 'value' | 'currentValue' | 'maxValue' | 'showBar' | 'barColor'>[]
 }
 
@@ -296,11 +345,65 @@ const tokenGroups = computed(() => [...tokens.value].reverse().map((token) => {
       }
     : null
 
+  // Status: cor por cima (do último aplicado) + um selo com a inicial de cada status.
+  const statuses = token.statuses ?? []
+  const baseImage = props.images[token.id] ?? undefined
+  const isGray = statuses.some(s => s.effect === 'grayscale')
+  const grayImage = isGray && baseImage ? grayscaleImage(baseImage) : null
+  // A cor por cima vem do último status SEM efeito especial (o efeito já muda a imagem).
+  const tintStatus = [...statuses].reverse().find(s => !s.effect)
+  const tinted = tintStatus && baseImage ? tintedImage(grayImage ?? baseImage, tintStatus.color) : null
+  const badgeSize = 14 * px
+  const shown = statuses.slice(0, MAX_BADGES)
+  const badges = shown.map((status, i) => {
+    const overflow = i === MAX_BADGES - 1 && statuses.length > MAX_BADGES
+    const bx = cx + halfW - (i + 1) * (badgeSize + px)
+    const by = cy - halfH
+    const color = overflow ? '#ffffff' : status.color
+    return {
+      key: `${token.id}-st-${status.id}`,
+      // Nome(s) mostrados na dica ao passar o mouse; o selo "+N" lista os que não couberam.
+      label: overflow ? statuses.slice(MAX_BADGES - 1).map(s => s.name).join(', ') : status.name,
+      rect: { x: bx, y: by, width: badgeSize, height: badgeSize, fill: color, stroke: '#000000', strokeWidth: px },
+      text: {
+        x: bx,
+        y: by,
+        width: badgeSize,
+        height: badgeSize,
+        text: overflow ? `+${statuses.length - MAX_BADGES + 1}` : statusInitial(status.name),
+        align: 'center',
+        verticalAlign: 'middle',
+        fontSize: 10 * px,
+        fontStyle: 'bold',
+        fontFamily: 'Pixel Operator, sans-serif',
+        fill: statusTextColor(color),
+        listening: false,
+      },
+    }
+  })
+
   return {
     id: token.id,
     isDocument: token.kind === 'document',
     bars,
+    badges,
     nameConfig,
+    tintConfig: tinted
+      ? {
+          image: tinted,
+          x: w / 2,
+          y: h / 2,
+          width: w,
+          height: h,
+          offsetX: w / 2,
+          offsetY: h / 2,
+          scaleX: token.scaleX ?? 1,
+          scaleY: token.scaleY ?? 1,
+          rotation: token.rotation || 0,
+          opacity: 0.5,
+          listening: false,
+        }
+      : null,
     groupConfig: {
       x: pos.x,
       y: pos.y,
@@ -310,7 +413,7 @@ const tokenGroups = computed(() => [...tokens.value].reverse().map((token) => {
     imageConfig: {
       id: `token-${token.id}`,
       name: 'token-image',
-      image: props.images[token.id] ?? undefined,
+      image: grayImage ?? baseImage,
       x: w / 2,
       y: h / 2,
       width: w,
@@ -401,6 +504,24 @@ function setCursor(e: any, cursor: string) {
   e.target.getStage().container().style.cursor = cursor
 }
 
+// ---------- dica (tooltip) dos selos de status ----------
+const tip = reactive({ text: '', x: 0, y: 0 })
+
+function showTip(e: any, text: string) {
+  const pointer = e.target.getStage()?.getPointerPosition()
+  if (!pointer) return
+  tip.text = text
+  tip.x = pointer.x
+  tip.y = pointer.y
+}
+
+function hideTip() {
+  tip.text = ''
+}
+
+// Perto da borda direita a dica abre para a esquerda do cursor, para não sair da janela.
+const tipFlip = computed(() => tip.x > viewport.w - 180)
+
 // Miniaturas de documento abrem a versão grande: o ponteiro vira a "mãozinha".
 function onGroupEnter(e: any, isDocument: boolean) {
   if (isDocument && !pan) setCursor(e, 'pointer')
@@ -457,6 +578,17 @@ defineExpose({
           @dblclick="emit('dblclick', group.id)"
         >
           <VImage :config="group.imageConfig" @transformend="(e: any) => onTransformEnd(e, group.id)" />
+          <VImage v-if="group.tintConfig" :config="group.tintConfig" />
+          <template v-for="badge in group.badges" :key="badge.key">
+            <VRect
+              :config="badge.rect"
+              @mouseenter="(e: any) => showTip(e, badge.label)"
+              @mousemove="(e: any) => showTip(e, badge.label)"
+              @mouseleave="hideTip"
+              @mousedown="hideTip"
+            />
+            <VText :config="badge.text" />
+          </template>
           <VText v-if="group.nameConfig" :config="group.nameConfig" />
           <template v-for="bar in group.bars" :key="bar.key">
             <VRect :config="bar.back" />
@@ -476,6 +608,12 @@ defineExpose({
         />
       </VLayer>
     </VStage>
+    <!-- Camada com contra-zoom (como o canvas): 1 px aqui = 1 px de tela, igual ao ponteiro do Konva. -->
+    <div v-if="tip.text" class="tip-layer" aria-hidden="true">
+      <div class="tip-anchor" :class="{ flip: tipFlip }" :style="{ left: `${tip.x}px`, top: `${tip.y}px` }">
+        <UiTooltip :text="tip.text" class="tip-box" />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -491,6 +629,24 @@ defineExpose({
   /* Contra-zoom: a escala da interface não amplia o mapa (o canvas tem zoom próprio)
      e o ponteiro do Konva continua acertando os tokens. */
   zoom: calc(1 / var(--ui-scale, 1));
+}
+.tip-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  zoom: calc(1 / var(--ui-scale, 1));
+}
+.tip-anchor {
+  position: absolute;
+  /* Abaixo e à direita do cursor, como a dica do Windows. */
+  transform: translate(12px, 18px);
+}
+.tip-anchor.flip {
+  transform: translate(calc(-100% - 6px), 18px);
+}
+/* Devolve a escala da interface ao texto da dica. */
+.tip-box {
+  zoom: var(--ui-scale, 1);
 }
 .editor-stage :deep(.konvajs-content) {
   background: var(--c-shadow);

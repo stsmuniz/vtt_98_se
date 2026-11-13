@@ -34,6 +34,9 @@ Os ícones deste diretório vêm do tema **Chicago95**, de Grassmunk e colaborad
 | 16/settings.png | Icons/Chicago95/categories/16/preferences-desktop.png |
 | 32/settings.png | Icons/Chicago95/categories/32/preferences-desktop.png |
 | 48/settings.png | Icons/Chicago95/categories/48/preferences-desktop.png |
+| 16/control-panel.png | Icons/Chicago95/categories/16/preferences-system.png |
+| 32/control-panel.png | Icons/Chicago95/categories/32/preferences-system.png |
+| 48/control-panel.png | Icons/Chicago95/categories/48/preferences-system.png |
 | 16/display.png | Icons/Chicago95/apps/16/gnome-display-properties.png |
 | 32/display.png | Icons/Chicago95/apps/32/mate-preferences-desktop-display.png |
 | 48/display.png | Icons/Chicago95/apps/48/system-config-display.png |

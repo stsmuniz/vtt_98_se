@@ -568,7 +568,6 @@ async function pickDocumentToAdd() {
   if (!doc) return
   const roomToken: RoomToken = {
     id: Date.now(),
-    status: 'normal',
     ...documentTokenBase(doc, sceneWidth.value / 2, sceneHeight.value / 2),
   }
   localTokens.value = [roomToken, ...localTokens.value]
@@ -598,7 +597,7 @@ function onTokenAttributesConfirmed(attributes: SceneAttribute[]) {
     scaleY: 1,
     rotation: 0,
     opacity: 100,
-    status: 'normal',
+    statuses: [],
     attributes,
   }
 
@@ -747,6 +746,7 @@ const roomMenus = computed<MenuDef[]>(() => {
       { id: 'dados', label: '&Rolador de dados', icon: 'dice', action: openDiceRoller },
       ...(isGm.value ? [
         { id: 'iniciativa', label: '&Iniciativa', icon: 'initiative' as const, action: () => { isInitiativeWindowOpen.value = true } },
+        { id: 'status', label: '&Status…', icon: 'warning' as const, action: () => { desktop.openApp('status-manager') } },
         { type: 'separator' as const },
         { id: 'abrir-fechar', label: room.value?.isOpen ? '&Fechar sala…' : '&Abrir sala…', icon: 'lock' as const, action: openToggleRoomOpenAlert },
       ] : []),

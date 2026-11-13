@@ -99,6 +99,7 @@ const HELP_TOPIC_BY_APP: Record<string, string> = {
   tokens: 'pastas', documents: 'pastas', scenarios: 'pastas', scenes: 'pastas', rooms: 'pastas', properties: 'pastas',
   'room-wizard': 'salas', 'image-viewer': 'cenarios', dice: 'dados-e-iniciativa',
   settings: 'configuracoes', 'user-account': 'conta',
+  'control-panel': 'painel-de-controle', 'status-manager': 'status', 'status-form': 'status',
 }
 const HELP_TOPIC_BY_RESOURCE: Record<string, string> = { tokens: 'tokens', documents: 'documentos', scenarios: 'cenarios', scenes: 'cenas-e-editor', rooms: 'salas' }
 const HELP_TOPIC_BY_INLINE: Record<string, string> = { 'tokens-da-cena': 'cenas-e-editor', iniciativa: 'dados-e-iniciativa', 'token-config': 'salas', 'token-atributos': 'tokens' }

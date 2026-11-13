@@ -5,7 +5,7 @@ icon: settings
 description: Como mudar o papel de parede, o tamanho da interface e os sons do sistema.
 ---
 
-Abra **Iniciar > Configurações** para personalizar a área de trabalho. A janela se chama **Propriedades de Vídeo** e tem três abas. Suas escolhas são gravadas na sua conta e acompanham você em qualquer navegador.
+Abra **Iniciar > Painel de Controle** e dê dois cliques em **Vídeo** (no Painel de Controle) para personalizar a área de trabalho. A janela se chama **Propriedades de Vídeo** e tem três abas. Suas escolhas são gravadas na sua conta e acompanham você em qualquer navegador.
 
 Use **OK** para gravar e fechar, **Aplicar** para gravar e continuar com a janela aberta, ou **Cancelar** para descartar.
 

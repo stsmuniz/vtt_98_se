@@ -1,5 +1,6 @@
 import { relations, sql } from 'drizzle-orm'
 import type { StoredPreferences } from '../../lib/preferences'
+import type { TokenStatusEntry } from '../../lib/tokenStatuses'
 import { boolean, index, integer, jsonb, pgTable, serial, text, timestamp, unique } from 'drizzle-orm/pg-core'
 
 export type TokenStatus = 'normal' | 'machucado' | 'morrendo'
@@ -44,7 +45,10 @@ export type SceneToken = {
 }
 
 export type RoomToken = Omit<SceneToken, "attributes"> & {
-    status: TokenStatus
+    /** Obsoleto: substituído por `statuses`. Pode existir em snapshots antigos; é ignorado. */
+    status?: TokenStatus
+    /** Condições temporárias aplicadas ao token (cópia de nome e cor do catálogo). */
+    statuses?: TokenStatusEntry[]
     attributes: SceneAttribute[]
     userId?: typeof user.id
 }
@@ -193,6 +197,18 @@ export const documentsTable = pgTable('documents', {
         .defaultNow()
         .$onUpdate(() => new Date()),
 }, (table) => [index('documents_user_id_idx').on(table.userId)]).enableRLS()
+
+/** Status personalizado do usuário (nome + cor). Os padrões ficam em `lib/tokenStatuses.ts`. */
+export const statusesTable = pgTable('statuses', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(),
+    color: text('color').notNull(),
+    userId: text('user_id')
+        .notNull()
+        .references(() => user.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { mode: 'date', withTimezone: true })
+        .defaultNow(),
+}, (table) => [index('statuses_user_id_idx').on(table.userId)]).enableRLS()
 
 export const scenariosTable = pgTable('scenarios', {
     id: serial('id').primaryKey(),

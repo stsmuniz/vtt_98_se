@@ -125,6 +125,17 @@ const documentsTable = pgTable('documents', {
     .$onUpdate(() => new Date()),
 }, (table) => [index('documents_user_id_idx').on(table.userId)]).enableRLS()
 
+const statusesTable = pgTable('statuses', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  color: text('color').notNull(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { mode: 'date', withTimezone: true })
+    .defaultNow(),
+}, (table) => [index('statuses_user_id_idx').on(table.userId)]).enableRLS()
+
 const scenariosTable = pgTable('scenarios', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
@@ -230,6 +241,7 @@ module.exports = {
   verification,
   tokensTable,
   documentsTable,
+  statusesTable,
   scenariosTable,
   scenesTable,
   roomsTable,

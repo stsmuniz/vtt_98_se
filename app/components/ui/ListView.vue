@@ -483,7 +483,9 @@ defineExpose({
               >
               <span v-else class="ui-lv-label">{{ item.name }}</span>
             </template>
-            <span v-else class="ui-lv-cell-text">{{ cellText(col, item) }}</span>
+            <slot v-else :name="`cell-${col.key}`" :item="item" :text="cellText(col, item)">
+              <span class="ui-lv-cell-text">{{ cellText(col, item) }}</span>
+            </slot>
           </div>
         </template>
 
