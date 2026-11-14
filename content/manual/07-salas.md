@@ -36,6 +36,7 @@ A barra de ferramentas da sala tem:
 - **Salvar** — grava o estado atual da sala (**Ctrl+S**).
 - **Dados** e **Iniciativa** — abrem essas janelas (veja o capítulo seguinte).
 - **Fechar sala** / **Abrir sala** — controla se novos visitantes conseguem entrar.
+- **Arquivo > Configurações de Sala…** — janela onde o mestre muda o **nome** da sala, define, altera ou remove a **senha**, abre/fecha a sala, escolhe o **popup de rolagem de dados** e **exclui a sala**. A exclusão não pode ser desfeita e desconecta todos que estão na sala. Mudar a senha não derruba quem já entrou; vale para quem entrar depois.
 
 Os tokens funcionam como no editor de cenas: arraste, redimensione, gire, duplique, use o menu de contexto e o menu **Editar**. **Dois cliques** num token abrem as **Configurações do token**: nome, opacidade e os atributos (atual e máximo).
 

@@ -81,6 +81,7 @@ export default defineEventHandler(async (event) => {
 
     return {
         ...roomWithoutPassword,
+        hasPassword: !!password,
         role: isOwner ? 'gm' : 'player',
         accessToken,
     }

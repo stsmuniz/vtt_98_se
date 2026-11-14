@@ -39,7 +39,8 @@ export const sceneResourceCollection = (scenes: any[]): SceneResourceResponse[] 
  */
 export function publicRoomResource(room: Record<string, unknown>) {
     const { password, ...rest } = room
-    return rest
+    // O hash nunca sai do servidor, mas o cliente precisa saber se a sala tem senha.
+    return { ...rest, hasPassword: !!password }
 }
 
 export function buildRoomSnapshotFromScene(scene: {

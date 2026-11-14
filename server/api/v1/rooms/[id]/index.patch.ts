@@ -2,8 +2,10 @@ import { tables } from "#server/utils/drizzle.ts";
 import { buildRoomSnapshotFromScene, publicRoomResource } from "#server/utils/resources.ts";
 import { and, eq } from "drizzle-orm";
 import { createError } from "h3";
+import { hashSync } from "bcrypt-ts";
+import type { RoomSettings } from "#server/db/schema.ts";
 
-const PATCHABLE_FIELDS = ['name', 'tags', 'sceneId', 'snapshot', 'initiative', 'isOpen'] as const
+const PATCHABLE_FIELDS = ['name', 'tags', 'sceneId', 'snapshot', 'initiative', 'isOpen', 'settings'] as const
 
 export default defineEventHandler(async (event) => {
     const session = await auth.api.getSession({
@@ -27,6 +29,32 @@ export default defineEventHandler(async (event) => {
     }
     // name/tags passam pela validação compartilhada (renomear com F2 nas pastas).
     Object.assign(updateData, sanitizeNameAndTags(body))
+
+    // Senha: `password` (texto) define/troca; `removePassword: true` tira a proteção. O hash
+    // nunca é aceito direto do cliente e nunca volta na resposta.
+    if (typeof body.password === 'string' && body.password.trim()) {
+        updateData.password = hashSync(body.password)
+    } else if (body.removePassword === true) {
+        updateData.password = null
+    }
+
+    // Configurações de sala: só chaves conhecidas, com valores válidos; mescla com as atuais
+    // para que salvar uma opção não apague as outras.
+    if ('settings' in body) {
+        const incoming = (body.settings ?? {}) as Record<string, unknown>
+        const current = await useDrizzle().query.roomsTable.findFirst({
+            where: and(eq(tables.roomsTable.id, id), eq(tables.roomsTable.userId, session.user.id)),
+            columns: { settings: true },
+        })
+        const next: RoomSettings = { ...(current?.settings ?? {}) }
+        if (incoming.dicePopup === 'window' || incoming.dicePopup === 'joey' || incoming.dicePopup === 'off') {
+            next.dicePopup = incoming.dicePopup
+        }
+        if (typeof incoming.allowPlayerRolls === 'boolean') {
+            next.allowPlayerRolls = incoming.allowPlayerRolls
+        }
+        updateData.settings = next
+    }
 
     const db = useDrizzle()
 
@@ -68,7 +96,9 @@ export default defineEventHandler(async (event) => {
 
     if (updatedRoom) {
         await broadcastRoomUpdate(updatedRoom.code, publicRoomResource(updatedRoom))
+        // Fechar a sala encerra a "sessão": o histórico de rolagens recomeça vazio.
+        if (body.isOpen === false) await resetDiceLog(updatedRoom.code)
     }
 
-    return updatedRoom
+    return updatedRoom ? publicRoomResource(updatedRoom) : updatedRoom
 })

@@ -254,6 +254,14 @@ export const scenesTable = pgTable('scenes', {
     index('scenes_scenario_id_idx').on(table.scenarioId),
 ]).enableRLS()
 
+/** Como o resultado de uma rolagem é mostrado na sala: janela, Joey (mascote) ou nada. */
+export type DicePopupMode = 'window' | 'joey' | 'off'
+export interface RoomSettings {
+    dicePopup?: DicePopupMode
+    /** Jogadores podem rolar dados? Ausente = sim (padrão). */
+    allowPlayerRolls?: boolean
+}
+
 export const roomsTable = pgTable('rooms', {
     id: serial('id').primaryKey(),
     code: text('code').notNull().unique(),
@@ -271,6 +279,11 @@ export const roomsTable = pgTable('rooms', {
         .$type<SceneInitiativeEntry[]>()
         .default([]),
     isOpen: boolean('is_open').notNull().default(true),
+    /** Configurações de sala escolhidas pelo mestre (janela "Configurações de Sala"). */
+    settings: jsonb('settings')
+        .$type<RoomSettings>()
+        .notNull()
+        .default({}),
     createdAt: timestamp('created_at', { mode: 'date' })
         .defaultNow(),
     updatedAt: timestamp('updated_at', { mode: 'date' })

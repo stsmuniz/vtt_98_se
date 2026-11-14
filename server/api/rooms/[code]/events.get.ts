@@ -48,6 +48,8 @@ export default defineEventHandler(async (event) => {
     const eventStream = createEventStream(event)
 
     const unsubscribe = subscribeToRoomEvents(code, (message) => {
+        // Rolagens escondidas só chegam ao mestre.
+        if ((message as { gmOnly?: boolean })?.gmOnly && !isOwner) return
         eventStream.push(JSON.stringify(message)).catch(() => {})
     })
 
@@ -74,6 +76,13 @@ export default defineEventHandler(async (event) => {
             if (liveSnapshot) {
                 return eventStream.push(JSON.stringify({ type: 'snapshot:live', snapshot: liveSnapshot }))
             }
+        })
+        .catch(() => {})
+
+    getDiceLog(code)
+        .then((rolls) => {
+            const visible = isOwner ? rolls : rolls.filter((roll) => !roll.hidden)
+            return eventStream.push(JSON.stringify({ type: 'dice:log', rolls: visible }))
         })
         .catch(() => {})
 

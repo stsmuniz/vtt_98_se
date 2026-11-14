@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import type { RoomToken, SceneAttribute, SceneInitiativeEntry } from "#server/db/schema.ts"
+import type { DicePopupMode, RoomSettings, RoomToken, SceneAttribute, SceneInitiativeEntry } from "#server/db/schema.ts"
 import type { MenuDef, MenuItemDef } from "~/utils/menu"
 import { useDialog } from "~~/composables/useDialog"
 import { useDesktop } from "~~/composables/useDesktop"
 import { useWindow } from "~~/composables/useWindow"
+import { useDiceSession } from "~~/composables/useDiceSession"
+import { resourceCacheKey } from "~/desktop/resources"
 import { useCanvasZoom } from "~~/composables/useCanvasZoom"
 import { usePreloadedImage, useImageMap } from "~~/composables/useImagePreloader"
 import { buildTokenMenu } from "~/utils/tokenMenu"
@@ -17,6 +19,7 @@ definePageMeta({
 
 const route = useRoute()
 const code = route.params.code as string
+const dice = useDiceSession('room')
 
 // ==========================================
 // CARREGAMENTO DA SALA (código + senha, sem exigir conta)
@@ -25,10 +28,98 @@ const code = route.params.code as string
 const room = ref<any>(null)
 const isPasswordWindowOpen = ref(false)
 const isInitiativeWindowOpen = ref(false)
+const isRoomSettingsWindowOpen = ref(false)
 const passwordError = ref('')
 const loadError = ref('')
 
 const isGm = computed(() => room.value?.role === 'gm')
+
+// Config. de popup de dados escolhida pelo mestre (vem em `room.settings`, inclusive nos
+// `room:update` ao vivo) - espelhada no estado da sessão de dados.
+const dicePopupSetting = computed<DicePopupMode>({
+  get: () => room.value?.settings?.dicePopup ?? 'window',
+  set: (value) => { saveRoomSettings({ dicePopup: value }) },
+})
+watch(dicePopupSetting, (value) => { dice.popupMode.value = value }, { immediate: true })
+
+const allowPlayerRollsSetting = computed<boolean>({
+  get: () => room.value?.settings?.allowPlayerRolls !== false,
+  set: (value) => { saveRoomSettings({ allowPlayerRolls: value }) },
+})
+watch(allowPlayerRollsSetting, (value) => { dice.playerRollsAllowed.value = value }, { immediate: true })
+
+/** PATCH genérico da sala (nome, senha...). Devolve se deu certo; mostra o erro ao mestre. */
+async function patchRoom(body: Record<string, unknown>): Promise<boolean> {
+  if (!room.value || !isGm.value) return false
+  try {
+    const response = await fetch(`/api/v1/rooms/${room.value.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!response.ok) {
+      const data = await response.json().catch(() => null)
+      await dialog.alert(data?.statusMessage || 'Não foi possível salvar a alteração.', { icon: 'error' })
+      return false
+    }
+    setRoom({ ...room.value, ...(await response.json()) })
+    return true
+  } catch (error) {
+    console.error(error)
+    await dialog.alert('Não foi possível salvar a alteração.', { icon: 'error' })
+    return false
+  }
+}
+
+const renameRoom = (name: string) => patchRoom({ name })
+
+async function setRoomPassword(password: string) {
+  if (await patchRoom({ password })) showStatusMessage('Senha da sala atualizada.')
+}
+
+async function removeRoomPassword() {
+  const ok = await dialog.confirm('Remover a senha da sala?\nQualquer pessoa com o código poderá entrar.', { title: 'Remover senha', icon: 'question' })
+  if (ok && await patchRoom({ removePassword: true })) showStatusMessage('Senha da sala removida.')
+}
+
+async function deleteRoom() {
+  if (!room.value || !isGm.value) return
+  const ok = await dialog.confirm(
+    `Excluir a sala "${room.value.name}"?\nTodos os que estão nela serão desconectados.\nEsta ação não pode ser desfeita.`,
+    { title: 'Excluir sala', icon: 'warning', okLabel: 'Excluir' },
+  )
+  if (!ok) return
+  try {
+    const response = await fetch(`/api/v1/rooms/${room.value.id}`, { method: 'DELETE' })
+    if (!response.ok) throw new Error('Erro ao excluir a sala.')
+    // A sala não existe mais: não adianta perguntar se quer salvar as alterações.
+    leaveConfirmed = true
+    isRoomSettingsWindowOpen.value = false
+    await refreshNuxtData(resourceCacheKey('rooms'))
+    await navigateTo('/dashboard')
+  } catch (error) {
+    console.error(error)
+    await dialog.alert('Não foi possível excluir a sala.', { icon: 'error' })
+  }
+}
+
+async function saveRoomSettings(settings: RoomSettings) {
+  if (!room.value || !isGm.value) return
+  const previous = room.value.settings
+  // Otimista: a janela reflete a escolha na hora; volta atrás se o servidor recusar.
+  setRoom({ ...room.value, settings: { ...previous, ...settings } })
+  try {
+    const response = await fetch(`/api/v1/rooms/${room.value.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings }),
+    })
+    if (!response.ok) throw new Error('Erro ao salvar as configurações da sala.')
+  } catch (error) {
+    console.error(error)
+    setRoom({ ...room.value, settings: previous })
+  }
+}
 
 // Distingue "room.value alterado a partir de uma resposta do servidor" (fetch ou evento ao
 // vivo) de "localTokens alterado por uma edição local do usuário" — evita que reaplicar um
@@ -81,6 +172,12 @@ async function loadRoom(password?: string) {
     passwordError.value = ''
     loadError.value = ''
     lastAccessToken.value = data.accessToken
+    dice.enterRoom({
+      code: String(code),
+      token: data.accessToken,
+      isOwner: data.role === 'gm',
+      by: desktop.user.value?.name || 'Jogador',
+    })
     connectRoomEvents()
   } catch (error) {
     console.error('Erro ao carregar a sala:', error)
@@ -119,6 +216,12 @@ function connectRoomEvents() {
         nextTick(() => { isLiveSnapshot = false })
       } else if (data.type === 'room:closed') {
         console.error('A sala foi encerrada pelo dono.')
+      } else if (data.type === 'dice:roll' && data.roll) {
+        dice.receiveRoll(data.roll)
+      } else if (data.type === 'dice:log' && Array.isArray(data.rolls)) {
+        dice.receiveLog(data.rolls)
+      } else if (data.type === 'dice:clear') {
+        dice.clearRoom()
       }
     } catch (error) {
       console.error('Erro ao processar mensagem da sala:', error)
@@ -152,6 +255,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   disconnectRoomEvents()
+  dice.leaveRoom()
 })
 
 // ==========================================
@@ -644,7 +748,7 @@ const desktop = useDesktop()
 const dialog = useDialog()
 const routeWindow = useWindow('route')
 const openHelpManual = () => desktop.openHelp()
-const openDiceRoller = () => desktop.openApp('dice')
+const openDiceRoller = () => desktop.openApp('dice-room', {}, { ownerId: 'route' })
 
 // Mensagem temporária na barra de status (ex.: "Sala salva com sucesso!")
 const statusFlash = ref<string | null>(null)
@@ -760,6 +864,8 @@ const roomMenus = computed<MenuDef[]>(() => {
       items: [
         { id: 'salvar', label: '&Salvar', icon: 'save', shortcut: 'Ctrl+S', action: saveRoomSnapshot },
         { type: 'separator' },
+        { id: 'config-sala', label: 'Configurações de S&ala…', icon: 'room' as const, action: () => { isRoomSettingsWindowOpen.value = true } },
+        { type: 'separator' },
         { id: 'fechar', label: '&Fechar', action: () => navigateTo('/dashboard') },
       ],
     },
@@ -818,6 +924,20 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
       />
 
       <EditorInitiativeWindow v-if="isGm" v-model:open="isInitiativeWindowOpen" v-model:list="initiativeList" />
+      <EditorRoomSettingsWindow
+          v-if="isGm"
+          v-model:open="isRoomSettingsWindowOpen"
+          v-model:dice-popup="dicePopupSetting"
+          v-model:allow-player-rolls="allowPlayerRollsSetting"
+          :name="room.name"
+          :has-password="!!room.hasPassword"
+          :is-open="!!room.isOpen"
+          @rename="renameRoom"
+          @set-password="setRoomPassword"
+          @remove-password="removeRoomPassword"
+          @toggle-open="openToggleRoomOpenAlert"
+          @delete-room="deleteRoom"
+        />
       <EditorTokenConfigWindow
           v-if="isGm"
           v-model:open="isTokenConfigWindowOpen"
@@ -844,6 +964,7 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
             @dblclick="onTokenDblClick"
             @zoom="sceneZoom = $event"
         />
+        <EditorJoeyPopup @new-roll="openDiceRoller" />
       </div>
     </template>
     <EditorRoomPasswordDialog

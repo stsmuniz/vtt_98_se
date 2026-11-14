@@ -97,7 +97,7 @@ function activeWindowHasMenuKey(key: string): boolean {
  */
 const HELP_TOPIC_BY_APP: Record<string, string> = {
   tokens: 'pastas', documents: 'pastas', scenarios: 'pastas', scenes: 'pastas', rooms: 'pastas', properties: 'pastas',
-  'room-wizard': 'salas', 'image-viewer': 'cenarios', dice: 'dados-e-iniciativa',
+  'room-wizard': 'salas', 'image-viewer': 'cenarios', dice: 'dados-e-iniciativa', 'dice-room': 'dados-e-iniciativa',
   settings: 'configuracoes', 'user-account': 'conta',
   'control-panel': 'painel-de-controle', 'status-manager': 'status', 'status-form': 'status',
 }
@@ -210,6 +210,7 @@ onBeforeUnmount(() => {
     <!-- Páginas (editor, sala) renderizam aqui uma DesktopRouteWindow, que vai para #wm-layer -->
     <slot />
 
+    <EditorJoeyPopup scope="local" fixed @new-roll="desktop.openApp('dice')" />
     <DesktopTaskbar />
     <DesktopWindowSwitcher v-if="switcher.open" :windows="switcher.list" :index="switcher.index" />
     <div id="popup-layer" class="popup-layer" />

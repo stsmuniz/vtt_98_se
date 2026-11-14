@@ -99,7 +99,53 @@ export async function broadcastRoomUpdate(code: string, room: unknown) {
 
 export async function broadcastRoomClosed(code: string) {
     await clearRoomLiveSnapshot(code)
+    await clearDiceLog(code)
     await broadcastToRoom(code, { type: 'room:closed' })
+}
+
+// ---- Histórico de rolagens da sala ----
+// Lista no Redis (mais recente primeiro), apagada quando o mestre fecha ou exclui a sala.
+// Rolagens escondidas ficam no log com `hidden: true` e só o dono as recebe (ver events.get.ts).
+const diceLogKey = (code: string) => `room:${code}:dice-log`
+const DICE_LOG_MAX = 100
+
+export async function appendDiceRoll(code: string, roll: unknown) {
+    try {
+        await redis.lpush(diceLogKey(code), JSON.stringify(roll))
+        await redis.ltrim(diceLogKey(code), 0, DICE_LOG_MAX - 1)
+        await redis.expire(diceLogKey(code), LIVE_SNAPSHOT_TTL_SECONDS)
+    } catch (error) {
+        console.error(`Erro ao gravar rolagem da sala ${code} no Redis:`, error)
+    }
+}
+
+export async function getDiceLog(code: string): Promise<any[]> {
+    try {
+        const items = await redis.lrange(diceLogKey(code), 0, DICE_LOG_MAX - 1)
+        // O cliente do Upstash já devolve objetos desserializados quando o JSON é válido.
+        return items.map((item: unknown) => typeof item === 'string' ? JSON.parse(item) : item)
+    } catch (error) {
+        console.error(`Erro ao ler o histórico de rolagens da sala ${code} no Redis:`, error)
+        return []
+    }
+}
+
+export async function clearDiceLog(code: string) {
+    try {
+        await redis.del(diceLogKey(code))
+    } catch (error) {
+        console.error(`Erro ao apagar o histórico de rolagens da sala ${code} no Redis:`, error)
+    }
+}
+
+export async function broadcastDiceRoll(code: string, roll: { hidden?: boolean }) {
+    await broadcastToRoom(code, { type: 'dice:roll', roll, gmOnly: !!roll.hidden })
+}
+
+// Mestre fechou a sala (isOpen=false): zera o histórico para todos os conectados.
+export async function resetDiceLog(code: string) {
+    await clearDiceLog(code)
+    await broadcastToRoom(code, { type: 'dice:clear' })
 }
 
 async function broadcastToRoom(code: string, message: unknown) {

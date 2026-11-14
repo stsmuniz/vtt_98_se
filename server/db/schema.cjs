@@ -192,6 +192,7 @@ const roomsTable = pgTable('rooms', {
   snapshot: jsonb('snapshot'),
   initiative: jsonb('initiative').default([]),
   isOpen: boolean('is_open').notNull().default(true),
+  settings: jsonb('settings').notNull().default({}),
   createdAt: timestamp('created_at', { mode: 'date' })
     .defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' })
