@@ -43,6 +43,7 @@ watch(() => props.token, t => loadFromToken(t?.attributes), { immediate: true })
           <th>Máximo</th>
           <th>Visibilidade</th>
           <th>Cor</th>
+          <th>Números</th>
         </tr>
       </thead>
       <tbody>
@@ -64,6 +65,13 @@ watch(() => props.token, t => loadFromToken(t?.attributes), { immediate: true })
               :aria-label="`${attribute.name}: cor da barra`"
               @input="setBarColor(attribute, $event)"
             >
+          </td>
+          <td>
+            <UiCheckbox
+              v-model="attribute.showBarValues"
+              :disabled="!attribute.showBar"
+              :title="`${attribute.name}: exibir números na barra`"
+            />
           </td>
         </tr>
       </tbody>

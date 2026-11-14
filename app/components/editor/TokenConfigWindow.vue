@@ -88,6 +88,7 @@ function colorOf(attribute: { barColor?: string }, index: number) {
               <th>Máximo</th>
               <th>Visibilidade</th>
               <th>Cor</th>
+              <th>Números</th>
             </tr>
           </thead>
           <tbody>
@@ -109,6 +110,13 @@ function colorOf(attribute: { barColor?: string }, index: number) {
                   :aria-label="`${attribute.name}: cor da barra`"
                   @input="setBarColor(attribute, $event)"
                 >
+              </td>
+              <td>
+                <UiCheckbox
+                  v-model="attribute.showBarValues"
+                  :disabled="!attribute.showBar"
+                  :title="`${attribute.name}: exibir números na barra`"
+                />
               </td>
             </tr>
           </tbody>

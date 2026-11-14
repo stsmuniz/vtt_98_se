@@ -16,6 +16,8 @@ export type SceneAttribute = Attribute & {
     maxValue?: string
     /** Exibe o atributo como barra sob o token na sala. */
     showBar?: boolean
+    /** Escreve os números (atual/máximo) no meio da barra; o nome do atributo sempre aparece nela. */
+    showBarValues?: boolean
     /** Cor da barra (#rrggbb); ausente = cor padrão pela posição do atributo. */
     barColor?: string
 }

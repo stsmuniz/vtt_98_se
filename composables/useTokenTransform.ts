@@ -15,8 +15,11 @@ export function useTokenTransform(tokens: Ref<any[]>, stageRef: Ref<any>, transf
         const currentSignX = scaleX < 0 ? -1 : 1
         const currentSignY = scaleY < 0 ? -1 : 1
 
-        targetToken.scaleX = (targetToken.scaleX < 0 ? -1 : 1) * currentSignX
-        targetToken.scaleY = (targetToken.scaleY < 0 ? -1 : 1) * currentSignY
+        // O nó já carrega o espelhamento atual do token (é desenhado com scaleX = token.scaleX),
+        // então o sinal do nó É o sinal final; multiplicar pelo sinal anterior inverteria o token
+        // a cada transformação de um token já espelhado.
+        targetToken.scaleX = currentSignX
+        targetToken.scaleY = currentSignY
 
         targetToken.rotation = node.rotation()
 

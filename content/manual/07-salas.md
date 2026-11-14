@@ -39,7 +39,7 @@ A barra de ferramentas da sala tem:
 
 Os tokens funcionam como no editor de cenas: arraste, redimensione, gire, duplique, use o menu de contexto e o menu **Editar**. **Dois cliques** num token abrem as **Configurações do token**: nome, opacidade e os atributos (atual e máximo).
 
-Marque **Exibir nome sobre o token** para mostrar o nome acima do token. Em cada atributo, a coluna **Visibilidade** define se ele aparece como uma barra logo abaixo do token (preenchida conforme atual/máximo): **Visível** ou **Oculto**. A coluna **Cor** escolhe a cor da barra. Esse seletor é o único controle: em **Oculto**, a barra não aparece para ninguém.
+Marque **Exibir nome sobre o token** para mostrar o nome acima do token. Em cada atributo, a coluna **Visibilidade** define se ele aparece como uma barra logo abaixo do token (preenchida conforme atual/máximo): **Visível** ou **Oculto**. O nome do atributo é escrito dentro da barra. A coluna **Cor** escolhe a cor da barra e a coluna **Números** (opcional) acrescenta os valores atual/máximo no meio dela, por exemplo "PV 5/10". As barras crescem um pouco ao aproximar o zoom (e têm um tamanho mínimo ao afastar), para continuarem legíveis. O mestre pode **arrastar a barra** para mudar o valor atual, ou passar o mouse sobre ela e usar os botões **-** e **+** nos cantos (com **Shift**, o passo é de 5). Quanto à visibilidade, o seletor é o único controle: em **Oculto**, a barra não aparece para ninguém.
 
 ## Documentos na sala
 

@@ -28,7 +28,7 @@ import {
   Transformer as VTransformer,
 } from 'vue-konva'
 import { useTokenTransform } from '~~/composables/useTokenTransform'
-import { barFraction, defaultBarColor } from '~~/lib/tokenBars'
+import { barFraction, barZoomFactor, defaultBarColor } from '~~/lib/tokenBars'
 import { statusInitial, statusTextColor, type TokenStatusEntry } from '~~/lib/tokenStatuses'
 
 /**
@@ -83,7 +83,7 @@ type StageToken = Pick<SceneToken, 'id' | 'x' | 'y' | 'width' | 'height' | 'scal
   showName?: boolean
   kind?: SceneToken['kind']
   statuses?: TokenStatusEntry[]
-  attributes?: Pick<SceneAttribute, 'name' | 'value' | 'currentValue' | 'maxValue' | 'showBar' | 'barColor'>[]
+  attributes?: Pick<SceneAttribute, 'name' | 'value' | 'currentValue' | 'maxValue' | 'showBar' | 'showBarValues' | 'barColor'>[]
 }
 
 const props = withDefaults(defineProps<{
@@ -310,9 +310,12 @@ const tokenGroups = computed(() => [...tokens.value].reverse().map((token) => {
 
   // Tamanhos constantes na tela, qualquer que seja o zoom.
   const px = 1 / props.scale
-  const barH = 8 * px
-  const barGap = 2 * px
-  const barW = Math.max(sw, 24 * px)
+  // Barras "elásticas": crescem com o zoom dentro de um intervalo (ver barZoomFactor).
+  // `bp` = unidades do mapa por "px de barra". Altas o bastante para caber o texto.
+  const bp = barZoomFactor(props.scale) / props.scale
+  const barH = 14 * bp
+  const barGap = 2 * bp
+  const barW = Math.max(sw, 24 * bp)
   let barY = cy + halfH + 4 * px
   const bars = (token.attributes ?? []).flatMap((attribute, index) => {
     if (!attribute.showBar) return []
@@ -320,9 +323,37 @@ const tokenGroups = computed(() => [...tokens.value].reverse().map((token) => {
     if (fraction === null) return []
     const y = barY
     barY += barH + barGap
+    const label = attribute.showBarValues
+      ? `${attribute.name} ${attribute.currentValue ?? attribute.value}/${attribute.maxValue ?? attribute.value}`
+      : attribute.name
+    const buttonW = barH
+    const buttonStyle = { y, width: buttonW, height: barH, fill: 'rgba(0,0,0,0.7)', stroke: '#ffffff', strokeWidth: px }
+    const buttonText = { y, width: buttonW, height: barH, align: 'center', verticalAlign: 'middle', fontSize: 12 * bp, fontStyle: 'bold', fontFamily: 'Pixel Operator, sans-serif', fill: '#ffffff', listening: false }
     return [{
       key: `${token.id}-${index}`,
-      back: { x: cx - barW / 2, y, width: barW, height: barH, fill: '#000000', stroke: '#ffffff', strokeWidth: px, listening: false },
+      index,
+      minus: { rect: { ...buttonStyle, x: cx - barW / 2 }, text: { ...buttonText, x: cx - barW / 2, text: '-' } },
+      plus: { rect: { ...buttonStyle, x: cx + barW / 2 - buttonW }, text: { ...buttonText, x: cx + barW / 2 - buttonW, text: '+' } },
+      text: {
+        x: cx - barW / 2,
+        y,
+        width: barW,
+        height: barH,
+        text: label,
+        align: 'center',
+        verticalAlign: 'middle',
+        wrap: 'none',
+        ellipsis: true,
+        fontSize: 10 * bp,
+        fontStyle: 'bold',
+        fontFamily: 'Pixel Operator, sans-serif',
+        fill: '#ffffff',
+        stroke: '#000000',
+        strokeWidth: 2 * bp,
+        fillAfterStrokeEnabled: true,
+        listening: false,
+      },
+      back: { x: cx - barW / 2, y, width: barW, height: barH, fill: '#000000', stroke: '#ffffff', strokeWidth: px, listening: props.editable },
       fill: { x: cx - barW / 2, y, width: barW * fraction, height: barH, fill: attribute.barColor || defaultBarColor(index), listening: false },
     }]
   })
@@ -470,6 +501,73 @@ function onContext(e: any, id: number) {
   emit('context', { id, x: e.evt.clientX, y: e.evt.clientY })
 }
 
+// ---------- barras de atributo editáveis (mestre): arrastar e botões − / + ----------
+/** Barra sob o mouse (mostra os botões − e +). */
+const hoverBar = ref<string | null>(null)
+let barDrag: { node: any; id: number; index: number } | null = null
+
+function setBarValue(id: number, index: number, value: number) {
+  const attribute = tokens.value.find(t => t.id === id)?.attributes?.[index]
+  if (!attribute) return
+  const max = Number(attribute.maxValue ?? attribute.value)
+  if (!Number.isFinite(max) || max <= 0) return
+  attribute.currentValue = String(Math.min(max, Math.max(0, Math.round(value))))
+}
+
+/** Define o valor pela posição horizontal do ponteiro sobre a barra (px de tela). */
+function dragBarTo(clientX: number, clientY: number) {
+  if (!barDrag) return
+  const stage = stageRef.value?.getNode()
+  const attribute = tokens.value.find(t => t.id === barDrag!.id)?.attributes?.[barDrag.index]
+  if (!stage || !attribute) return
+  const rect = stage.container().getBoundingClientRect()
+  const local = barDrag.node.getAbsoluteTransform().copy().invert().point({ x: clientX - rect.left, y: clientY - rect.top })
+  const fraction = Math.min(1, Math.max(0, local.x / barDrag.node.width()))
+  setBarValue(barDrag.id, barDrag.index, fraction * Number(attribute.maxValue ?? attribute.value))
+}
+
+function onBarMove(evt: MouseEvent | TouchEvent) {
+  const point = 'touches' in evt ? evt.touches[0] : evt
+  if (point) dragBarTo(point.clientX, point.clientY)
+}
+
+function stopBarDrag() {
+  window.removeEventListener('mousemove', onBarMove)
+  window.removeEventListener('mouseup', stopBarDrag)
+  window.removeEventListener('touchmove', onBarMove)
+  window.removeEventListener('touchend', stopBarDrag)
+  if (barDrag) emit('change', barDrag.id)
+  barDrag = null
+}
+
+function onBarDown(e: any, id: number, index: number) {
+  if (!props.editable) return
+  // Não deixa o token (grupo) começar a ser arrastado nem o fundo mover a cena.
+  e.cancelBubble = true
+  emit('select', id)
+  barDrag = { node: e.target, id, index }
+  const evt = e.evt as MouseEvent | TouchEvent
+  const point = 'touches' in evt ? evt.touches[0] : evt
+  if (point) dragBarTo(point.clientX, point.clientY)
+  window.addEventListener('mousemove', onBarMove)
+  window.addEventListener('mouseup', stopBarDrag)
+  window.addEventListener('touchmove', onBarMove, { passive: true })
+  window.addEventListener('touchend', stopBarDrag)
+}
+
+function onBarStep(e: any, id: number, index: number, delta: number) {
+  e.cancelBubble = true
+  emit('select', id)
+  const attribute = tokens.value.find(t => t.id === id)?.attributes?.[index]
+  if (!attribute) return
+  // Shift = passos de 5.
+  const step = (e.evt as MouseEvent).shiftKey ? 5 : 1
+  setBarValue(id, index, Number(attribute.currentValue ?? attribute.value) + delta * step)
+  emit('change', id)
+}
+
+onBeforeUnmount(stopBarDrag)
+
 // ---------- alça de redimensionar o cenário ----------
 const resizeHandleConfig = computed(() => ({
   x: width.value,
@@ -590,10 +688,40 @@ defineExpose({
             <VText :config="badge.text" />
           </template>
           <VText v-if="group.nameConfig" :config="group.nameConfig" />
-          <template v-for="bar in group.bars" :key="bar.key">
-            <VRect :config="bar.back" />
+          <VGroup
+            v-for="bar in group.bars"
+            :key="bar.key"
+            @mouseenter="hoverBar = bar.key"
+            @mouseleave="hoverBar = null"
+          >
+            <VRect
+              :config="bar.back"
+              @mousedown="(e: any) => onBarDown(e, group.id, bar.index)"
+              @touchstart="(e: any) => onBarDown(e, group.id, bar.index)"
+              @mouseenter="(e: any) => setCursor(e, 'ew-resize')"
+              @mouseleave="(e: any) => setCursor(e, '')"
+            />
             <VRect :config="bar.fill" />
-          </template>
+            <VText :config="bar.text" />
+            <template v-if="editable && hoverBar === bar.key">
+              <VRect
+                :config="bar.minus.rect"
+                @mousedown="(e: any) => onBarStep(e, group.id, bar.index, -1)"
+                @touchstart="(e: any) => onBarStep(e, group.id, bar.index, -1)"
+                @mouseenter="(e: any) => setCursor(e, 'pointer')"
+                @mouseleave="(e: any) => setCursor(e, '')"
+              />
+              <VText :config="bar.minus.text" />
+              <VRect
+                :config="bar.plus.rect"
+                @mousedown="(e: any) => onBarStep(e, group.id, bar.index, 1)"
+                @touchstart="(e: any) => onBarStep(e, group.id, bar.index, 1)"
+                @mouseenter="(e: any) => setCursor(e, 'pointer')"
+                @mouseleave="(e: any) => setCursor(e, '')"
+              />
+              <VText :config="bar.plus.text" />
+            </template>
+          </VGroup>
         </VGroup>
 
         <VTransformer v-if="editable" ref="transformerRef" :config="transformerConfig" />
