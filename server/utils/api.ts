@@ -196,8 +196,8 @@ async function storeUploadedImage(file: { filename: string; data: Buffer }, opti
             fullImage: full.url, fullWidth: full.width, fullHeight: full.height,
         }
     }
-    const fileExtension = file.filename.split('.').pop()
-    const stored = await storeImage(options.storagePrefix!, `${Date.now()}.${fileExtension}`, file.data, options.skipImageResize)
+    // A extensão vem do formato real da imagem (ver imageStorage.ts), nunca do nome enviado.
+    const stored = await storeImage(options.storagePrefix!, String(Date.now()), file.data, options.skipImageResize)
     return { image: stored.url, width: stored.width, height: stored.height }
 }
 
@@ -216,19 +216,25 @@ export async function createUploadableResource(event: any, options: UploadableRe
 
     if (contentType.includes('application/json')) {
         const body = await readBody(event)
-        if (!body) {
+        if (!body || typeof body !== 'object') {
             throw createError({ statusCode: 400, statusMessage: 'Nenhum dado enviado.' })
         }
 
+        // Duplicar: o cliente manda só o id da linha de origem e TUDO é copiado do banco (linha do
+        // próprio usuário). Antes os valores vinham do corpo, o que permitia gravar uma URL de
+        // imagem qualquer (inclusive de terceiros) que depois era carregada no navegador de outros.
+        const sourceId = parseBodyId(body.sourceId, 'Informe o item a duplicar.')
+        const source = await getOwnedRowOrThrow(options.table, sourceId, session.user.id) as Record<string, unknown>
+
         const values: Record<string, unknown> = {
-            name: `${body.name} (Cópia)`,
+            name: `${String(source.name ?? '').slice(0, MAX_NAME_LENGTH - ' (Cópia)'.length)} (Cópia)`,
             userId: session.user.id,
         }
-        if (options.hasImage) values.image = body.image
+        if (options.hasImage) values.image = source.image
         for (const field of options.fields) {
-            values[field.name] = coerceField(field, body[field.name], true)
+            values[field.name] = source[field.name] ?? coerceField(field, undefined, true)
         }
-        for (const key of options.copyOnDuplicate ?? []) values[key] = body[key]
+        for (const key of options.copyOnDuplicate ?? []) values[key] = source[key]
         await options.validate?.(values, session.user.id)
 
         return db.insert(options.table).values(values).returning()

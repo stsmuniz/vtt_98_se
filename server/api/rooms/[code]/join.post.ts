@@ -44,15 +44,6 @@ export default defineEventHandler(async (event) => {
     const session = await auth.api.getSession({ headers: event.headers })
     const isOwner = !!session?.user && session.user.id === room.userId
 
-    // Uma sala fechada (`isOpen: false`) só é acessível para o dono — visitantes ficam de fora
-    // até o dono reabri-la (ver o botão de abrir/fechar em app/pages/rooms/[code].vue).
-    if (!room.isOpen && !isOwner) {
-        throw createError({
-            statusCode: 403,
-            statusMessage: "Esta sala está fechada no momento.",
-        })
-    }
-
     const body = await readBody<{ password?: string, name?: string, token?: string }>(event).catch(() => null)
 
     const unavailable = () => createError({
@@ -60,15 +51,37 @@ export default defineEventHandler(async (event) => {
         statusMessage: "O serviço de tempo real está indisponível no momento. Tente novamente em instantes.",
     })
 
+    // Sala fechada (`isOpen: false`): não entra ninguém novo. Quem já estava dentro (token desta
+    // sala e presente agora) continua — recarregar a página não o tira da mesa. Ver o botão de
+    // abrir/fechar em app/pages/rooms/[code].vue.
+    if (!room.isOpen && !isOwner) {
+        let stillInside = false
+        try {
+            const participantId = await participantIdForToken(code, body?.token)
+            stillInside = !!participantId && await isPresentParticipant(code, participantId)
+        } catch (error) {
+            console.error(`Erro ao conferir presença na sala fechada ${code} no Redis:`, error)
+        }
+        if (!stillInside) {
+            throw createError({
+                statusCode: 403,
+                statusMessage: "Esta sala está fechada no momento.",
+            })
+        }
+    }
+
     // Senha: conferida a cada entrada, a não ser que o token de uma entrada anterior (que já a
     // provou) seja reapresentado — recarregar a página não pede a senha de novo. O token vem
     // primeiro: é barato e é o caso comum (o cliente reenvia a senha guardada a cada consulta
     // enquanto aguarda a aprovação do mestre, e isso não deve contar como tentativa).
     let verified = !room.password || isOwner
+    // Senha digitada e conferida AGORA (a prova trazida pelo token anterior não renova o prazo).
+    let passwordProvedNow = false
+    const accessTag = roomAccessTag(room.password)
     if (!verified) {
         let redisFailed = false
         try {
-            verified = await isVerifiedParticipantToken(code, body?.token)
+            verified = await isVerifiedParticipantToken(code, body?.token, accessTag)
         } catch (error) {
             console.error(`Erro ao validar acesso à sala ${code} no Redis:`, error)
             redisFailed = true
@@ -92,6 +105,7 @@ export default defineEventHandler(async (event) => {
 
             verified = await compare(providedPassword, room.password!)
             if (verified) {
+                passwordProvedNow = true
                 await clearPasswordFailures(lockKey)
             } else {
                 const lockMs = await registerPasswordFailure(lockKey)
@@ -126,9 +140,13 @@ export default defineEventHandler(async (event) => {
             isOwner,
             name: body?.name,
             token: body?.token,
-            verified: !!room.password,
+            verified: passwordProvedNow,
+            accessTag,
         })
 
+        if (!identity.ok && identity.reason === 'room-full') {
+            throw createError({ statusCode: 429, statusMessage: "A sala atingiu o limite de participantes.", data: { reason: 'room-full' } })
+        }
         if (!identity.ok) {
             throw createError(identity.reason === 'name-required'
                 ? { statusCode: 400, statusMessage: "Informe o seu nome para entrar na sala.", data: { reason: 'name-required' } }
@@ -161,6 +179,14 @@ export default defineEventHandler(async (event) => {
         } catch (error) {
             console.error(`Erro ao verificar a aprovação de entrada na sala ${code} no Redis:`, error)
             throw unavailable()
+        }
+
+        if (admission.status === 'full') {
+            throw createError({
+                statusCode: 429,
+                statusMessage: "Há muitos pedidos aguardando a aprovação do mestre. Tente de novo em instantes.",
+                data: { reason: 'pending-full' },
+            })
         }
 
         if (admission.status === 'pending') {

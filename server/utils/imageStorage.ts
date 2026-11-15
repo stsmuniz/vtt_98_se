@@ -9,6 +9,45 @@ const DOCUMENT_THUMB_MAX = 500
 const DOCUMENT_FULL_MAX = 2048
 /** Recusa imagens com mais pixels que isso (proteção contra imagens "bomba" que estouram a memória). */
 const MAX_INPUT_PIXELS = 100_000_000
+/** Tamanho máximo do arquivo enviado (a Vercel já corta corpos acima de 4,5 MB). */
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
+/**
+ * Formatos aceitos, identificados pelo conteúdo (sharp), nunca pelo nome do arquivo: a extensão e
+ * o Content-Type gravados no Blob vêm daqui. SVG fica de fora (pode conter script), assim como
+ * qualquer coisa que o navegador pudesse tratar como página (ex.: `x.html` com cabeçalho de PNG).
+ */
+const ALLOWED_FORMATS: Record<string, { extension: string, contentType: string }> = {
+    png: { extension: 'png', contentType: 'image/png' },
+    jpeg: { extension: 'jpg', contentType: 'image/jpeg' },
+    webp: { extension: 'webp', contentType: 'image/webp' },
+    gif: { extension: 'gif', contentType: 'image/gif' },
+}
+
+const invalidImage = () => createError({
+    statusCode: 400,
+    statusMessage: 'O arquivo não é uma imagem válida. Use PNG, JPEG, WebP ou GIF.',
+})
+
+/** Confere tamanho e formato real do arquivo; lança 400 se não for uma imagem aceita. */
+async function inspectImage(buffer: Buffer) {
+    if (!buffer?.length) throw invalidImage()
+    if (buffer.length > MAX_UPLOAD_BYTES) {
+        throw createError({ statusCode: 400, statusMessage: 'A imagem é grande demais (máximo de 10 MB).' })
+    }
+    let metadata: sharp.Metadata
+    try {
+        metadata = await sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS }).metadata()
+    } catch {
+        throw invalidImage()
+    }
+    const format = ALLOWED_FORMATS[metadata.format ?? '']
+    if (!format || !metadata.width || !metadata.height) throw invalidImage()
+    if (metadata.width * metadata.height > MAX_INPUT_PIXELS) {
+        throw createError({ statusCode: 400, statusMessage: 'A imagem tem resolução grande demais.' })
+    }
+    return { metadata, format }
+}
 
 export type StoredImageVariants = {
     thumb: StoredImage
@@ -28,24 +67,31 @@ export type StoredImage = {
  * consistentes com a imagem que de fato foi armazenada. `skipResize` mantém a
  * resolução original (usado por cenários, cujo mapa perde qualidade se for reduzido).
  */
-export async function storeImage(prefix: string, filename: string, buffer: Buffer, skipResize = false): Promise<StoredImage> {
-    const metadata = await sharp(buffer).metadata()
+export async function storeImage(prefix: string, baseName: string, buffer: Buffer, skipResize = false): Promise<StoredImage> {
+    const { metadata, format } = await inspectImage(buffer)
     let data = buffer
     let width = metadata.width ?? 0
     let height = metadata.height ?? 0
 
     if (!skipResize && (width > MAX_DIMENSION || height > MAX_DIMENSION)) {
-        const resized = await sharp(buffer)
-            .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
-            .toBuffer({ resolveWithObject: true })
+        let resized: { data: Buffer, info: sharp.OutputInfo }
+        try {
+            // O formato de saída do sharp é o mesmo da entrada (já conferido acima).
+            resized = await sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS })
+                .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
+                .toBuffer({ resolveWithObject: true })
+        } catch {
+            throw invalidImage()
+        }
         data = resized.data
         width = resized.info.width
         height = resized.info.height
     }
 
-    const blob = await put(`${prefix}/${filename}`, data, {
+    const blob = await put(`${prefix}/${baseName}.${format.extension}`, data, {
         access: 'public',
         addRandomSuffix: true,
+        contentType: format.contentType,
     })
 
     return { url: blob.url, width, height }
@@ -57,6 +103,7 @@ export async function storeImage(prefix: string, filename: string, buffer: Buffe
  * a rotação EXIF aplicada. O original NÃO é guardado. Lança 400 se o arquivo não for uma imagem.
  */
 export async function storeImageVariants(prefix: string, baseName: string, buffer: Buffer): Promise<StoredImageVariants> {
+    await inspectImage(buffer)
     const render = (max: number, quality: number) => sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS })
         .rotate()
         .resize({ width: max, height: max, fit: 'inside', withoutEnlargement: true })

@@ -11,7 +11,7 @@ Um **token** é uma peça do jogo: um personagem, um monstro, um objeto. Na past
 
 1. Abra a pasta **Tokens** e clique em **Novo** (ou use **Arquivo > Novo token**).
 2. Digite o **nome**.
-3. Escolha a **imagem** com **Procurar…**. A imagem é obrigatória; a pré-visualização mostra como ela ficou.
+3. Escolha a **imagem** com **Procurar…** (PNG, JPEG, WebP ou GIF). A imagem é obrigatória; a pré-visualização mostra como ela ficou.
 4. Se quiser, acrescente **tags** (para achar o token depois) e **atributos**.
 5. Clique em **OK**. **Ctrl+S** também grava.
 

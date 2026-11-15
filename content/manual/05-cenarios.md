@@ -10,7 +10,7 @@ Um **cenário** é a imagem de fundo de uma cena: o mapa de uma masmorra, uma ta
 ## Cadastrando um cenário
 
 1. Abra a pasta **Cenários** e clique em **Novo**.
-2. Digite o **nome** e escolha a **imagem** com **Procurar…** (a imagem é obrigatória).
+2. Digite o **nome** e escolha a **imagem** com **Procurar…** (PNG, JPEG, WebP ou GIF; a imagem é obrigatória).
 3. Se quiser, acrescente **tags**.
 4. Clique em **OK**.
 

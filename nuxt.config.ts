@@ -36,6 +36,21 @@ export default defineNuxtConfig({
   // Renderizar essas rotas só no cliente evita incompatibilidades de hidratação;
   // o site público e o login continuam com SSR.
   routeRules: {
+    // Cabeçalhos de segurança em todas as respostas. A CSP não restringe scripts (o Nuxt injeta
+    // scripts inline sem nonce): cobre o que dá para fechar sem quebrar nada —
+    // - frame-ancestors 'none' (+ X-Frame-Options): ninguém embute o app num iframe (clickjacking);
+    // - img-src: imagens só do próprio site, do Vercel Blob e data:/blob: (prévias de upload, ícones
+    //   do 98.css) — segunda barreira contra token apontando para servidor de terceiros;
+    // - object-src/base-uri/form-action: nada de plugins, <base> forjado ou formulário para fora.
+    // HSTS já é enviado pela Vercel no domínio.
+    '/**': {
+      headers: {
+        'Content-Security-Policy': "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; img-src 'self' data: blob: https://*.public.blob.vercel-storage.com",
+        'X-Frame-Options': 'DENY',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+      },
+    },
     '/dashboard': { ssr: false },
     '/dashboard/**': { ssr: false },
     '/rooms/**': { ssr: false },

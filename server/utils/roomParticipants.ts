@@ -24,6 +24,10 @@ interface StoredParticipant extends RoomParticipant {
     code: string
     /** A senha da sala (se havia) já foi conferida para emitir este token. */
     verified: boolean
+    /** Marca da senha que foi conferida (`roomAccessTag`): trocar ou remover a senha a invalida. */
+    accessTag?: string
+    /** Quando a senha foi conferida (ms). A prova vale no máximo VERIFIED_MAX_MS. */
+    verifiedAt?: number
 }
 
 interface PresenceEntry {
@@ -36,10 +40,25 @@ interface PresenceEntry {
 export const MAX_PARTICIPANT_NAME = 30
 
 const TOKEN_TTL_SECONDS = 60 * 60 * 12
+/**
+ * Teto absoluto da senha provada: o token é renovado a cada uso (e nunca venceria numa sala
+ * frequentada), mas a prova da senha não — depois disso a senha é pedida de novo.
+ */
+const VERIFIED_MAX_MS = 24 * 60 * 60_000
 /** Quanto tempo o nome fica reservado depois que o participante some (recarregar a página, etc.). */
 const NAME_GRACE_MS = 5 * 60_000
 /** Sem sinal de vida (ping a cada 20s) por este tempo, o participante sai da lista. */
 const PRESENCE_STALE_MS = 60_000
+
+// Tetos contra inundação: sem eles, numa sala sem senha qualquer um com o código podia reservar
+// nomes sem limite (deixando os jogadores reais sem nome), encher o mestre de pedidos de entrada
+// e abrir streams em massa.
+/** Nomes reservados ao mesmo tempo numa sala (os de quem sumiu há mais de NAME_GRACE_MS não contam). */
+export const MAX_ROOM_NAMES = 100
+/** Pedidos de entrada aguardando o mestre ao mesmo tempo. */
+export const MAX_PENDING_REQUESTS = 20
+/** Streams de eventos abertas ao mesmo tempo pelo mesmo participante (abas, reconexões). */
+export const MAX_STREAMS_PER_PARTICIPANT = 5
 
 const tokenKey = (token: string) => `room-participant:${token}`
 const namesKey = (code: string) => `room:${code}:names`
@@ -102,17 +121,66 @@ async function reserveName(code: string, id: string, desired: string, opts: { al
     return null
 }
 
+/**
+ * Cabe mais um nome na sala para `id`? Quem já reserva um nome sempre cabe. No teto, libera antes
+ * os nomes de quem sumiu há mais de NAME_GRACE_MS (que já poderiam ser tomados por outro).
+ */
+async function hasRoomForNewName(code: string, id: string): Promise<boolean> {
+    if ((await redis.hlen(namesKey(code))) < MAX_ROOM_NAMES) return true
+    const all = await redis.hgetall(namesKey(code)) as Record<string, unknown> | null
+    const limit = Date.now() - NAME_GRACE_MS
+    let active = 0
+    for (const [field, value] of Object.entries(all ?? {})) {
+        const holder = parse<{ id: string, seen: number }>(value)
+        if (holder?.id === id) return true
+        if (!holder || holder.seen < limit) await redis.hdel(namesKey(code), field)
+        else active++
+    }
+    return active < MAX_ROOM_NAMES
+}
+
 async function releaseName(code: string, id: string, name: string) {
     const field = normalizeName(name)
     const holder = parse<{ id: string }>(await redis.hget(namesKey(code), field))
     if (holder?.id === id) await redis.hdel(namesKey(code), field)
 }
 
-/** O token já foi emitido para esta sala e provou a senha? (reentrada sem digitar a senha de novo) */
-export async function isVerifiedParticipantToken(code: string, token: unknown): Promise<boolean> {
+/**
+ * Marca da senha atual de uma sala, guardada no token quando a senha é conferida. Muda sempre que
+ * a senha é definida, trocada ou removida (o bcrypt gera um sal novo a cada hash), o que invalida
+ * a prova de quem conhecia a senha antiga. Derivada do hash e truncada: não serve para nada além
+ * de comparar.
+ */
+export function roomAccessTag(passwordHash: string | null | undefined): string {
+    return createHash('sha256').update(`room-access:${passwordHash ?? ''}`).digest('hex').slice(0, 16)
+}
+
+/** A senha provada por este token ainda vale (mesma senha e dentro do teto)? */
+function hasValidVerification(stored: StoredParticipant | null | undefined, accessTag: string): boolean {
+    return !!stored
+        && stored.verified
+        && stored.accessTag === accessTag
+        && typeof stored.verifiedAt === 'number'
+        && Date.now() - stored.verifiedAt < VERIFIED_MAX_MS
+}
+
+/** O token já foi emitido para esta sala e provou a senha ATUAL? (reentrada sem digitar a senha de novo) */
+export async function isVerifiedParticipantToken(code: string, token: unknown, accessTag: string): Promise<boolean> {
     if (typeof token !== 'string') return false
     const stored = parse<StoredParticipant>(await redis.get(tokenKey(token)))
-    return !!stored && stored.code === code && stored.verified
+    return !!stored && stored.code === code && hasValidVerification(stored, accessTag)
+}
+
+/**
+ * A senha da sala mudou com este participante conectado (stream aberta): ele continua na sala,
+ * então o token passa a provar a senha nova. Quem não estava conectado não passa por aqui e
+ * precisa da senha nova para voltar.
+ */
+export async function reverifyParticipantToken(code: string, token: unknown, accessTag: string) {
+    if (typeof token !== 'string') return
+    const stored = parse<StoredParticipant>(await redis.get(tokenKey(token)))
+    if (!stored || stored.code !== code) return
+    await redis.set(tokenKey(token), { ...stored, verified: true, accessTag, verifiedAt: Date.now() }, { ex: TOKEN_TTL_SECONDS })
 }
 
 export interface JoinIdentityInput {
@@ -124,13 +192,16 @@ export interface JoinIdentityInput {
     name?: unknown
     /** Token de uma entrada anterior (recarregar a página mantém nome e id). */
     token?: unknown
-    /** A senha da sala (se havia) acabou de ser conferida ou o token anterior já a provava. */
+    /** A senha da sala acabou de ser digitada e conferida (o token anterior, se ainda válido, é levado adiante sozinho). */
     verified: boolean
+    /** Marca da senha atual da sala (`roomAccessTag`). */
+    accessTag: string
 }
 
 export type JoinIdentityResult =
     | { ok: true, participant: RoomParticipant, token?: string }
-    | { ok: false, reason: 'name-required' | 'name-taken' }
+    /** `room-full`: a sala chegou a MAX_ROOM_NAMES participantes. */
+    | { ok: false, reason: 'name-required' | 'name-taken' | 'room-full' }
     /** `denied`: o mestre recusou a entrada (em vez de remover alguém que já estava na sala). */
     | { ok: false, reason: 'kicked', denied: boolean }
 
@@ -217,6 +288,7 @@ export async function joinRoomIdentity(input: JoinIdentityInput): Promise<JoinId
         id = participantIdForUser(code, user.id)
         const banned = await getKicked(code, id)
         if (banned) return { ok: false, reason: 'kicked', denied: !!banned.denied }
+        if (!await hasRoomForNewName(code, id)) return { ok: false, reason: 'room-full' }
         // Conta: o nome do cadastro, sem popup. Se outro já o usa, ganha um sufixo.
         name = await reserveName(code, id, cleanParticipantName(user.name) || 'Jogador', { allowSuffix: true })
     } else if (reusableBan) {
@@ -227,6 +299,7 @@ export async function joinRoomIdentity(input: JoinIdentityInput): Promise<JoinId
     } else {
         if (!typedName) return { ok: false, reason: 'name-required' }
         id = reusable?.id ?? crypto.randomUUID().replace(/-/g, '').slice(0, 16)
+        if (!await hasRoomForNewName(code, id)) return { ok: false, reason: 'room-full' }
         name = await reserveName(code, id, typedName)
         // Trocou de nome: libera o antigo.
         if (name && reusable && normalizeName(reusable.name) !== normalizeName(name)) {
@@ -238,7 +311,16 @@ export async function joinRoomIdentity(input: JoinIdentityInput): Promise<JoinId
 
     const participant: RoomParticipant = { id, name, role: 'player', ...(user ? { userId: user.id } : {}) }
     const token = typeof input.token === 'string' && reusable ? input.token : crypto.randomUUID()
-    const stored: StoredParticipant = { ...participant, code, verified: input.verified || !!reusable?.verified }
+    // A prova da senha: nova, se acabou de ser digitada; senão a do token anterior, se ainda vale
+    // (mesma senha e dentro do teto) — reapresentar o token não renova o prazo.
+    const carried = !input.verified && reusable && hasValidVerification(reusable, input.accessTag) ? reusable : null
+    const stored: StoredParticipant = {
+        ...participant,
+        code,
+        verified: input.verified || !!carried,
+        accessTag: input.accessTag,
+        ...(input.verified ? { verifiedAt: Date.now() } : carried ? { verifiedAt: carried.verifiedAt } : {}),
+    }
     await redis.set(tokenKey(token), stored, { ex: TOKEN_TTL_SECONDS })
 
     return { ok: true, participant, token }
@@ -272,13 +354,13 @@ export async function resolveRoomParticipant(
         }
     }
 
-    if (!room.isOpen) {
-        throw createError({ statusCode: 403, statusMessage: 'Esta sala está fechada no momento.' })
-    }
+    // Sala fechada: só quem já estava dentro continua (token válido E presente — ver
+    // `isPresentParticipant`); quem chega agora é barrado. Conferido mais abaixo, com o token.
+    const closed = !room.isOpen
 
     const requireApproval = room.settings?.requireApproval === true
     // Sala em que o acesso depende de conferir algo no Redis.
-    const strict = !!room.password || requireApproval
+    const strict = !!room.password || requireApproval || closed
     const unavailable = () => createError({
         statusCode: 503,
         statusMessage: 'O serviço de tempo real está indisponível no momento. Tente novamente em instantes.',
@@ -299,11 +381,13 @@ export async function resolveRoomParticipant(
             let banned: KickedItem | null = null
             let pending = false
             let approved = true
+            let present = true
             try {
-                [banned, pending, approved] = await Promise.all([
+                [banned, pending, approved, present] = await Promise.all([
                     getKicked(room.code, stored.id),
                     isPending(room.code, stored.id),
                     requireApproval ? isApproved(room.code, stored.id) : Promise.resolve(true),
+                    closed ? isPresentParticipant(room.code, stored.id) : Promise.resolve(true),
                 ])
             } catch (error) {
                 console.error(`Erro ao verificar expulsão/aprovação na sala ${room.code} no Redis:`, error)
@@ -317,6 +401,7 @@ export async function resolveRoomParticipant(
                     data: { reason: banned.denied ? 'denied' : 'kicked' },
                 })
             }
+            if (!present) throw createError({ statusCode: 403, statusMessage: 'Esta sala está fechada no momento.' })
             // Ainda esperando a aprovação do mestre (ou nunca pediu): nada de eventos nem rolagens.
             // O cliente refaz o /join, que põe o pedido na fila do mestre.
             if (pending || !approved) {
@@ -324,7 +409,7 @@ export async function resolveRoomParticipant(
             }
         }
 
-        if (stored && stored.code === room.code && (!room.password || stored.verified)) {
+        if (stored && stored.code === room.code && (!room.password || hasValidVerification(stored, roomAccessTag(room.password)))) {
             // Uso mantém o acesso vivo.
             redis.expire(tokenKey(token), TOKEN_TTL_SECONDS).catch(() => {})
             // ...inclusive a aprovação: numa sessão longa ela não pode vencer antes do token.
@@ -333,7 +418,25 @@ export async function resolveRoomParticipant(
         }
     }
 
+    if (closed) throw createError({ statusCode: 403, statusMessage: 'Esta sala está fechada no momento.' })
     throw createError({ statusCode: 401, statusMessage: 'Não autenticado.' })
+}
+
+/**
+ * O participante está na sala agora (sinal de vida da stream no último PRESENCE_STALE_MS)? Usado
+ * na sala fechada: quem já estava dentro continua (inclusive recarregando a página ou quando a
+ * stream reconecta), quem chega depois não entra. Lança se o Redis falhar.
+ */
+export async function isPresentParticipant(code: string, id: string): Promise<boolean> {
+    const entry = parse<PresenceEntry>(await redis.hget(presenceKey(code), id))
+    return !!entry && entry.seen > Date.now() - PRESENCE_STALE_MS
+}
+
+/** Id de participante dono de `token` nesta sala, ou `null`. Lança se o Redis falhar. */
+export async function participantIdForToken(code: string, token: unknown): Promise<string | null> {
+    if (typeof token !== 'string') return null
+    const stored = parse<StoredParticipant>(await redis.get(tokenKey(token)))
+    return stored && stored.code === code ? stored.id : null
 }
 
 // ---- Aprovação de entrada ----
@@ -366,6 +469,8 @@ export type AdmissionResult =
     | { status: 'admitted' }
     /** `created`: pedido novo (o mestre ainda não foi avisado dele). */
     | { status: 'pending', created: boolean }
+    /** Já há MAX_PENDING_REQUESTS pedidos aguardando: este não entra na fila. */
+    | { status: 'full' }
 
 /** Decide se `participant` entra agora ou espera o mestre. Lança se o Redis falhar. */
 export async function checkAdmission(code: string, participant: RoomParticipant, requireApproval: boolean): Promise<AdmissionResult> {
@@ -378,6 +483,7 @@ export async function checkAdmission(code: string, participant: RoomParticipant,
     if (await redis.hexists(approvedKey(code), participant.id) === 1) return { status: 'admitted' }
 
     const existing = parse<{ at: number }>(await redis.hget(pendingKey(code), participant.id))
+    if (!existing && (await listPending(code)).length >= MAX_PENDING_REQUESTS) return { status: 'full' }
     const entry = { name: participant.name, at: existing?.at ?? Date.now(), seen: Date.now() }
     await redis.hset(pendingKey(code), { [participant.id]: entry })
     await redis.expire(pendingKey(code), TOKEN_TTL_SECONDS)
@@ -463,4 +569,37 @@ export async function listPresence(code: string): Promise<PresenceListItem[]> {
         console.error(`Erro ao ler presença da sala ${code} no Redis:`, error)
         return []
     }
+}
+
+// ---- Streams simultâneas ----
+// Por participante, um sorted set stream -> último sinal de vida (abertura e ping a cada 20 s).
+// Contam só as streams vistas no último minuto: uma função da Vercel derrubada sem fechar a stream
+// (sem `onClosed`) deixa de contar sozinha, sem prender o participante.
+const streamsKey = (code: string, id: string) => `room:${code}:streams:${id}`
+const STREAM_STALE_MS = 60_000
+
+/** Registra a stream `streamId`; devolve `false` (e não registra) se o participante já está no teto. Redis fora do ar libera. */
+export async function registerStream(code: string, participantId: string, streamId: string): Promise<boolean> {
+    try {
+        const key = streamsKey(code, participantId)
+        const now = Date.now()
+        await redis.zremrangebyscore(key, 0, now - STREAM_STALE_MS)
+        if ((await redis.zcard(key)) >= MAX_STREAMS_PER_PARTICIPANT) return false
+        await redis.zadd(key, { score: now, member: streamId })
+        await redis.expire(key, 120)
+        return true
+    } catch (error) {
+        console.error(`Erro ao registrar stream na sala ${code} no Redis:`, error)
+        return true
+    }
+}
+
+export async function touchStream(code: string, participantId: string, streamId: string) {
+    const key = streamsKey(code, participantId)
+    await redis.zadd(key, { score: Date.now(), member: streamId })
+    await redis.expire(key, 120)
+}
+
+export async function unregisterStream(code: string, participantId: string, streamId: string) {
+    await redis.zrem(streamsKey(code, participantId), streamId)
 }

@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   currentUrl: null,
   label: 'Imagem',
-  accept: 'image/*',
+  accept: 'image/png,image/jpeg,image/webp,image/gif',
   disabled: false,
   previewSize: 160,
 })

@@ -1,6 +1,6 @@
 import { tables } from "#server/utils/drizzle.ts";
 
-// Upload (multipart): gera miniatura + versão grande. Duplicar (JSON): reaproveita as duas URLs.
+// Upload (multipart): gera miniatura + versão grande. Duplicar (JSON `{ sourceId }`): copia a linha, reaproveitando as duas URLs.
 export default defineEventHandler((event) => {
     return createUploadableResource(event, {
         table: tables.documentsTable,

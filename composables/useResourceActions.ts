@@ -56,9 +56,9 @@ export function useResourceActions(kind: ResourceKind) {
 
   async function duplicate(raw: ResourceRecord) {
     if (!canDuplicate) return
-    const { id: _id, ...payload } = raw
     try {
-      await withLoading(() => $fetch(desc.endpoint, { method: 'POST', body: payload }), `Duplicando ${withArticle(desc)}...`, 'copy')
+      // O servidor copia tudo da linha de origem; só o id vai no corpo.
+      await withLoading(() => $fetch(desc.endpoint, { method: 'POST', body: { sourceId: raw.id } }), `Duplicando ${withArticle(desc)}...`, 'copy')
       await refresh()
     } catch (error) {
       await dialog.alert(errorMessage(error, `Não foi possível duplicar ${withArticle(desc)}.`), { icon: 'error', title: 'Erro' })

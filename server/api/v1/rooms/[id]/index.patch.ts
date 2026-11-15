@@ -88,6 +88,16 @@ export default defineEventHandler(async (event) => {
         if (!isRoomSnapshot(body.snapshot)) {
             throw createError({ statusCode: 400, statusMessage: 'Estado da sala inválido.' })
         }
+        // Imagens dos tokens: só as aceitas (ver server/utils/imageUrls.ts); as que já estavam
+        // gravadas nesta sala continuam valendo.
+        const current = await db.query.roomsTable.findFirst({
+            where: and(eq(tables.roomsTable.id, id), eq(tables.roomsTable.userId, session.user.id)),
+            columns: { snapshot: true },
+        })
+        if (!current) {
+            throw createError({ statusCode: 404, statusMessage: "Sala não encontrada." })
+        }
+        await assertAllowedTokenImages((body.snapshot as { tokens: unknown[] }).tokens, session.user.id, current.snapshot?.tokens ?? [])
         updateData.snapshot = body.snapshot
     }
     if ('initiative' in body) {
@@ -128,6 +138,9 @@ export default defineEventHandler(async (event) => {
                 console.error(`Erro ao liberar quem já estava na sala ${updatedRoom.code}:`, error)
             })
         }
+        // Senha definida, trocada ou removida: quem está conectado segue na sala; os tokens de quem
+        // não está deixam de valer (ver `roomAccessTag` em server/utils/roomParticipants.ts).
+        if ('password' in updateData) await broadcastAccessChanged(updatedRoom.code, roomAccessTag(updatedRoom.password))
         await broadcastRoomUpdate(updatedRoom.code, publicRoomResource(updatedRoom))
         // Fechar a sala encerra a "sessão": o histórico de rolagens recomeça vazio.
         if (body.isOpen === false) await resetDiceLog(updatedRoom.code)

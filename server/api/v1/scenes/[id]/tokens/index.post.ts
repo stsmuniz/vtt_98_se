@@ -1,12 +1,10 @@
 import { createError } from 'h3';
 import { tables } from "#server/utils/drizzle.ts";
 import { and, eq } from "drizzle-orm";
-import { SceneToken } from "#server/db/schema.ts";
+import type { SceneToken } from "#server/db/schema.ts";
 
 export default defineEventHandler(async (event) => {
-    const session = await auth.api.getSession({
-        headers: event.headers,
-    })
+    const user = await requireUser(event)
 
     const id = parseIdParam(event)
 
@@ -21,14 +19,22 @@ export default defineEventHandler(async (event) => {
 
     const db = useDrizzle()
 
+    // A cena tem de ser do usuário (404 antes de qualquer coisa); os tokens já gravados nela
+    // servem de referência para as imagens que continuam valendo.
+    const scene = await getOwnedRowOrThrow(tables.scenesTable, id, user.id, "Cena não encontrada.")
+
     let newTokens: SceneToken[]
 
     if (Array.isArray(body)) {
         newTokens = body
     } else {
-        const scene = await getOwnedRowOrThrow(tables.scenesTable, id, session.user.id, "Cena não encontrada.")
         newTokens = [...(scene.tokens ?? []), body]
     }
+
+    if (!newTokens.every(token => token && typeof token === 'object')) {
+        throw createError({ statusCode: 400, statusMessage: 'Token inválido.' })
+    }
+    await assertAllowedTokenImages(newTokens, user.id, scene.tokens ?? [])
 
     const [updated] = await db
         .update(tables.scenesTable)
@@ -37,7 +43,7 @@ export default defineEventHandler(async (event) => {
         })
         .where(
             and(
-                eq(tables.scenesTable.userId, session.user.id),
+                eq(tables.scenesTable.userId, user.id),
                 eq(tables.scenesTable.id, id)
             )
         )

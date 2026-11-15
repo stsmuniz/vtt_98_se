@@ -99,6 +99,15 @@ export async function broadcastRoomUpdate(code: string, room: unknown) {
     await broadcastToRoom(code, { type: 'room:update', room })
 }
 
+/**
+ * A senha da sala foi definida, trocada ou removida. Mensagem interna (nunca vai ao navegador):
+ * cada stream de jogador aberta renova o próprio token com a marca nova (ver events.get.ts), então
+ * quem está na sala continua nela e só quem estava fora precisa da senha nova.
+ */
+export async function broadcastAccessChanged(code: string, accessTag: string) {
+    await broadcastToRoom(code, { type: 'access:changed', accessTag })
+}
+
 export async function broadcastRoomClosed(code: string) {
     await clearRoomLiveSnapshot(code)
     await clearDiceLog(code)

@@ -29,6 +29,13 @@ export default defineEventHandler(async (event) => {
     if (!body?.snapshot) {
         throw createError({ statusCode: 400, statusMessage: 'Nenhum snapshot enviado.' })
     }
+    const tokens = (body.snapshot as { tokens?: unknown }).tokens
+    if (typeof body.snapshot !== 'object' || !Array.isArray(tokens)) {
+        throw createError({ statusCode: 400, statusMessage: 'Estado da sala inválido.' })
+    }
+    // Imagens dos tokens: só as aceitas (ver server/utils/imageUrls.ts); as que já estão gravadas
+    // na sala continuam valendo. O rascunho vai direto para o navegador de todos os visitantes.
+    await assertAllowedTokenImages(tokens, session.user.id, room.snapshot?.tokens ?? [])
 
     await Promise.all([
         setRoomLiveSnapshot(code, body.snapshot),

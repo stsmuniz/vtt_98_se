@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { roomsTable } from '#server/db/schema.ts'
-import { createEventStream, createError, getRouterParam } from 'h3'
+import { createEventStream, createError, getQuery, getRouterParam } from 'h3'
 import { playerRoomMessage, playerSnapshot } from '#server/utils/resources.ts'
 
 // Mensagem já filtrada para jogadores, por mensagem: a mesma mensagem vai para todas as streams
@@ -51,12 +51,44 @@ export default defineEventHandler(async (event) => {
     // Sem Redis (modo degradado) não há identidade nem presença para acompanhar.
     const tracksPresence = participant.id !== 'anonimo'
 
+    // Teto de streams simultâneas por participante (abas, reconexões em massa).
+    const streamId = crypto.randomUUID()
+    if (tracksPresence && !await registerStream(code, participant.id, streamId)) {
+        throw createError({ statusCode: 429, statusMessage: 'Conexões demais abertas para esta sala.' })
+    }
+
     const eventStream = createEventStream(event)
     // Verdadeiro depois que o mestre removeu este participante: o `onClosed` não deve devolvê-lo
     // à lista de presença (já foi tirado dela pelo kick).
     let kickedHere = false
 
+    const accessToken = getQuery(event).token
+
     const unsubscribe = subscribeToRoomEvents(code, (message) => {
+        const typed = message as { type?: string, accessTag?: string }
+
+        // Senha trocada com esta stream aberta: quem está na sala continua nela (o token passa a
+        // provar a senha nova). Mensagem interna: não vai para o navegador de ninguém.
+        if (typed?.type === 'access:changed') {
+            if (!isOwner && tracksPresence && typed.accessTag) {
+                reverifyParticipantToken(code, accessToken, typed.accessTag).catch((error: unknown) => {
+                    console.error(`Erro ao renovar o acesso de um participante da sala ${code}:`, error)
+                })
+            }
+            return
+        }
+
+        // Sala excluída: o jogador recebe o aviso e a stream acaba (o EventSource tenta reconectar,
+        // recebe 404 e o cliente mostra o erro) — sem isso a stream seguiria aberta à toa. Fechar
+        // a sala (`isOpen: false`) NÃO derruba ninguém: quem está dentro continua (ver
+        // resolveRoomParticipant); só novos visitantes ficam de fora.
+        if (!isOwner && typed?.type === 'room:closed') {
+            eventStream.push(playerPayload(message))
+                .catch(() => {})
+                .finally(() => eventStream.close().catch(() => {}))
+            return
+        }
+
         // Rolagens escondidas só chegam ao mestre.
         if ((message as { gmOnly?: boolean })?.gmOnly && !isOwner) return
 
@@ -110,6 +142,7 @@ export default defineEventHandler(async (event) => {
     const heartbeat = setInterval(() => {
         eventStream.push(JSON.stringify({ type: 'ping' })).catch(() => {})
         if (!tracksPresence || kickedHere) return
+        touchStream(code, participant.id, streamId).catch(() => {})
         touchPresence(code, participant)
             .then(() => isOwner ? listPresence(code) : [])
             .then(pushPresence)
@@ -120,6 +153,7 @@ export default defineEventHandler(async (event) => {
     eventStream.onClosed(() => {
         clearInterval(heartbeat)
         unsubscribe()
+        if (tracksPresence) unregisterStream(code, participant.id, streamId).catch(() => {})
         if (tracksPresence && !kickedHere) {
             removePresence(code, participant.id)
                 .then(() => listPresence(code))

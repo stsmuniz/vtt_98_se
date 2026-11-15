@@ -3,6 +3,7 @@ import { publicRoomResource } from "#server/utils/resources.ts";
 import { hash } from "bcrypt-ts";
 
 export default defineEventHandler(async (event) => {
+    let passwordChanged = false
     const room = await updateUploadableResource(event, {
         table: tables.roomsTable,
         fields: [
@@ -16,10 +17,13 @@ export default defineEventHandler(async (event) => {
         transformUpdate: async (updateData, rawFields) => {
             if (rawFields.password) {
                 updateData.password = await hash(rawFields.password, 10)
+                passwordChanged = true
             }
         },
     })
 
+    // Senha trocada: quem está conectado segue na sala; os tokens de quem não está deixam de valer.
+    if (passwordChanged) await broadcastAccessChanged(room.code, roomAccessTag(room.password))
     const resource = publicRoomResource(room)
     await broadcastRoomUpdate(room.code, resource)
 
