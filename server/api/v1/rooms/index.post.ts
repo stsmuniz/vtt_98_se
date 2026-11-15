@@ -3,7 +3,7 @@ import { generateRoomCode } from "#server/utils/api.ts";
 import { buildRoomSnapshotFromScene, publicRoomResource } from "#server/utils/resources.ts";
 import { and, eq } from "drizzle-orm";
 import { createError, readBody } from "h3";
-import {hashSync} from "bcrypt-ts";
+import { hash } from "bcrypt-ts";
 
 export default defineEventHandler(async (event) => {
     const session = await auth.api.getSession({ headers: event.headers })
@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
     const [room] = await db.insert(tables.roomsTable).values({
         code,
         name,
-        password: typeof body.password === 'string' && body.password ? hashSync(body.password) : null,
+        password: typeof body.password === 'string' && body.password ? await hash(body.password, 10) : null,
         tags: Array.isArray(body.tags) ? body.tags : [],
         userId: session.user.id,
         sceneId: scene.id,

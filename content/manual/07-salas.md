@@ -16,7 +16,7 @@ Na pasta **Salas**, clique em **Novo**. O assistente pergunta, em etapas:
 3. **Cena inicial** — escolha a cena com **Procurar…**. Você pode trocar de cena depois.
 4. **Resumo** — confira e clique em **Concluir**.
 
-Ao terminar, o sistema pergunta se você quer **entrar na sala** agora. Cada sala recebe um **código** de seis caracteres, que faz parte do link de convite.
+Ao terminar, o sistema pergunta se você quer **entrar na sala** agora. Cada sala recebe um **código** de dez caracteres (salas antigas mantêm o código de seis), que faz parte do link de convite.
 
 ## Convidando os jogadores
 
@@ -49,13 +49,13 @@ A barra de ferramentas da sala tem:
 - **Fechar sala** / **Abrir sala** — controla se novos visitantes conseguem entrar.
 - **Arquivo > Configurações de Sala…** — janela do mestre, dividida em abas:
   - **Geral** — muda o **nome** da sala e **exclui a sala**. A exclusão não pode ser desfeita e desconecta todos que estão na sala.
-  - **Acesso** — abre ou fecha a sala, liga a **aprovação de entradas** e define, altera ou remove a **senha**. Mudar a senha não derruba quem já entrou; vale para quem entrar depois.
+  - **Acesso** — abre ou fecha a sala, liga a **aprovação de entradas** e define, altera ou remove a **senha**. Mudar a senha não derruba quem já entrou; vale para quem entrar depois. Quem erra a senha 10 vezes seguidas precisa esperar 1 minuto para tentar de novo (a janela de senha mostra a contagem). Cada 3 erros depois disso aumentam a espera para 3, 5 e, a partir daí, 10 minutos. Acertar a senha zera a contagem.
   - **Participantes** — duas tabelas: quem está conectado (ícone da lixeira para **remover**) e quem foi removido, com data e hora (ícone de setas para **readmitir**). Deixe o mouse sobre o ícone para ver a dica.
   - **Dados** — se os jogadores podem rolar dados e como o **popup de resultado** aparece.
 
 Os tokens funcionam como no editor de cenas: arraste, redimensione, gire, duplique, use o menu de contexto e o menu **Editar**. **Dois cliques** num token abrem as **Configurações do token**: nome, opacidade e os atributos (atual e máximo).
 
-Marque **Exibir nome sobre o token** para mostrar o nome acima do token. Em cada atributo, a coluna **Visibilidade** define se ele aparece como uma barra logo abaixo do token (preenchida conforme atual/máximo): **Visível** ou **Oculto**. O nome do atributo é escrito dentro da barra. A coluna **Cor** escolhe a cor da barra e a coluna **Números** (opcional) acrescenta os valores atual/máximo no meio dela, por exemplo "PV 5/10". As barras crescem um pouco ao aproximar o zoom (e têm um tamanho mínimo ao afastar), para continuarem legíveis. O mestre pode **arrastar a barra** para mudar o valor atual, ou passar o mouse sobre ela e usar os botões **-** e **+** nos cantos (com **Shift**, o passo é de 5). Quanto à visibilidade, o seletor é o único controle: em **Oculto**, a barra não aparece para ninguém.
+Marque **Exibir nome sobre o token** para mostrar o nome acima do token. Em cada atributo, a coluna **Visibilidade** define se ele aparece como uma barra logo abaixo do token (preenchida conforme atual/máximo): **Visível** ou **Oculto**. O nome do atributo é escrito dentro da barra. A coluna **Cor** escolhe a cor da barra e a coluna **Números** (opcional) acrescenta os valores atual/máximo no meio dela, por exemplo "PV 5/10". As barras crescem um pouco ao aproximar o zoom (e têm um tamanho mínimo ao afastar), para continuarem legíveis. O mestre pode **arrastar a barra** para mudar o valor atual, ou passar o mouse sobre ela e usar os botões **-** e **+** nos cantos (com **Shift**, o passo é de 5). Quanto à visibilidade, o seletor é o único controle: em **Oculto**, a barra não aparece para ninguém, e os valores do atributo nem chegam ao navegador dos jogadores. Sem **Números**, os jogadores recebem só a proporção da barra, não os valores.
 
 ## Documentos na sala
 

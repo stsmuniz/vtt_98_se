@@ -2,7 +2,7 @@ import { tables } from "#server/utils/drizzle.ts";
 import { buildRoomSnapshotFromScene, publicRoomResource } from "#server/utils/resources.ts";
 import { and, eq } from "drizzle-orm";
 import { createError } from "h3";
-import { hashSync } from "bcrypt-ts";
+import { hash } from "bcrypt-ts";
 import type { RoomSettings } from "#server/db/schema.ts";
 
 // `sceneId`, `snapshot` e `initiative` ficam fora: são validados um a um mais abaixo.
@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
     // Senha: `password` (texto) define/troca; `removePassword: true` tira a proteção. O hash
     // nunca é aceito direto do cliente e nunca volta na resposta.
     if (typeof body.password === 'string' && body.password.trim()) {
-        updateData.password = hashSync(body.password)
+        updateData.password = await hash(body.password, 10)
     } else if (body.removePassword === true) {
         updateData.password = null
     }

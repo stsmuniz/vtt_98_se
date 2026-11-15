@@ -4,6 +4,7 @@ import { useDrizzle } from "./drizzle.ts"
 import * as schema from "../db/schema"
 import { sendPasswordResetMail, sendVerificationMail } from "./mailer"
 import { collectUserAssets, purgeUserAssets, type UserAssets } from "./accountCleanup"
+import { consumeRateLimit } from "./rateLimit"
 
 const db = useDrizzle()
 
@@ -41,6 +42,18 @@ function trustedOrigins(): string[] {
 
 export const auth = betterAuth({
     trustedOrigins: trustedOrigins(),
+    // Limite de tentativas (login, cadastro, redefinir senha...). O padrão do better-auth guarda a
+    // contagem em memória, que não é compartilhada entre as instâncias serverless da Vercel — cada
+    // instância nova zerava o contador. Aqui o contador vive no Upstash (server/utils/rateLimit.ts),
+    // com as regras padrão do better-auth (ex.: /sign-in 3 a cada 10 s por IP) e 100/min nas demais
+    // rotas. Ligado só em produção (padrão do better-auth); Redis fora do ar libera.
+    rateLimit: {
+        window: 60,
+        max: 100,
+        customStorage: {
+            consume: (key, rule) => consumeRateLimit({ key: `auth:${key}`, max: rule.max, window: rule.window }),
+        },
+    },
     database: drizzleAdapter(db, {
         schema,
         provider: "pg"

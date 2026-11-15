@@ -246,12 +246,20 @@ export async function joinRoomIdentity(input: JoinIdentityInput): Promise<JoinId
 
 /**
  * Quem está fazendo a requisição (events/dice): o dono pela sessão, os demais pelo `?token=`.
- * Lança 403 (sala fechada) / 401 (sem acesso). Redis fora do ar numa sala SEM senha degrada
- * para um participante genérico (a sala segue funcionando); com senha responde 401.
+ * Lança 403 (sala fechada, removido, aguardando aprovação) / 401 (sem acesso).
+ *
+ * Com "Aprovar entradas" ligado, o token só vale para quem o mestre aprovou (ou já estava na
+ * sala quando a opção foi ligada) — não basta não estar na fila de pedidos: um token emitido
+ * pelo /join antes de a aprovação ser ligada não pode pular a fila chamando /events ou /dice
+ * direto.
+ *
+ * Redis fora do ar: numa sala sem senha e sem aprovação degrada para um participante genérico
+ * (a sala segue funcionando); com senha ou aprovação falha FECHADO (503), já que não há como
+ * conferir o token, a expulsão nem a aprovação.
  */
 export async function resolveRoomParticipant(
     event: H3Event,
-    room: { code: string, userId: string, isOpen: boolean, password: string | null },
+    room: { code: string, userId: string, isOpen: boolean, password: string | null, settings?: { requireApproval?: boolean } | null },
 ): Promise<RoomParticipant> {
     const session = await auth.api.getSession({ headers: event.headers }).catch(() => null)
 
@@ -268,6 +276,14 @@ export async function resolveRoomParticipant(
         throw createError({ statusCode: 403, statusMessage: 'Esta sala está fechada no momento.' })
     }
 
+    const requireApproval = room.settings?.requireApproval === true
+    // Sala em que o acesso depende de conferir algo no Redis.
+    const strict = !!room.password || requireApproval
+    const unavailable = () => createError({
+        statusCode: 503,
+        statusMessage: 'O serviço de tempo real está indisponível no momento. Tente novamente em instantes.',
+    })
+
     const token = getQuery(event).token
     if (typeof token === 'string') {
         let stored: StoredParticipant | null
@@ -275,12 +291,25 @@ export async function resolveRoomParticipant(
             stored = parse<StoredParticipant>(await redis.get(tokenKey(token)))
         } catch (error) {
             console.error(`Erro ao validar acesso à sala ${room.code} no Redis:`, error)
-            if (room.password) throw createError({ statusCode: 401, statusMessage: 'Não autenticado.' })
+            if (strict) throw unavailable()
             return { id: 'anonimo', name: 'Jogador', role: 'player' }
         }
 
         if (stored && stored.code === room.code) {
-            const banned = await getKicked(room.code, stored.id).catch(() => null)
+            let banned: KickedItem | null = null
+            let pending = false
+            let approved = true
+            try {
+                [banned, pending, approved] = await Promise.all([
+                    getKicked(room.code, stored.id),
+                    isPending(room.code, stored.id),
+                    requireApproval ? isApproved(room.code, stored.id) : Promise.resolve(true),
+                ])
+            } catch (error) {
+                console.error(`Erro ao verificar expulsão/aprovação na sala ${room.code} no Redis:`, error)
+                if (strict) throw unavailable()
+            }
+
             if (banned) {
                 throw createError({
                     statusCode: 403,
@@ -288,8 +317,9 @@ export async function resolveRoomParticipant(
                     data: { reason: banned.denied ? 'denied' : 'kicked' },
                 })
             }
-            // Ainda esperando a aprovação do mestre: nada de eventos nem rolagens.
-            if (await isPending(room.code, stored.id).catch(() => false)) {
+            // Ainda esperando a aprovação do mestre (ou nunca pediu): nada de eventos nem rolagens.
+            // O cliente refaz o /join, que põe o pedido na fila do mestre.
+            if (pending || !approved) {
                 throw createError({ statusCode: 403, statusMessage: 'Aguardando a aprovação do mestre.', data: { reason: 'pending' } })
             }
         }
@@ -297,6 +327,8 @@ export async function resolveRoomParticipant(
         if (stored && stored.code === room.code && (!room.password || stored.verified)) {
             // Uso mantém o acesso vivo.
             redis.expire(tokenKey(token), TOKEN_TTL_SECONDS).catch(() => {})
+            // ...inclusive a aprovação: numa sessão longa ela não pode vencer antes do token.
+            if (requireApproval) redis.expire(approvedKey(room.code), TOKEN_TTL_SECONDS).catch(() => {})
             return { id: stored.id, name: stored.name, role: 'player', userId: stored.userId }
         }
     }
@@ -323,6 +355,11 @@ export interface JoinRequest {
 
 export async function isPending(code: string, id: string): Promise<boolean> {
     return (await redis.hexists(pendingKey(code), id)) === 1
+}
+
+/** O mestre aprovou `id` (ou ele já estava na sala quando a aprovação foi ligada)? */
+export async function isApproved(code: string, id: string): Promise<boolean> {
+    return (await redis.hexists(approvedKey(code), id)) === 1
 }
 
 export type AdmissionResult =

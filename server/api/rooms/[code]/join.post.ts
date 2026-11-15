@@ -2,7 +2,8 @@ import { useDrizzle } from "#server/utils/drizzle.ts";
 import { eq } from "drizzle-orm";
 import { createError, getRouterParam, readBody, setResponseStatus } from "h3";
 import { roomsTable } from "#server/db/schema.ts";
-import { compareSync } from "bcrypt-ts";
+import { compare } from "bcrypt-ts";
+import { playerRoomResource, publicRoomResource } from "#server/utils/resources.ts";
 
 // Password is read from the JSON body (never a query string) so it never ends up in
 // access logs, proxy logs, or browser history.
@@ -15,6 +16,12 @@ export default defineEventHandler(async (event) => {
             statusMessage: "Código da Sala não informado."
         })
     }
+
+    // Limite geral por IP (antes de tocar no banco). Folgado o bastante para uma mesa inteira atrás
+    // do mesmo IP (mesma casa) com todos aguardando aprovação, já que o cliente consulta o /join a
+    // cada 3 s enquanto espera.
+    const ip = clientIp(event)
+    await enforceRateLimit(event, [{ key: `join:ip:${ip}`, max: 120, window: 60 }])
 
     const room = await useDrizzle().query.roomsTable.findFirst({
         where: eq(roomsTable.code, code),
@@ -54,21 +61,48 @@ export default defineEventHandler(async (event) => {
     })
 
     // Senha: conferida a cada entrada, a não ser que o token de uma entrada anterior (que já a
-    // provou) seja reapresentado — recarregar a página não pede a senha de novo.
+    // provou) seja reapresentado — recarregar a página não pede a senha de novo. O token vem
+    // primeiro: é barato e é o caso comum (o cliente reenvia a senha guardada a cada consulta
+    // enquanto aguarda a aprovação do mestre, e isso não deve contar como tentativa).
     let verified = !room.password || isOwner
     if (!verified) {
+        let redisFailed = false
+        try {
+            verified = await isVerifiedParticipantToken(code, body?.token)
+        } catch (error) {
+            console.error(`Erro ao validar acesso à sala ${code} no Redis:`, error)
+            redisFailed = true
+        }
+
         const providedPassword = body?.password
-        if (typeof providedPassword === 'string' && compareSync(providedPassword, room.password!)) {
-            verified = true
-        } else {
-            try {
-                verified = await isVerifiedParticipantToken(code, body?.token)
-            } catch (error) {
-                console.error(`Erro ao validar acesso à sala ${code} no Redis:`, error)
-                throw unavailable()
+        if (!verified && typeof providedPassword === 'string' && providedPassword) {
+            // Senhas erradas bloqueiam este IP nesta sala por um tempo crescente (1, 3, 5 e 10
+            // minutos; ver server/utils/rateLimit.ts). Durante o bloqueio nem chega a conferir a
+            // senha. O teto por sala (vários IPs) segura a força bruta distribuída. Tudo antes do
+            // bcrypt, que é o trabalho caro; o assíncrono não trava o event loop (e com ele as
+            // streams de eventos abertas na mesma instância).
+            const lockKey = `join:ip:${ip}:${code}`
+            const remaining = await passwordLockRemaining(lockKey)
+            if (remaining > 0) {
+                throw passwordLockedError(event, remaining, 'Muitas tentativas de senha. Aguarde para tentar de novo.')
+            }
+            await enforceRateLimit(event, [
+                { key: `join-password:room:${code}`, max: 60, window: 600 },
+            ], 'Muitas tentativas de senha nesta sala. Aguarde alguns minutos e tente de novo.')
+
+            verified = await compare(providedPassword, room.password!)
+            if (verified) {
+                await clearPasswordFailures(lockKey)
+            } else {
+                const lockMs = await registerPasswordFailure(lockKey)
+                if (lockMs > 0) {
+                    throw passwordLockedError(event, lockMs, 'Senha incorreta. Muitas tentativas: aguarde para tentar de novo.')
+                }
             }
         }
+
         if (!verified) {
+            if (redisFailed) throw unavailable()
             throw createError({
                 statusCode: 401,
                 statusMessage: "Senha incorreta.",
@@ -140,11 +174,10 @@ export default defineEventHandler(async (event) => {
         }
     }
 
-    const { password, ...roomWithoutPassword } = room
-
+    // O mestre recebe a sala inteira; o jogador, só a visão de jogador (sem atributos ocultos,
+    // sem a cena de origem e sem o id do dono). Nenhum dos dois recebe o hash da senha.
     return {
-        ...roomWithoutPassword,
-        hasPassword: !!password,
+        ...(isOwner ? publicRoomResource(room) : playerRoomResource(room)),
         role: isOwner ? 'gm' : 'player',
         accessToken,
         participant: { id: participant.id, name: participant.name },

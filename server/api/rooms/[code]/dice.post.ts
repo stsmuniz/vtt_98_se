@@ -12,6 +12,10 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 400, statusMessage: 'Código da sala não informado.' })
     }
 
+    // Limite por IP antes de qualquer trabalho (o intervalo por jogador vem depois, já com a
+    // identidade). Folgado para uma mesa inteira atrás do mesmo IP, mestre incluído.
+    await enforceRateLimit(event, [{ key: `dice:ip:${clientIp(event)}`, max: 120, window: 60 }])
+
     const room = await useDrizzle().query.roomsTable.findFirst({
         where: eq(roomsTable.code, code),
     })

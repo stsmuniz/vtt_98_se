@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto'
 import { and, eq } from 'drizzle-orm'
 import { createError, getHeader, getRouterParam, readBody, readMultipartFormData } from 'h3'
 
@@ -268,18 +269,25 @@ export async function createUploadableResource(event: any, options: UploadableRe
     return db.insert(options.table).values(values).returning()
 }
 
+/**
+ * Código de sala novo: 10 caracteres de 62 com `crypto.randomInt` (~59,5 bits). Numa sala sem
+ * senha o código é a única proteção, então não pode ser adivinhável (`Math.random` não é
+ * criptográfico) nem curto o bastante para varrer. Códigos antigos (6 caracteres) continuam valendo.
+ */
+export const ROOM_CODE_LENGTH = 10
+
 export const generateRoomCode = async (): Promise<string> => {
     const allowedCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-    const roomCode = Array.from({ length: 6 }, () => allowedCharacters.charAt(Math.floor(Math.random() * allowedCharacters.length)))
+    const roomCode = Array.from({ length: ROOM_CODE_LENGTH }, () => allowedCharacters.charAt(randomInt(allowedCharacters.length))).join('')
 
     const isRoomCodeTaken = await useDrizzle().query.roomsTable.findFirst({
-        where: (rooms, { eq }) => eq(rooms.code, roomCode.join(''))
+        where: (rooms, { eq }) => eq(rooms.code, roomCode)
     });
 
     if (isRoomCodeTaken) return generateRoomCode()
 
-    return roomCode.join('')
+    return roomCode
 }
 
 /**

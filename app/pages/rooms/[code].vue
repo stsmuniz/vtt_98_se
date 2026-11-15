@@ -30,6 +30,8 @@ const isPasswordWindowOpen = ref(false)
 const isInitiativeWindowOpen = ref(false)
 const isRoomSettingsWindowOpen = ref(false)
 const passwordError = ref('')
+/** Senha bloqueada por erros demais (instante em ms em que libera; 0 = livre). */
+const passwordLockedUntil = ref(0)
 const loadError = ref('')
 
 const isGm = computed(() => room.value?.role === 'gm')
@@ -388,6 +390,25 @@ async function loadRoom(attempt: { password?: string; name?: string } = {}) {
       return
     }
 
+    // 429: muitas tentativas. Aguardando aprovação, só espera mais para consultar de novo.
+    if (response.status === 429) {
+      const data = await response.json().catch(() => null)
+      const message = data?.statusMessage || 'Muitas tentativas. Aguarde um pouco e tente de novo.'
+      const waitMs = typeof data?.data?.retryAfterMs === 'number' ? data.data.retryAfterMs : 10_000
+      if (isWaitingApproval.value) {
+        approvalPollTimer = setTimeout(() => loadRoom(), Math.max(3000, waitMs))
+      } else if (isPasswordWindowOpen.value || data?.data?.reason === 'password-locked') {
+        // Senha bloqueada: a janela de senha mostra a contagem e libera o botão sozinha.
+        isNameWindowOpen.value = false
+        isPasswordWindowOpen.value = true
+        passwordError.value = data?.data?.reason === 'password-locked' && message.startsWith('Senha incorreta') ? 'Senha incorreta.' : ''
+        passwordLockedUntil.value = Date.now() + waitMs
+      } else {
+        loadError.value = message
+      }
+      return
+    }
+
     if (response.status === 503) {
       stopWaitingForApproval()
       isPasswordWindowOpen.value = false
@@ -434,6 +455,13 @@ async function loadRoom(attempt: { password?: string; name?: string } = {}) {
     connectRoomEvents()
   } catch (error) {
     console.error('Erro ao carregar a sala:', error)
+    // Jogador já na sala que perdeu a conexão (ver o `error` da stream): tenta de novo.
+    if (room.value && !isGm.value && !roomEvents && !roomEventsReconnectTimer) {
+      roomEventsReconnectTimer = setTimeout(() => {
+        roomEventsReconnectTimer = null
+        loadRoom()
+      }, 5000)
+    }
   }
 }
 
@@ -493,11 +521,17 @@ function connectRoomEvents() {
   // O EventSource já reconecta sozinho quando a conexão cai no meio (ex.: a função da Vercel
   // atinge o tempo máximo de execução) — só precisamos recriar manualmente quando o navegador
   // encerra a stream de vez (readyState CLOSED), o que acontece se a resposta inicial não for
-  // 2xx (ex.: token de acesso expirado).
+  // 2xx (ex.: token de acesso expirado). O mestre só reconecta; o jogador refaz o /join, que diz
+  // o motivo (aguardando aprovação, removido, sala fechada, senha) — reconectar a stream com o
+  // mesmo token seria recusado para sempre.
   roomEvents.addEventListener('error', () => {
     if (roomEvents?.readyState === EventSource.CLOSED) {
       roomEvents = null
-      roomEventsReconnectTimer = setTimeout(connectRoomEvents, 2000)
+      roomEventsReconnectTimer = setTimeout(() => {
+        roomEventsReconnectTimer = null
+        if (isGm.value) connectRoomEvents()
+        else loadRoom()
+      }, 2000)
     }
   })
 }
@@ -1242,6 +1276,7 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
     <EditorRoomPasswordDialog
         v-else-if="isPasswordWindowOpen"
         :error="passwordError"
+        :locked-until="passwordLockedUntil"
         @submit="submitPassword"
         @cancel="cancelEntry"
     />

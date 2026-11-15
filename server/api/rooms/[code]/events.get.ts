@@ -1,6 +1,21 @@
 import { eq } from 'drizzle-orm'
 import { roomsTable } from '#server/db/schema.ts'
 import { createEventStream, createError, getRouterParam } from 'h3'
+import { playerRoomMessage, playerSnapshot } from '#server/utils/resources.ts'
+
+// Mensagem já filtrada para jogadores, por mensagem: a mesma mensagem vai para todas as streams
+// desta instância, então o filtro (e o JSON) é feito uma vez só e não uma vez por jogador.
+const playerPayloadCache = new WeakMap<object, string>()
+
+function playerPayload(message: unknown): string {
+    if (!message || typeof message !== 'object') return JSON.stringify(playerRoomMessage(message))
+    let payload = playerPayloadCache.get(message)
+    if (payload === undefined) {
+        payload = JSON.stringify(playerRoomMessage(message))
+        playerPayloadCache.set(message, payload)
+    }
+    return payload
+}
 
 // Stream de eventos ao vivo da sala (Server-Sent Events): substitui o WebSocket original, que
 // não é suportado pelo preset da Vercel (ver roomHub.ts). Só entrega dados nesta direção — a
@@ -16,6 +31,11 @@ export default defineEventHandler(async (event) => {
     if (!code) {
         throw createError({ statusCode: 400, statusMessage: 'Código da sala não informado.' })
     }
+
+    // Abrir streams em massa custa tempo de função e comandos no Redis. Uma conexão normal dura
+    // minutos (até a Vercel encerrar a função e o EventSource reconectar), então o limite por IP
+    // só pesa para quem abre e fecha streams sem parar.
+    await enforceRateLimit(event, [{ key: `events:ip:${clientIp(event)}`, max: 60, window: 60 }])
 
     const room = await useDrizzle().query.roomsTable.findFirst({
         where: eq(roomsTable.code, code),
@@ -52,7 +72,9 @@ export default defineEventHandler(async (event) => {
             return
         }
 
-        eventStream.push(JSON.stringify(message)).catch(() => {})
+        // Jogadores recebem a sala e o rascunho ao vivo sem o que é só do mestre (ver
+        // `playerRoomResource` em server/utils/resources.ts).
+        eventStream.push(isOwner ? JSON.stringify(message) : playerPayload(message)).catch(() => {})
     })
 
     // Mantém a stream viva quando a sala fica sem atividade (ninguém arrastou nada) — sem
@@ -114,7 +136,7 @@ export default defineEventHandler(async (event) => {
     getRoomLiveSnapshot(code)
         .then((liveSnapshot) => {
             if (liveSnapshot) {
-                return eventStream.push(JSON.stringify({ type: 'snapshot:live', snapshot: liveSnapshot }))
+                return eventStream.push(JSON.stringify({ type: 'snapshot:live', snapshot: isOwner ? liveSnapshot : playerSnapshot(liveSnapshot) }))
             }
         })
         .catch(() => {})
