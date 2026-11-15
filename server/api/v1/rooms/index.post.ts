@@ -1,6 +1,6 @@
 import { tables, useDrizzle } from "#server/utils/drizzle.ts";
 import { generateRoomCode } from "#server/utils/api.ts";
-import { buildRoomSnapshotFromScene } from "#server/utils/resources.ts";
+import { buildRoomSnapshotFromScene, publicRoomResource } from "#server/utils/resources.ts";
 import { and, eq } from "drizzle-orm";
 import { createError, readBody } from "h3";
 import {hashSync} from "bcrypt-ts";
@@ -50,5 +50,6 @@ export default defineEventHandler(async (event) => {
         snapshot,
     }).returning()
 
-    return room
+    // Nunca devolve o hash da senha, nem ao dono (só `hasPassword`).
+    return publicRoomResource(room)
 })

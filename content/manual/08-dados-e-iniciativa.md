@@ -34,7 +34,7 @@ Existem dois roladores independentes, cada um com o seu histórico: o **Rolador 
 
 ### Misturando tipos de dado
 
-Para combinar dados diferentes numa só rolagem (por exemplo, 2d6 junto com 1d8), escolha o dado e a quantidade e clique em **Adicionar dado**; ele entra numa lista, onde também pode ser removido. Repita para cada tipo.
+Para combinar dados diferentes numa só rolagem (por exemplo, 2d6 junto com 1d8), escolha o dado e a quantidade e clique em **Adicionar dado**; ele entra numa lista, onde também pode ser removido. Repita para cada tipo. Uma rolagem aceita até 10 grupos, com no máximo 100 dados por grupo e 200 dados no total.
 
 Enquanto a lista estiver vazia, **Rolar** usa a Qtde e o dado visíveis na tela. Assim que houver pelo menos um dado na lista, **Rolar** considera **somente** os dados da lista; o modificador e o tipo de rolagem se aplicam ao conjunto.
 

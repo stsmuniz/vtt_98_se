@@ -87,6 +87,29 @@ export async function patchOwnedNameAndTags(event: any, table: any, notFoundMess
     return row
 }
 
+/** Id de outra linha vindo do corpo (ex.: `scenarioId`, `sceneId`): inteiro positivo, senão 400. */
+export function parseBodyId(raw: unknown, message = 'ID inválido.'): number {
+    const id = Number(raw)
+    if (!Number.isInteger(id) || id < 1) {
+        throw createError({ statusCode: 400, statusMessage: message })
+    }
+    return id
+}
+
+export const MAX_SCENE_DIMENSION = 20000
+
+/**
+ * Largura/altura de cena: arredonda (a alça de redimensionar manda valores fracionários, que a
+ * coluna `integer` recusaria) e exige uma faixa válida, senão 400.
+ */
+export function parseSceneDimension(raw: unknown): number {
+    const value = Math.round(Number(raw))
+    if (!Number.isFinite(value) || value < 1 || value > MAX_SCENE_DIMENSION) {
+        throw createError({ statusCode: 400, statusMessage: `Tamanho de cena inválido (de 1 a ${MAX_SCENE_DIMENSION} px).` })
+    }
+    return value
+}
+
 export function parseIdParam(event: any): number {
     const idParam = getRouterParam(event, 'id')
     const id = Number(idParam)
@@ -155,6 +178,12 @@ type UploadableResourceOptions = {
     /** Campos copiados do corpo JSON ao duplicar, sem passar pelos `fields` (ex.: URLs da versão grande). */
     copyOnDuplicate?: string[]
     transformUpdate?: (updateData: Record<string, unknown>, rawFields: Record<string, string>) => void | Promise<void>
+    /**
+     * Confere/ajusta os valores já convertidos antes do INSERT, nos dois ramos (upload e
+     * duplicar) — ex.: que o `scenarioId` de uma cena nova é um cenário do próprio usuário.
+     * Roda antes do upload da imagem, para um pedido recusado não deixar arquivo órfão no Blob.
+     */
+    validate?: (values: Record<string, unknown>, userId: string) => void | Promise<void>
 }
 
 /** Grava o arquivo enviado e devolve as colunas de imagem da linha (uma imagem, ou miniatura + versão grande). */
@@ -199,6 +228,7 @@ export async function createUploadableResource(event: any, options: UploadableRe
             values[field.name] = coerceField(field, body[field.name], true)
         }
         for (const key of options.copyOnDuplicate ?? []) values[key] = body[key]
+        await options.validate?.(values, session.user.id)
 
         return db.insert(options.table).values(values).returning()
     }
@@ -229,6 +259,7 @@ export async function createUploadableResource(event: any, options: UploadableRe
     for (const field of options.fields) {
         values[field.name] = coerceField(field, rawFields[field.name], false)
     }
+    await options.validate?.(values, session.user.id)
 
     if (options.hasImage && file) {
         Object.assign(values, await storeUploadedImage(file, options))

@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { roomsTable } from '#server/db/schema.ts'
 import { createError, getRouterParam, readBody, setResponseHeader } from 'h3'
-import { rollDiceGroups, type DiceGroup, type RollType, type ModSignal } from '../../../../lib/rollDice'
+import { parseDiceGroups, rollDiceGroups, type DiceGroup, type RollType, type ModSignal } from '../../../../lib/rollDice'
 
 // Rolagem de dados dentro da sala: qualquer participante (mesma checagem de acesso do
 // events.get.ts) rola; o servidor sorteia, grava no histórico da sala e transmite a todos.
@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody<{
-        groups?: DiceGroup[]
+        groups?: unknown
         type?: RollType
         mod?: number
         modSignal?: ModSignal
@@ -38,25 +38,27 @@ export default defineEventHandler(async (event) => {
         coin?: boolean
     }>(event).catch(() => null)
 
-    if (!body || !Array.isArray(body.groups)) {
+    if (!body || typeof body !== 'object' || !Array.isArray(body.groups)) {
         throw createError({ statusCode: 400, statusMessage: 'Nenhum dado enviado.' })
     }
 
     const type: RollType = body.type === 'h' || body.type === 'l' || body.type === 'g' ? body.type : 's'
     const modSignal: ModSignal = body.modSignal === '-' ? '-' : '+'
     const mod = Math.min(Math.max(Math.trunc(Number(body.mod) || 0), 0), 1000)
-    const groups = body.groups.map(g => ({ quantity: Math.trunc(Number(g.quantity)), faces: Number(g.faces) as DiceGroup['faces'] }))
 
-    let result
+    // Validação barata (só a forma e os limites de grupos/dados, sem sortear nada) antes de
+    // qualquer outra coisa: vale para todos, inclusive o mestre.
+    let groups: DiceGroup[]
     try {
-        result = rollDiceGroups(groups, type, mod, modSignal, { coin: body.coin === true })
+        groups = parseDiceGroups(body.groups)
     } catch (error) {
         throw createError({ statusCode: 400, statusMessage: (error as Error).message })
     }
 
-    // Uma rolagem a cada DICE_COOLDOWN_MS por jogador (o mestre não tem limite). Só depois de
-    // o sorteio aceitar os dados, para que um pedido inválido não gaste o intervalo; sem
-    // identidade (Redis fora do ar) não há como limitar por pessoa, então libera.
+    // Uma rolagem a cada DICE_COOLDOWN_MS por jogador (o mestre não tem limite). Reivindicada
+    // depois da validação (um pedido inválido não gasta o intervalo) mas ANTES do sorteio, para
+    // que pedidos que acabam em 429 não gastem CPU; sem identidade (Redis fora do ar) não há
+    // como limitar por pessoa, então libera.
     if (!isOwner && participant.id !== 'anonimo') {
         const waitMs = await claimRollSlot(code, participant.id)
         if (waitMs > 0) {
@@ -69,6 +71,8 @@ export default defineEventHandler(async (event) => {
             })
         }
     }
+
+    const result = rollDiceGroups(groups, type, mod, modSignal, { coin: body.coin === true })
 
     const roll = {
         ...result,

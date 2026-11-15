@@ -2,8 +2,6 @@ import { tables } from "#server/utils/drizzle.ts";
 import { and, eq } from "drizzle-orm";
 import { createError } from "h3";
 
-const PATCHABLE_FIELDS = ['scenarioId', 'width', 'height'] as const
-
 export default defineEventHandler(async (event) => {
     const user = await requireUser(event)
     const id = parseIdParam(event)
@@ -14,11 +12,20 @@ export default defineEventHandler(async (event) => {
     }
 
     const updateData: Record<string, unknown> = {}
-    for (const field of PATCHABLE_FIELDS) {
-        if (field in body) updateData[field] = body[field]
+    // O cenário tem de ser do próprio usuário: o `where` abaixo só garante que a *cena* é dele,
+    // e a resposta (e o /join das salas) carregaria o cenário apontado com `with: { scenario }`.
+    if ('scenarioId' in body) {
+        const scenarioId = parseBodyId(body.scenarioId, 'Cenário inválido.')
+        await getOwnedRowOrThrow(tables.scenariosTable, scenarioId, user.id, 'Cenário não encontrado.')
+        updateData.scenarioId = scenarioId
     }
+    if ('width' in body) updateData.width = parseSceneDimension(body.width)
+    if ('height' in body) updateData.height = parseSceneDimension(body.height)
     // name/tags passam pela validação compartilhada (renomear com F2 nas pastas).
     Object.assign(updateData, sanitizeNameAndTags(body))
+    if (!Object.keys(updateData).length) {
+        throw createError({ statusCode: 400, statusMessage: 'Nada para atualizar.' })
+    }
 
     const db = useDrizzle()
     const [scene] = await db

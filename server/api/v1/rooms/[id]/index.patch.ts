@@ -5,7 +5,17 @@ import { createError } from "h3";
 import { hashSync } from "bcrypt-ts";
 import type { RoomSettings } from "#server/db/schema.ts";
 
-const PATCHABLE_FIELDS = ['name', 'tags', 'sceneId', 'snapshot', 'initiative', 'isOpen', 'settings'] as const
+// `sceneId`, `snapshot` e `initiative` ficam fora: são validados um a um mais abaixo.
+const PATCHABLE_FIELDS = ['name', 'tags', 'isOpen', 'settings'] as const
+
+/** Forma mínima do estado da sala vindo do cliente (o resto do JSON é do próprio dono). */
+function isRoomSnapshot(value: unknown): boolean {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+    const snapshot = value as Record<string, unknown>
+    return Array.isArray(snapshot.tokens)
+        && Number.isFinite(snapshot.width)
+        && Number.isFinite(snapshot.height)
+}
 
 export default defineEventHandler(async (event) => {
     const session = await auth.api.getSession({
@@ -63,18 +73,30 @@ export default defineEventHandler(async (event) => {
 
     const db = useDrizzle()
 
-    // Switching a room to a different scene (without an explicit snapshot override) rebuilds
-    // its live-play state from that scene, mirroring how a room's snapshot is first built on
-    // creation, instead of just repointing sceneId at stale token data.
-    if ('sceneId' in body && !('snapshot' in body)) {
-        const newSceneId = Number(body.sceneId)
-        if (!newSceneId || Number.isNaN(newSceneId)) {
-            throw createError({ statusCode: 400, statusMessage: 'ID de cena inválido.' })
-        }
-
+    // Cena de origem: o dono é conferido SEMPRE que `sceneId` vier — mesmo junto de um
+    // `snapshot` explícito —, senão a sala apontaria para a cena de outro usuário, que a resposta,
+    // a listagem e o /join público carregam inteira (`sourceScene` + cenário).
+    if ('sceneId' in body) {
+        const newSceneId = parseBodyId(body.sceneId, 'ID de cena inválido.')
         const scene = await getOwnedRowOrThrow(tables.scenesTable, newSceneId, session.user.id, 'Cena não encontrada.')
-        updateData.snapshot = buildRoomSnapshotFromScene(scene)
+        updateData.sceneId = scene.id
+        // Trocar de cena (sem um snapshot explícito) reconstrói o estado de jogo a partir dela, como
+        // na criação da sala, em vez de só reapontar `sceneId` para tokens desatualizados.
+        if (!('snapshot' in body)) updateData.snapshot = buildRoomSnapshotFromScene(scene)
     }
+    if ('snapshot' in body) {
+        if (!isRoomSnapshot(body.snapshot)) {
+            throw createError({ statusCode: 400, statusMessage: 'Estado da sala inválido.' })
+        }
+        updateData.snapshot = body.snapshot
+    }
+    if ('initiative' in body) {
+        if (!Array.isArray(body.initiative)) {
+            throw createError({ statusCode: 400, statusMessage: 'Iniciativa inválida.' })
+        }
+        updateData.initiative = body.initiative
+    }
+
     const [room] = await db
         .update(tables.roomsTable)
         .set(updateData)

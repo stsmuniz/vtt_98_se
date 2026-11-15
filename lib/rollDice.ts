@@ -45,6 +45,50 @@ export interface RoomRoll extends RollResult {
 
 const VALID_DICE = new Set<DiceType>([2, 4, 6, 8, 10, 12, 20, 100])
 
+/** Máximo de dados num grupo (ex.: 100d6). */
+export const MAX_DICE_PER_GROUP = 100
+/** Máximo de grupos numa rolagem (há 8 tipos de dado; o rolador permite repetir o tipo). */
+export const MAX_DICE_GROUPS = 10
+/** Máximo de dados somando todos os grupos de uma rolagem. */
+export const MAX_DICE_PER_ROLL = 200
+
+/**
+ * Confere a forma dos grupos de dados ANTES de sortear qualquer coisa (só olha números, não
+ * aloca dados): lista não vazia e limitada, cada item um objeto com quantidade inteira em
+ * 1..MAX_DICE_PER_GROUP e um tipo de dado suportado, e um total limitado de dados. Devolve os
+ * grupos normalizados; lança Error com uma mensagem para o usuário.
+ */
+export function parseDiceGroups(raw: unknown): DiceGroup[] {
+    if (!Array.isArray(raw) || raw.length === 0) {
+        throw new Error('Nenhum dado selecionado')
+    }
+    if (raw.length > MAX_DICE_GROUPS) {
+        throw new Error(`Máximo de ${MAX_DICE_GROUPS} grupos de dados por rolagem`)
+    }
+
+    let total = 0
+    const groups = raw.map((item): DiceGroup => {
+        if (!item || typeof item !== 'object') {
+            throw new Error('Grupo de dados inválido')
+        }
+        const quantity = Number((item as Record<string, unknown>).quantity)
+        const faces = Number((item as Record<string, unknown>).faces) as DiceType
+        if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_DICE_PER_GROUP) {
+            throw new Error(`Quantidade de dados inválida (de 1 a ${MAX_DICE_PER_GROUP})`)
+        }
+        if (!VALID_DICE.has(faces)) {
+            throw new Error(`Tipo de dado não suportado: d${String((item as Record<string, unknown>).faces).slice(0, 10)}`)
+        }
+        total += quantity
+        return { quantity, faces }
+    })
+
+    if (total > MAX_DICE_PER_ROLL) {
+        throw new Error(`Máximo de ${MAX_DICE_PER_ROLL} dados por rolagem`)
+    }
+    return groups
+}
+
 function rollSingleDie(max: number): number {
     return Math.floor(Math.random() * max) + 1
 }
@@ -60,20 +104,8 @@ function buildInput(groups: DiceGroup[], mod: number, modSignal: ModSignal): str
  * "s" (soma) soma tudo, "h" (maior) usa o maior valor rolado, "l" (menor) usa o menor.
  * O modificador é aplicado uma única vez sobre o resultado final.
  */
-export function rollDiceGroups(groups: DiceGroup[], rollType: RollType = 's', mod = 0, modSignal: ModSignal = '+', options: { coin?: boolean } = {}): RollResult {
-    if (groups.length === 0) {
-        throw new Error('Nenhum dado selecionado')
-    }
-
-    for (const group of groups) {
-        if (group.quantity < 1 || group.quantity > 100) {
-            throw new Error(`Quantidade de dados inválida: ${group.quantity}`)
-        }
-
-        if (!VALID_DICE.has(group.faces)) {
-            throw new Error(`Tipo de dado não suportado: d${group.faces}`)
-        }
-    }
+export function rollDiceGroups(rawGroups: DiceGroup[], rollType: RollType = 's', mod = 0, modSignal: ModSignal = '+', options: { coin?: boolean } = {}): RollResult {
+    const groups = parseDiceGroups(rawGroups)
 
     const faces = groups.flatMap(g => Array.from({ length: g.quantity }, () => g.faces as number))
     const rolls = faces.map(f => rollSingleDie(f))

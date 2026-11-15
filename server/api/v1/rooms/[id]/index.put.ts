@@ -20,7 +20,9 @@ export default defineEventHandler(async (event) => {
         },
     })
 
-    await broadcastRoomUpdate(room.code, publicRoomResource(room))
+    const resource = publicRoomResource(room)
+    await broadcastRoomUpdate(room.code, resource)
 
-    return room
+    // Nunca devolve o hash da senha, nem ao dono (só `hasPassword`).
+    return resource
 })

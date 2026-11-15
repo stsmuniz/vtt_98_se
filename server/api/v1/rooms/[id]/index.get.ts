@@ -2,6 +2,7 @@ import { useDrizzle } from "#server/utils/drizzle.ts";
 import { and, eq } from "drizzle-orm";
 import { createError } from "h3";
 import { roomsTable } from "#server/db/schema.ts";
+import { publicRoomResource } from "#server/utils/resources.ts";
 
 export default defineEventHandler(async (event) => {
     const session = await auth.api.getSession({
@@ -31,5 +32,6 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    return room;
+    // Nunca devolve o hash da senha, nem ao dono (só `hasPassword`).
+    return publicRoomResource(room);
 })

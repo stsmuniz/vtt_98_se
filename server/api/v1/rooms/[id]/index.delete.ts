@@ -1,5 +1,6 @@
 import { tables } from "#server/utils/drizzle.ts";
 import { createError } from 'h3';
+import { publicRoomResource } from "#server/utils/resources.ts";
 
 export default defineEventHandler(async (event) => {
     const session = await auth.api.getSession({
@@ -20,5 +21,6 @@ export default defineEventHandler(async (event) => {
     const [deletedRoom] = deletedRows
     if (deletedRoom) await broadcastRoomClosed(deletedRoom.code)
 
-    return deletedRows
+    // Nunca devolve o hash da senha, nem ao dono (só `hasPassword`).
+    return deletedRows.map(row => publicRoomResource(row))
 })
