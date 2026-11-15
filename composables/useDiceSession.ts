@@ -140,11 +140,10 @@ export function useDiceSession(scope: DiceScope = 'local') {
     if (isRoomScope) {
       const ctx = context.value
       if (!ctx) throw new Error('Você não está em uma sala.')
-      const url = new URL(`/api/rooms/${ctx.code}/dice`, window.location.origin)
-      if (ctx.token) url.searchParams.set('token', ctx.token)
-      const response = await fetch(url, {
+      // O token vai no cabeçalho, não na URL (que acaba em logs de acesso e de proxy).
+      const response = await fetch(`/api/rooms/${ctx.code}/dice`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(ctx.token ? { 'X-Room-Token': ctx.token } : {}) },
         body: JSON.stringify({ groups, type, mod, modSignal, hidden, coin }),
       })
       if (!response.ok) {

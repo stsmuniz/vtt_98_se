@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { createError, getQuery, type H3Event } from 'h3'
+import { createError, getHeader, getQuery, type H3Event } from 'h3'
 
 // Identidade e presença de quem está numa sala.
 //
@@ -76,11 +76,21 @@ function parse<T>(value: unknown): T | null {
 
 export function cleanParticipantName(name: unknown): string {
     if (typeof name !== 'string') return ''
-    return name.replace(/\s+/g, ' ').trim().slice(0, MAX_PARTICIPANT_NAME)
+    // Tira caracteres de controle e de formatação invisíveis (largura zero, marcas de direção
+    // bidi, hífen discreto...): "Mestre" + U+200B pareceria o nome do mestre e passaria na
+    // checagem de nome único.
+    return name.replace(/[\p{Cc}\p{Cf}]/gu, '').replace(/\s+/g, ' ').trim().slice(0, MAX_PARTICIPANT_NAME)
 }
 
 function normalizeName(name: string): string {
-    return name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    // NFKC antes: variantes de compatibilidade (letras de largura total, ligaduras) contam como
+    // a letra comum na comparação de nomes.
+    return name.normalize('NFKC').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+}
+
+/** Nome que o dono da sala usa nela (o mesmo critério de `joinRoomIdentity` para o mestre). */
+export function ownerDisplayName(ownerName: unknown): string {
+    return cleanParticipantName(ownerName) || 'Mestre'
 }
 
 /** Id estável (e não reversível) de um usuário logado numa sala. */
@@ -93,13 +103,16 @@ export function participantIdForUser(code: string, userId: string): string {
  * uso por outro (e `allowSuffix` for falso). Com `allowSuffix`, tenta "Nome (2)", "Nome (3)"...
  * Com `force` (dono), toma o nome mesmo que esteja reservado.
  */
-async function reserveName(code: string, id: string, desired: string, opts: { allowSuffix?: boolean, force?: boolean } = {}): Promise<string | null> {
+async function reserveName(code: string, id: string, desired: string, opts: { allowSuffix?: boolean, force?: boolean, reserved?: string } = {}): Promise<string | null> {
+    const reserved = opts.reserved ? normalizeName(opts.reserved) : null
     for (let attempt = 1; attempt <= 50; attempt++) {
         if (attempt > 1 && !opts.allowSuffix) return null
         const candidate = attempt === 1
             ? desired
             : `${desired.slice(0, MAX_PARTICIPANT_NAME - 5)} (${attempt})`
         const field = normalizeName(candidate)
+        // O nome do dono da sala é sempre dele, esteja ele conectado ou não.
+        if (!opts.force && field === reserved) continue
         const holder = parse<{ id: string, seen: number }>(await redis.hget(namesKey(code), field))
         const entry = { id, seen: Date.now() }
 
@@ -192,6 +205,8 @@ export interface JoinIdentityInput {
     name?: unknown
     /** Token de uma entrada anterior (recarregar a página mantém nome e id). */
     token?: unknown
+    /** Nome da conta do dono da sala: reservado para ele (ninguém mais entra com esse nome). */
+    ownerName?: string | null
     /** A senha da sala acabou de ser digitada e conferida (o token anterior, se ainda válido, é levado adiante sozinho). */
     verified: boolean
     /** Marca da senha atual da sala (`roomAccessTag`). */
@@ -290,17 +305,17 @@ export async function joinRoomIdentity(input: JoinIdentityInput): Promise<JoinId
         if (banned) return { ok: false, reason: 'kicked', denied: !!banned.denied }
         if (!await hasRoomForNewName(code, id)) return { ok: false, reason: 'room-full' }
         // Conta: o nome do cadastro, sem popup. Se outro já o usa, ganha um sufixo.
-        name = await reserveName(code, id, cleanParticipantName(user.name) || 'Jogador', { allowSuffix: true })
+        name = await reserveName(code, id, cleanParticipantName(user.name) || 'Jogador', { allowSuffix: true, reserved: ownerDisplayName(input.ownerName) })
     } else if (reusableBan) {
         return { ok: false, reason: 'kicked', denied: !!reusableBan.denied }
     } else if (reusable && (!typedName || normalizeName(typedName) === normalizeName(reusable.name))) {
         id = reusable.id
-        name = await reserveName(code, id, reusable.name)
+        name = await reserveName(code, id, reusable.name, { reserved: ownerDisplayName(input.ownerName) })
     } else {
         if (!typedName) return { ok: false, reason: 'name-required' }
         id = reusable?.id ?? crypto.randomUUID().replace(/-/g, '').slice(0, 16)
         if (!await hasRoomForNewName(code, id)) return { ok: false, reason: 'room-full' }
-        name = await reserveName(code, id, typedName)
+        name = await reserveName(code, id, typedName, { reserved: ownerDisplayName(input.ownerName) })
         // Trocou de nome: libera o antigo.
         if (name && reusable && normalizeName(reusable.name) !== normalizeName(name)) {
             await releaseName(code, id, reusable.name)
@@ -366,7 +381,9 @@ export async function resolveRoomParticipant(
         statusMessage: 'O serviço de tempo real está indisponível no momento. Tente novamente em instantes.',
     })
 
-    const token = getQuery(event).token
+    // Token de participante: no cabeçalho `X-Room-Token` (POSTs como /dice) ou, só onde não há
+    // como mandar cabeçalho (o EventSource de /events), na query string.
+    const token = getHeader(event, 'x-room-token') || getQuery(event).token
     if (typeof token === 'string') {
         let stored: StoredParticipant | null
         try {

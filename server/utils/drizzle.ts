@@ -1,6 +1,7 @@
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import * as schema from '../db/schema'
+import { supabaseSsl } from '../db/ssl.cjs'
 
 // Conecta via Supavisor (connection pooler do Supabase), em modo transaction
 // (porta 6543) — a conexão direta (db.<ref>.supabase.co) só resolve por IPv6, e as
@@ -19,7 +20,8 @@ const client = process.env.DATABASE_URL
         database: 'postgres',
         username: `postgres.${new URL(process.env.SUPABASE_URL!).hostname.split('.')[0]}`,
         password: process.env.SUPABASE_PASSWORD!,
-        ssl: 'require',
+        // Confere o certificado do pooler com a CA do Supabase (ver server/db/ssl.cjs).
+        ssl: supabaseSsl(),
     })
 
 const db = drizzle(client, { schema })

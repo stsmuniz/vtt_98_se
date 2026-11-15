@@ -116,6 +116,7 @@ export async function purgeUserAssets(assets: UserAssets | undefined) {
     await Promise.all(assets.roomCodes.map(async (code) => {
         try {
             await broadcastRoomClosed(code)
+            await purgeRoomState(code)
         } catch (error) {
             console.error('[conta] falha ao fechar sala no Redis', { code, error })
         }

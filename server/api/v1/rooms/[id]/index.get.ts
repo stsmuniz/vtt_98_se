@@ -5,16 +5,14 @@ import { roomsTable } from "#server/db/schema.ts";
 import { publicRoomResource } from "#server/utils/resources.ts";
 
 export default defineEventHandler(async (event) => {
-    const session = await auth.api.getSession({
-        headers: event.headers,
-    })
+    const user = await requireUser(event)
 
     const id = parseIdParam(event)
 
     const room = await useDrizzle().query.roomsTable.findFirst({
         where: and(
             eq(roomsTable.id, id),
-            eq(roomsTable.userId, session.user.id)
+            eq(roomsTable.userId, user.id)
         ),
         with: {
             sourceScene: {

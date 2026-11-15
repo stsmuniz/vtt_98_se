@@ -138,6 +138,7 @@ function submitPassword() {
               type="password"
               :label="hasPassword ? 'Nova senha:' : 'Senha:'"
               autocomplete="new-password"
+              :maxlength="72"
             />
             <button type="submit" :disabled="!passwordDraft.trim()">{{ hasPassword ? 'Alterar senha' : 'Definir senha' }}</button>
           </form>

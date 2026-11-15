@@ -4,16 +4,14 @@ import { and, eq } from "drizzle-orm";
 import { createError } from "h3";
 
 export default defineEventHandler(async (event) => {
-    const session = await auth.api.getSession({
-        headers: event.headers,
-    })
+    const user = await requireUser(event)
 
     const id = parseIdParam(event)
 
     const scene = await useDrizzle().query.scenesTable.findFirst({
         where: and(
             eq(scenesTable.id, id),
-            eq(scenesTable.userId, session.user.id)
+            eq(scenesTable.userId, user.id)
         ),
         with: {
             scenario: true

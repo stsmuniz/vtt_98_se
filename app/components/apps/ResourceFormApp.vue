@@ -134,7 +134,7 @@ win.shortcuts({ 'ctrl+s': { run: submit, allowInInput: true } })
           <UiTextField v-model="name" label="Nome:" autofocus :maxlength="120" data-test="form-name" />
 
           <template v-if="desc.form.roomFields">
-            <UiTextField v-model="newPassword" type="password" label="Nova senha:" autocomplete="new-password" hint="Deixe em branco para manter a senha atual." />
+            <UiTextField v-model="newPassword" type="password" label="Nova senha:" autocomplete="new-password" :maxlength="72" hint="Deixe em branco para manter a senha atual." />
             <UiCheckbox v-model="isOpen" label="Sala aberta para visitantes" />
           </template>
 

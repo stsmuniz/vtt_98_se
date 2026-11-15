@@ -1,13 +1,11 @@
 import { tables } from "#server/utils/drizzle.ts";
 import { publicRoomResource } from "#server/utils/resources.ts";
-import { hash } from "bcrypt-ts";
 
 export default defineEventHandler(async (event) => {
     let passwordChanged = false
     const room = await updateUploadableResource(event, {
         table: tables.roomsTable,
         fields: [
-            { name: 'name', type: 'string' },
             { name: 'isOpen', type: 'boolean' },
             { name: 'tags', type: 'json' },
         ],
@@ -16,7 +14,7 @@ export default defineEventHandler(async (event) => {
         // via `raw ?? ''`) and must be hashed before storage, unlike a plain string field.
         transformUpdate: async (updateData, rawFields) => {
             if (rawFields.password) {
-                updateData.password = await hash(rawFields.password, 10)
+                updateData.password = await hashRoomPassword(rawFields.password)
                 passwordChanged = true
             }
         },

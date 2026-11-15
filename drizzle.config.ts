@@ -1,4 +1,5 @@
 import {defineConfig} from "drizzle-kit";
+import { supabaseSsl } from "./server/db/ssl.cjs";
 
 // Usa o pooler (modo session, porta 5432) em vez da conexão direta: a conexão
 // direta (db.<ref>.supabase.co) só resolve por IPv6, o que quebra em redes/ambientes
@@ -27,7 +28,8 @@ export default defineConfig(
                 user: `postgres.${new URL(process.env.SUPABASE_URL!).hostname.split('.')[0]}`,
                 password: process.env.SUPABASE_PASSWORD!,
                 database: 'postgres',
-                ssl: 'require',
+                // Confere o certificado do pooler com a CA do Supabase (ver server/db/ssl.cjs).
+                ssl: supabaseSsl(),
             },
         },
 )

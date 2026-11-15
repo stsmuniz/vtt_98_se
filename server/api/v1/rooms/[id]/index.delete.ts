@@ -19,7 +19,10 @@ export default defineEventHandler(async (event) => {
     const deletedRows = await deleteOwnedRow(tables.roomsTable, id, session.user.id, 'Sala não encontrada.')
 
     const [deletedRoom] = deletedRows
-    if (deletedRoom) await broadcastRoomClosed(deletedRoom.code)
+    if (deletedRoom) {
+        await broadcastRoomClosed(deletedRoom.code)
+        await purgeRoomState(deletedRoom.code)
+    }
 
     // Nunca devolve o hash da senha, nem ao dono (só `hasPassword`).
     return deletedRows.map(row => publicRoomResource(row))

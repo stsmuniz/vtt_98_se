@@ -108,6 +108,25 @@ export async function broadcastAccessChanged(code: string, accessTag: string) {
     await broadcastToRoom(code, { type: 'access:changed', accessTag })
 }
 
+/**
+ * Sala excluída: apaga o que ela tinha no Redis (nomes, presença, removidos, pedidos, aprovados,
+ * rascunho ao vivo, histórico de dados, streams...), em vez de deixar tudo lá até vencer. Os
+ * tokens de participante (`room-participant:<token>`) não são indexados por sala e vencem
+ * sozinhos — e já não servem para nada, porque a sala não existe mais. Falhas só são registradas.
+ */
+export async function purgeRoomState(code: string) {
+    try {
+        let cursor = '0'
+        do {
+            const [next, keys] = await redis.scan(cursor, { match: `room:${code}:*`, count: 200 }) as [string, string[]]
+            if (keys.length) await redis.del(...keys)
+            cursor = String(next)
+        } while (cursor !== '0')
+    } catch (error) {
+        console.error(`Erro ao limpar o estado da sala ${code} no Redis:`, error)
+    }
+}
+
 export async function broadcastRoomClosed(code: string) {
     await clearRoomLiveSnapshot(code)
     await clearDiceLog(code)

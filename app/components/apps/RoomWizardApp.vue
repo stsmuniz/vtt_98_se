@@ -80,7 +80,7 @@ async function finish() {
       </template>
       <template #step-basico>
         <UiTextField v-model="name" label="Nome da sala:" autofocus :maxlength="120" data-test="wizard-name" />
-        <UiTextField v-model="password" type="password" label="Senha (opcional):" autocomplete="new-password" />
+        <UiTextField v-model="password" type="password" label="Senha (opcional):" autocomplete="new-password" :maxlength="72" />
       </template>
       <template #step-tags>
         <UiTagEditor v-model="tags" :suggestions="tagSuggestions" />

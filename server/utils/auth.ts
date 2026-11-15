@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { useDrizzle } from "./drizzle.ts"
 import * as schema from "../db/schema"
@@ -22,7 +23,7 @@ const pendingCleanup = new Map<string, UserAssets>()
  */
 const PRODUCTION_ORIGINS = ['https://vtt98se.com.br', 'https://www.vtt98se.com.br']
 
-function trustedOrigins(): string[] {
+export function trustedOrigins(): string[] {
     const asOrigin = (value?: string) => {
         if (!value) return null
         const url = value.trim()
@@ -54,6 +55,18 @@ export const auth = betterAuth({
             consume: (key, rule) => consumeRateLimit({ key: `auth:${key}`, max: rule.max, window: rule.window }),
         },
     },
+    hooks: {
+        // Excluir conta exige a senha NO SERVIDOR. Sem isso o better-auth aceita o pedido sem
+        // senha quando a sessão é recente (menos de 1 dia): quem pegasse um navegador logado
+        // apagaria a conta com uma requisição. O cliente já manda a senha sempre.
+        before: createAuthMiddleware(async (ctx) => {
+            if (ctx.path !== '/delete-user') return
+            const password = (ctx.body as { password?: unknown } | undefined)?.password
+            if (typeof password !== 'string' || !password) {
+                throw new APIError('BAD_REQUEST', { message: 'Informe a sua senha para excluir a conta.' })
+            }
+        }),
+    },
     database: drizzleAdapter(db, {
         schema,
         provider: "pg"
@@ -80,7 +93,8 @@ export const auth = betterAuth({
     },
     user: {
         // Excluir conta (Usuário > Excluir conta). O cliente sempre envia a senha
-        // (authClient.deleteUser({ password })), que o better-auth confere. As
+        // (authClient.deleteUser({ password })), que o better-auth confere — e o hook
+        // `before` acima recusa o pedido sem senha. As
         // linhas do banco são apagadas pelo ON DELETE CASCADE; imagens do Blob e
         // salas no Redis são limpas pelos hooks abaixo.
         deleteUser: {

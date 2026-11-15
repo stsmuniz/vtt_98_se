@@ -1,4 +1,5 @@
 import { randomInt } from 'node:crypto'
+import { hash } from 'bcrypt-ts'
 import { and, eq } from 'drizzle-orm'
 import { createError, getHeader, getRouterParam, readBody, readMultipartFormData } from 'h3'
 
@@ -7,13 +8,53 @@ export type ResourceFieldSpec = {
     type: 'number' | 'json' | 'string' | 'boolean'
 }
 
+const invalidField = (name: string) => createError({ statusCode: 400, statusMessage: `Valor inválido em "${name}".` })
+
+/** Limites dos atributos de um token (nome e valor curtos, quantidade razoável). */
+export const MAX_ATTRIBUTES = 50
+const MAX_ATTRIBUTE_NAME = 60
+const MAX_ATTRIBUTE_VALUE = 100
+
+/** Atributos de token: lista de `{ name, value }` (valor número ou texto curto). Lança 400. */
+export function sanitizeAttributes(value: unknown): { name: string, value: string | number }[] {
+    if (!Array.isArray(value) || value.length > MAX_ATTRIBUTES) throw invalidField('attributes')
+    return value.map((item) => {
+        if (!item || typeof item !== 'object') throw invalidField('attributes')
+        const { name, value: attributeValue } = item as { name?: unknown, value?: unknown }
+        if (typeof name !== 'string' || name.length > MAX_ATTRIBUTE_NAME) throw invalidField('attributes')
+        if (typeof attributeValue === 'number') {
+            if (!Number.isFinite(attributeValue)) throw invalidField('attributes')
+            return { name, value: attributeValue }
+        }
+        if (typeof attributeValue !== 'string' || attributeValue.length > MAX_ATTRIBUTE_VALUE) throw invalidField('attributes')
+        return { name, value: attributeValue }
+    })
+}
+
+/**
+ * Converte um campo vindo do corpo (JSON) ou do multipart (texto), recusando com 400 o que não
+ * fizer sentido — antes `Number('abc')` virava NaN, um JSON quebrado virava erro 500 e tags/
+ * atributos entravam com qualquer forma e tamanho.
+ */
 function coerceField(spec: ResourceFieldSpec, raw: unknown, isJsonSource: boolean): unknown {
     if (spec.type === 'number') {
-        return isJsonSource ? Number((raw as number) ?? 0) : Number((raw as string) || 0)
+        const value = isJsonSource ? Number((raw as number) ?? 0) : Number((raw as string) || 0)
+        // Colunas numéricas daqui são dimensões (inteiros, não negativos).
+        if (!Number.isFinite(value) || value < 0 || value > 100_000) throw invalidField(spec.name)
+        return Math.round(value)
     }
     if (spec.type === 'json') {
-        if (isJsonSource) return raw ?? []
-        return raw ? JSON.parse(raw as string) : []
+        let value: unknown = isJsonSource ? raw ?? [] : []
+        if (!isJsonSource && raw) {
+            try {
+                value = JSON.parse(raw as string)
+            } catch {
+                throw invalidField(spec.name)
+            }
+        }
+        if (spec.name === 'tags') return sanitizeNameAndTags({ tags: value }).tags
+        if (spec.name === 'attributes') return sanitizeAttributes(value)
+        return value
     }
     if (spec.type === 'boolean') {
         return isJsonSource ? Boolean(raw) : raw === 'true'
@@ -31,6 +72,8 @@ export async function requireUser(event: any) {
 }
 
 export const MAX_NAME_LENGTH = 120
+export const MAX_TAGS = 30
+export const MAX_TAG_LENGTH = 40
 
 /**
  * Valida `name`/`tags` vindos de um corpo JSON (renomear pelo F2, editar tags).
@@ -52,7 +95,11 @@ export function sanitizeNameAndTags(body: Record<string, unknown>): { name?: str
         if (!Array.isArray(body.tags) || !body.tags.every(t => typeof t === 'string')) {
             throw createError({ statusCode: 400, statusMessage: 'Tags inválidas.' })
         }
-        out.tags = [...new Set(body.tags.map(t => t.trim()).filter(Boolean))]
+        const tags = [...new Set(body.tags.map(t => t.trim()).filter(Boolean))]
+        if (tags.length > MAX_TAGS || tags.some(t => t.length > MAX_TAG_LENGTH)) {
+            throw createError({ statusCode: 400, statusMessage: `Use no máximo ${MAX_TAGS} tags, com até ${MAX_TAG_LENGTH} caracteres cada.` })
+        }
+        out.tags = tags
     }
     return out
 }
@@ -86,6 +133,20 @@ export async function patchOwnedNameAndTags(event: any, table: any, notFoundMess
     }
 
     return row
+}
+
+/** O bcrypt só usa os primeiros 72 bytes: o que passasse disso seria ignorado sem aviso. */
+export const MAX_ROOM_PASSWORD_BYTES = 72
+
+/** Confere e gera o hash da senha de uma sala (lança 400 se for longa demais). */
+export async function hashRoomPassword(password: string): Promise<string> {
+    if (Buffer.byteLength(password, 'utf8') > MAX_ROOM_PASSWORD_BYTES) {
+        throw createError({
+            statusCode: 400,
+            statusMessage: `A senha da sala pode ter no máximo ${MAX_ROOM_PASSWORD_BYTES} caracteres (menos, se tiver acentos).`,
+        })
+    }
+    return hash(password, 10)
 }
 
 /** Id de outra linha vindo do corpo (ex.: `scenarioId`, `sceneId`): inteiro positivo, senão 400. */
@@ -260,7 +321,8 @@ export async function createUploadableResource(event: any, options: UploadableRe
     }
 
     const values: Record<string, unknown> = {
-        name: rawFields.name,
+        // Nome obrigatório e com tamanho limitado (mesma regra de renomear).
+        name: sanitizeNameAndTags({ name: rawFields.name }).name,
         userId: session.user.id,
     }
     for (const field of options.fields) {
@@ -324,7 +386,8 @@ export async function updateUploadableResource(event: any, options: UploadableRe
         }
     }
 
-    const updateData: Record<string, unknown> = { name: rawFields.name }
+    const updateData: Record<string, unknown> = {}
+    if ('name' in rawFields) updateData.name = sanitizeNameAndTags({ name: rawFields.name }).name
     for (const field of options.fields) {
         updateData[field.name] = coerceField(field, rawFields[field.name], false)
     }

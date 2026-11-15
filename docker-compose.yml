@@ -6,8 +6,10 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: vtt_rpg
+    # Só na própria máquina: com "5432:5432" o Postgres (usuário/senha postgres/postgres) ficava
+    # aberto a qualquer um na mesma rede.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

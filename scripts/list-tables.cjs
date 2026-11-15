@@ -1,4 +1,5 @@
 const postgres = require('postgres')
+const { supabaseSsl } = require('../server/db/ssl.cjs')
 
 const sql = process.env.DATABASE_URL
   ? postgres(process.env.DATABASE_URL)
@@ -8,7 +9,7 @@ const sql = process.env.DATABASE_URL
       database: 'postgres',
       username: `postgres.${new URL(process.env.SUPABASE_URL).hostname.split('.')[0]}`,
       password: process.env.SUPABASE_PASSWORD,
-      ssl: 'require',
+      ssl: supabaseSsl(),
     })
 
 sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`

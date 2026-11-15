@@ -89,8 +89,20 @@ export function parseDiceGroups(raw: unknown): DiceGroup[] {
     return groups
 }
 
+/**
+ * Um dado de `max` faces com o gerador criptográfico (Web Crypto: existe no navegador e no Node).
+ * `Math.random` é previsível — com algumas saídas dá para reconstruir o estado e prever as
+ * próximas rolagens. A rejeição de amostras evita o viés do módulo (2^32 não é múltiplo de max).
+ */
 function rollSingleDie(max: number): number {
-    return Math.floor(Math.random() * max) + 1
+    const limit = Math.floor(0x100000000 / max) * max
+    const buffer = new Uint32Array(1)
+    let value: number
+    do {
+        globalThis.crypto.getRandomValues(buffer)
+        value = buffer[0]!
+    } while (value >= limit)
+    return (value % max) + 1
 }
 
 function buildInput(groups: DiceGroup[], mod: number, modSignal: ModSignal): string {

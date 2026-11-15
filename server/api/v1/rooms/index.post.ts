@@ -3,7 +3,6 @@ import { generateRoomCode } from "#server/utils/api.ts";
 import { buildRoomSnapshotFromScene, publicRoomResource } from "#server/utils/resources.ts";
 import { and, eq } from "drizzle-orm";
 import { createError, readBody } from "h3";
-import { hash } from "bcrypt-ts";
 
 export default defineEventHandler(async (event) => {
     const session = await auth.api.getSession({ headers: event.headers })
@@ -16,10 +15,11 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 400, statusMessage: 'Nenhum dado enviado.' })
     }
 
-    const name = typeof body.name === 'string' ? body.name.trim() : ''
-    if (!name) {
+    if (typeof body.name !== 'string' || !body.name.trim()) {
         throw createError({ statusCode: 400, statusMessage: 'O nome da sala é obrigatório.' })
     }
+    // Nome com tamanho limitado e tags válidas (mesmas regras de renomear/editar).
+    const { name, tags } = sanitizeNameAndTags({ name: body.name, tags: Array.isArray(body.tags) ? body.tags : [] }) as { name: string, tags: string[] }
 
     const sceneId = Number(body.sceneId)
     if (!sceneId || Number.isNaN(sceneId)) {
@@ -43,8 +43,8 @@ export default defineEventHandler(async (event) => {
     const [room] = await db.insert(tables.roomsTable).values({
         code,
         name,
-        password: typeof body.password === 'string' && body.password ? await hash(body.password, 10) : null,
-        tags: Array.isArray(body.tags) ? body.tags : [],
+        password: typeof body.password === 'string' && body.password ? await hashRoomPassword(body.password) : null,
+        tags,
         userId: session.user.id,
         sceneId: scene.id,
         snapshot,

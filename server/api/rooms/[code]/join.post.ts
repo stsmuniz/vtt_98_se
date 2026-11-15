@@ -1,7 +1,7 @@
 import { useDrizzle } from "#server/utils/drizzle.ts";
 import { eq } from "drizzle-orm";
 import { createError, getRouterParam, readBody, setResponseStatus } from "h3";
-import { roomsTable } from "#server/db/schema.ts";
+import { roomsTable, user } from "#server/db/schema.ts";
 import { compare } from "bcrypt-ts";
 import { playerRoomResource, publicRoomResource } from "#server/utils/resources.ts";
 
@@ -43,6 +43,11 @@ export default defineEventHandler(async (event) => {
 
     const session = await auth.api.getSession({ headers: event.headers })
     const isOwner = !!session?.user && session.user.id === room.userId
+    // O nome do dono fica reservado para ele na sala (ninguém se passa pelo mestre).
+    const owner = isOwner ? null : await useDrizzle().query.user.findFirst({
+        where: eq(user.id, room.userId),
+        columns: { name: true },
+    })
 
     const body = await readBody<{ password?: string, name?: string, token?: string }>(event).catch(() => null)
 
@@ -140,6 +145,7 @@ export default defineEventHandler(async (event) => {
             isOwner,
             name: body?.name,
             token: body?.token,
+            ownerName: owner?.name,
             verified: passwordProvedNow,
             accessTag,
         })
