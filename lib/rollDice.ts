@@ -30,6 +30,9 @@ export interface RollGroupResult {
     total: number
 }
 
+/** Intervalo mínimo entre duas rolagens do mesmo jogador numa sala (o mestre não tem limite). */
+export const DICE_COOLDOWN_MS = 5000
+
 /** Rolagem registrada no histórico (local ou da sala). */
 export interface RoomRoll extends RollResult {
     id: string

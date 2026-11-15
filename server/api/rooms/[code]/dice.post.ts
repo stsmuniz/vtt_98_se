@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { roomsTable } from '#server/db/schema.ts'
-import { createError, getRouterParam, readBody } from 'h3'
+import { createError, getRouterParam, readBody, setResponseHeader } from 'h3'
 import { rollDiceGroups, type DiceGroup, type RollType, type ModSignal } from '../../../../lib/rollDice'
 
 // Rolagem de dados dentro da sala: qualquer participante (mesma checagem de acesso do
@@ -52,6 +52,22 @@ export default defineEventHandler(async (event) => {
         result = rollDiceGroups(groups, type, mod, modSignal, { coin: body.coin === true })
     } catch (error) {
         throw createError({ statusCode: 400, statusMessage: (error as Error).message })
+    }
+
+    // Uma rolagem a cada DICE_COOLDOWN_MS por jogador (o mestre não tem limite). Só depois de
+    // o sorteio aceitar os dados, para que um pedido inválido não gaste o intervalo; sem
+    // identidade (Redis fora do ar) não há como limitar por pessoa, então libera.
+    if (!isOwner && participant.id !== 'anonimo') {
+        const waitMs = await claimRollSlot(code, participant.id)
+        if (waitMs > 0) {
+            const seconds = Math.ceil(waitMs / 1000)
+            setResponseHeader(event, 'Retry-After', seconds)
+            throw createError({
+                statusCode: 429,
+                statusMessage: `Aguarde ${seconds} ${seconds === 1 ? 'segundo' : 'segundos'} para rolar de novo.`,
+                data: { retryAfterMs: waitMs },
+            })
+        }
     }
 
     const roll = {

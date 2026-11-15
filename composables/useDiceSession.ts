@@ -7,7 +7,7 @@
  * /api/rooms/:code/dice) e chega a todos pelo stream SSE; o histórico é o da sala.
  */
 import { useDesktop } from '~~/composables/useDesktop'
-import { rollDiceGroups, type DiceGroup, type ModSignal, type RollType, type RoomRoll } from '~~/lib/rollDice'
+import { DICE_COOLDOWN_MS, rollDiceGroups, type DiceGroup, type ModSignal, type RollType, type RoomRoll } from '~~/lib/rollDice'
 
 interface RoomContext {
   code: string
@@ -53,6 +53,8 @@ export function useDiceSession(scope: DiceScope = 'local') {
   /** Joey visível + contador que reinicia a animação a cada rolagem. */
   /** Config. do mestre: jogadores podem rolar? (o mestre sempre pode). */
   const playerRollsAllowed = useState('dice-player-rolls-allowed', () => true)
+  /** Instante (ms) em que o jogador pode rolar de novo na sala; 0 = sem espera. */
+  const cooldownUntil = useState('dice-cooldown-until', () => 0)
   const joeyVisibleRoom = useState('dice-joey-visible', () => false)
   const joeyTickRoom = useState('dice-joey-tick', () => 0)
   const joeyVisibleLocal = useState('dice-joey-visible-local', () => false)
@@ -87,6 +89,7 @@ export function useDiceSession(scope: DiceScope = 'local') {
     mode.value = 'room'
     roomRolls.value = []
     latestRoom.value = null
+    cooldownUntil.value = 0
   }
 
   function leaveRoom() {
@@ -97,6 +100,7 @@ export function useDiceSession(scope: DiceScope = 'local') {
     joeyVisibleRoom.value = false
     roomPopupMode.value = 'window'
     playerRollsAllowed.value = true
+    cooldownUntil.value = 0
   }
 
   /** Evento `dice:roll` do SSE (ou resposta do POST). Ignora duplicatas pelo id. */
@@ -143,7 +147,16 @@ export function useDiceSession(scope: DiceScope = 'local') {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ groups, type, mod, modSignal, hidden, coin }),
       })
-      if (!response.ok) throw new Error('Não foi possível rolar os dados na sala.')
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        // 429: o servidor diz quanto falta; o botão do rolador fica desabilitado até lá.
+        if (response.status === 429 && typeof data?.data?.retryAfterMs === 'number') {
+          cooldownUntil.value = Date.now() + data.data.retryAfterMs
+        }
+        throw new Error(data?.statusMessage || 'Não foi possível rolar os dados na sala.')
+      }
+      // O mestre não tem limite; os jogadores esperam DICE_COOLDOWN_MS entre rolagens.
+      if (!ctx.isOwner) cooldownUntil.value = Date.now() + DICE_COOLDOWN_MS
       receiveRoll(await response.json())
       return
     }
@@ -161,5 +174,5 @@ export function useDiceSession(scope: DiceScope = 'local') {
     announce()
   }
 
-  return { inRoom, popupMode, playerRollsAllowed, canRoll, joeyVisible, joeyTick, clearRoomHistory, rolls, latest, isOwner, enterRoom, leaveRoom, receiveRoll, receiveLog, clearRoom, clearLocal, roll, openResult }
+  return { inRoom, popupMode, playerRollsAllowed, cooldownUntil, canRoll, joeyVisible, joeyTick, clearRoomHistory, rolls, latest, isOwner, enterRoom, leaveRoom, receiveRoll, receiveLog, clearRoom, clearLocal, roll, openResult }
 }

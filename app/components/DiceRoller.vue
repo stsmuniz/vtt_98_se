@@ -22,6 +22,26 @@ const rolling = ref(false)
 
 const isRoom = props.scope === 'room'
 
+// Espera entre rolagens na sala (jogadores): o botão fica desabilitado com a contagem. O
+// servidor é quem impõe o limite; isto só evita o clique que seria recusado.
+const now = ref(Date.now())
+const cooldownLeft = computed(() => (isRoom ? Math.max(0, Math.ceil((session.cooldownUntil.value - now.value) / 1000)) : 0))
+let cooldownTimer: ReturnType<typeof setInterval> | null = null
+function stopCooldownTimer() {
+  if (cooldownTimer) clearInterval(cooldownTimer)
+  cooldownTimer = null
+}
+watch(() => session.cooldownUntil.value, (until) => {
+  stopCooldownTimer()
+  if (until <= Date.now()) return
+  now.value = Date.now()
+  cooldownTimer = setInterval(() => {
+    now.value = Date.now()
+    if (now.value >= session.cooldownUntil.value) stopCooldownTimer()
+  }, 250)
+}, { immediate: true })
+onBeforeUnmount(stopCooldownTimer)
+
 // Fora da sala o próprio usuário escolhe como o resultado aparece (na sala é config. do mestre).
 if (!isRoom) {
   const win = useWindow()
@@ -56,7 +76,7 @@ function removeDice(index: number) {
 }
 
 async function rollDice() {
-  if (rolling.value || !session.canRoll.value) return
+  if (rolling.value || !session.canRoll.value || cooldownLeft.value > 0) return
   const groups = diceGroups.value.length > 0
       ? diceGroups.value
       : [{ quantity: Number(quantity.value), faces: Number(dice.value) as DiceType }]
@@ -164,7 +184,7 @@ function formatTime(at: number) {
         </div>
         <div class="roll-buttons">
           <button type="button" class="roll-button" @click.prevent="addDice">Adicionar dado</button>
-          <button type="button" class="roll-button" :disabled="rolling || !session.canRoll.value" @click.prevent="rollDice">Rolar</button>
+          <button type="button" class="roll-button" :disabled="rolling || !session.canRoll.value || cooldownLeft > 0" @click.prevent="rollDice">{{ cooldownLeft > 0 ? `Aguarde ${cooldownLeft}s` : 'Rolar' }}</button>
         </div>
         <p v-if="!session.canRoll.value" class="roll-blocked">{{ session.inRoom.value ? 'O mestre desativou as rolagens dos jogadores nesta sala.' : 'Você saiu da sala: este rolador não está mais conectado.' }}</p>
       </div>

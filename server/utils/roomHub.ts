@@ -5,6 +5,8 @@
 // Server-Sent Events (`createEventStream`, em `server/routes/api/rooms/[code]/events.get.ts`),
 // que é só uma resposta HTTP normal em streaming e funciona sem configuração especial na Vercel.
 
+import { DICE_COOLDOWN_MS } from '../../lib/rollDice'
+
 type RoomListener = (message: unknown) => void
 
 // Callbacks (um por stream SSE aberta) inscritos em cada sala, mantidos em memória por
@@ -135,6 +137,23 @@ export async function clearDiceLog(code: string) {
         await redis.del(diceLogKey(code))
     } catch (error) {
         console.error(`Erro ao apagar o histórico de rolagens da sala ${code} no Redis:`, error)
+    }
+}
+
+// Limite de uma rolagem a cada DICE_COOLDOWN_MS por participante. `SET NX` com validade: a
+// primeira requisição reserva o intervalo e as seguintes, em qualquer instância, o encontram
+// ocupado. Devolve 0 se pode rolar, ou os milissegundos que faltam. Redis fora do ar não deve
+// travar a sala, então nesse caso libera (a falha só é registrada).
+export async function claimRollSlot(code: string, participantId: string): Promise<number> {
+    try {
+        const key = `room:${code}:dice-cooldown:${participantId}`
+        const claimed = await redis.set(key, 1, { nx: true, px: DICE_COOLDOWN_MS })
+        if (claimed) return 0
+        const remaining = await redis.pttl(key)
+        return remaining > 0 ? remaining : 0
+    } catch (error) {
+        console.error(`Erro ao limitar a rolagem na sala ${code} no Redis:`, error)
+        return 0
     }
 }
 

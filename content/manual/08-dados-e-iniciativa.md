@@ -28,6 +28,7 @@ Existem dois roladores independentes, cada um com o seu histórico: o **Rolador 
 - **Dentro de uma sala**, todas as rolagens de todos entram no histórico da sala, com o nome de quem rolou (o nome com que a pessoa entrou na sala, único e confirmado pelo servidor), e o resultado aparece para todos. O histórico é apagado quando o mestre **fecha a sala**.
 - O mestre vê o botão **Limpar Histórico** também dentro da sala: ele apaga o histórico para todos.
 - Em **Arquivo > Configurações de Sala**, o mestre escolhe como o resultado aparece para todos: **Janela de resultado**, **Joey** (o mascote aparece com um balão com o resultado e o botão **Nova rolagem**) ou **Nenhum** (só o histórico). Clicar numa rolagem do histórico sempre abre a janela de resultado.
+- Cada jogador só pode rolar **uma vez a cada 5 segundos** na sala. Depois de rolar, o botão **Rolar** mostra a contagem ("Aguarde 3s") e volta sozinho. O mestre não tem esse limite. Fora da sala, no rolador pessoal, também não há espera.
 - Em **Configurações de Sala**, o mestre pode desmarcar **Permitir outros jogadores rolarem dados**: nesse caso só ele rola na sala, e para os jogadores o botão **Rolar** fica desativado.
 - O mestre pode marcar **Rolagem escondida**: ela entra no histórico dele, mas os jogadores não a veem nem recebem o resultado.
 
