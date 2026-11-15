@@ -23,7 +23,10 @@ export default defineEventHandler(async (event) => {
     // Senha trocada: quem está conectado segue na sala; os tokens de quem não está deixam de valer.
     if (passwordChanged) await broadcastAccessChanged(room.code, roomAccessTag(room.password))
     const resource = publicRoomResource(room)
-    await broadcastRoomUpdate(room.code, resource)
+    // Editar a sala pela pasta não mexe nos tokens: o snapshot (último salvo) não vai no aviso ao
+    // vivo, senão quem está na sala perderia o rascunho que o mestre ainda não salvou.
+    const { snapshot: _snapshot, ...withoutSnapshot } = resource
+    await broadcastRoomUpdate(room.code, withoutSnapshot)
 
     // Nunca devolve o hash da senha, nem ao dono (só `hasPassword`).
     return resource

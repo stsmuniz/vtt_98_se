@@ -140,7 +140,11 @@ export default defineEventHandler(async (event) => {
         // Senha definida, trocada ou removida: quem está conectado segue na sala; os tokens de quem
         // não está deixam de valer (ver `roomAccessTag` em server/utils/roomParticipants.ts).
         if ('password' in updateData) await broadcastAccessChanged(updatedRoom.code, roomAccessTag(updatedRoom.password))
-        await broadcastRoomUpdate(updatedRoom.code, publicRoomResource(updatedRoom))
+        // O snapshot só vai junto quando mudou (salvar a sala, trocar de cena). Numa mudança de
+        // configuração, nome, senha ou abrir/fechar, o snapshot do banco é o último SALVO: mandá-lo
+        // faria todos (mestre e jogadores) voltarem ao estado salvo, perdendo o rascunho ao vivo.
+        const { snapshot: _snapshot, ...withoutSnapshot } = publicRoomResource(updatedRoom)
+        await broadcastRoomUpdate(updatedRoom.code, 'snapshot' in updateData ? publicRoomResource(updatedRoom) : withoutSnapshot)
         // Fechar a sala encerra a "sessão": o histórico de rolagens recomeça vazio.
         if (body.isOpen === false) await resetDiceLog(updatedRoom.code)
     }

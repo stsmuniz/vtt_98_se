@@ -69,7 +69,7 @@ async function patchRoom(body: Record<string, unknown>): Promise<boolean> {
       await dialog.alert(data?.statusMessage || 'Não foi possível salvar a alteração.', { icon: 'error' })
       return false
     }
-    setRoom({ ...room.value, ...(await response.json()) })
+    setRoom(mergeRoomKeepingSnapshot(await response.json()))
     return true
   } catch (error) {
     console.error(error)
@@ -135,6 +135,15 @@ async function saveRoomSettings(settings: RoomSettings) {
 let isApplyingRemoteUpdate = false
 /** Verdadeiro enquanto aplica um `snapshot:live` (rascunho não salvo). */
 let isLiveSnapshot = false
+
+/**
+ * Dados da sala devolvidos pelo servidor numa mudança que NÃO mexe nos tokens (configurações,
+ * nome, senha, abrir/fechar): aplica tudo, menos o snapshot, que no servidor é o último SALVO —
+ * trocá-lo jogaria fora as edições ainda não salvas do mestre.
+ */
+function mergeRoomKeepingSnapshot(data: Record<string, unknown>) {
+  return { ...room.value, ...data, snapshot: room.value?.snapshot }
+}
 
 function setRoom(next: any) {
   isApplyingRemoteUpdate = true
@@ -631,8 +640,12 @@ watch(localTokens, (newTokens) => {
   }))
 }, { immediate: true, deep: true })
 
-watch(() => room.value, (newRoom) => {
-  const snapshot = newRoom?.snapshot
+// Só quando o SNAPSHOT muda (objeto novo: rascunho ao vivo, sala salva, troca de cena) — não a
+// cada mudança da sala. Antes o watcher olhava `room.value` inteiro (deep): mudar uma
+// configuração, o nome, a senha ou abrir/fechar a sala trocava o objeto da sala e reconstruía
+// os tokens a partir do snapshot SALVO, apagando tudo o que o mestre ainda não tinha salvo.
+// O snapshot nunca é alterado no lugar (sempre substituído), então não precisa de `deep`.
+watch(() => room.value?.snapshot, (snapshot) => {
   if (!snapshot) return
   sceneWidth.value = snapshot.width ?? 1920
   sceneHeight.value = snapshot.height ?? 1080
@@ -644,7 +657,7 @@ watch(() => room.value, (newRoom) => {
   localTokens.value = JSON.parse(JSON.stringify(snapshot.tokens ?? []))
   // Snapshot ao vivo (rascunho do mestre) não conta como salvo; o do banco, sim.
   if (!isLiveSnapshot) savedSignature.value = JSON.stringify(localTokens.value)
-}, { immediate: true, deep: true })
+}, { immediate: true })
 
 watchEffect(() => {
   loadBgImage(room.value?.sourceScene?.scenario?.image)
@@ -1083,7 +1096,7 @@ async function confirmToggleRoomOpen() {
       body: JSON.stringify({ isOpen: !room.value.isOpen }),
     })
     if (response.ok) {
-      setRoom({ ...(await response.json()), role: 'gm' })
+      setRoom({ ...mergeRoomKeepingSnapshot(await response.json()), role: 'gm' })
     } else {
       console.error('Erro ao mudar o estado da sala.')
     }
