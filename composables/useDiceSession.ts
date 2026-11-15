@@ -13,8 +13,6 @@ interface RoomContext {
   code: string
   token?: string
   isOwner: boolean
-  /** Nome exibido no histórico (visitante sem conta usa um rótulo genérico). */
-  by: string
 }
 
 const POPUP_KEY = 'vtt:dice-popup-local'
@@ -143,7 +141,7 @@ export function useDiceSession(scope: DiceScope = 'local') {
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groups, type, mod, modSignal, hidden, coin, by: ctx.by }),
+        body: JSON.stringify({ groups, type, mod, modSignal, hidden, coin }),
       })
       if (!response.ok) throw new Error('Não foi possível rolar os dados na sala.')
       receiveRoll(await response.json())

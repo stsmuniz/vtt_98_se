@@ -27,6 +27,17 @@ Na pasta **Salas**, clique com o botão direito na sala e escolha **Copiar link*
 - **Mestre (dono da sala)** — vê todas as ferramentas, mexe nos tokens, troca a cena, controla a iniciativa e abre ou fecha a sala.
 - **Jogadores** — acompanham o mapa em tempo real e veem os tokens se movendo suavemente conforme o mestre os arrasta, mas não podem editar nada. Eles podem dar **zoom** (roda do mouse) e **mover o mapa** (arrastar o fundo) para olhar a mesa à vontade, e **abrir documentos** com dois cliques. A janela da sala deles tem só os menus **Exibir**, **Ferramentas** (rolador de dados) e **Ajuda**, e o menu **Iniciar** é reduzido: **Rolador de Dados**, **Ajuda**, **Tela cheia**, **Entrar…** e **Sair da sala**.
 
+## Quem é quem na sala
+
+- **Com conta** — quem entra logado usa o nome do cadastro, sem perguntas.
+- **Sem conta** — antes de entrar, a janela **Quem é você?** pede um nome. Ele é livre, mas **não pode repetir** o de alguém que já está na sala (maiúsculas, acentos e espaços a mais não contam como diferença). Se o nome estiver em uso, a janela avisa e você escolhe outro.
+- O navegador **lembra** o seu nome nesta sala: recarregar a página ou voltar mais tarde entra direto. Se você sair, o nome fica reservado por alguns minutos antes de outra pessoa poder usá-lo.
+- **Só o mestre vê quem está na sala.** **Ferramentas > Participantes…** (e o contador na barra de status) lista todos que estão conectados agora, com o papel de cada um. Os jogadores não veem essa lista. Quem fecha a página some dela em instantes.
+- **Aprovar entradas (mestre)** — com a opção ligada em **Configurações de Sala > Acesso**, quem informa o nome (e a senha, se houver) fica numa tela de espera. O mestre recebe um aviso com **Aprovar**, **Recusar** e **Decidir depois** (também acionado por Esc ou pelo X; o pedido volta em 30 segundos). **Aprovar** libera a entrada. **Recusar** barra o acesso e coloca a pessoa na lista de removidos, marcada como "recusado". Se o mestre não estiver na sala, o pedido espera e o aviso aparece quando ele entrar. Quem já estava na sala ao ligar a opção continua nela.
+- **Remover alguém (mestre)** — em **Arquivo > Configurações de Sala…**, a aba **Participantes** lista quem está conectado, e o ícone da lixeira desconecta a pessoa na hora (com confirmação). Quem foi removido vê um aviso e não consegue voltar com o mesmo link, nem recarregando a página. Quem tem conta continua barrado mesmo saindo e entrando de novo; já um visitante sem conta que apagar os dados do navegador ganha uma identidade nova e consegue entrar outra vez. Se isso acontecer, **feche a sala** ou ponha uma **senha**. O bloqueio dura até 12 horas.
+- **Readmitir** — a seção **Removidos**, na mesma aba, mostra quem foi barrado. O ícone de setas (**readmitir**) libera a pessoa para entrar de novo (ela precisa abrir o link outra vez; nada reconecta sozinho).
+- O nome aparece em cada rolagem de dados no histórico e no resultado. Ele vem do servidor: ninguém consegue rolar "como" outra pessoa.
+
 ## Conduzindo a sessão (visão do mestre)
 
 A barra de ferramentas da sala tem:
@@ -36,7 +47,11 @@ A barra de ferramentas da sala tem:
 - **Salvar** — grava o estado atual da sala (**Ctrl+S**).
 - **Dados** e **Iniciativa** — abrem essas janelas (veja o capítulo seguinte).
 - **Fechar sala** / **Abrir sala** — controla se novos visitantes conseguem entrar.
-- **Arquivo > Configurações de Sala…** — janela onde o mestre muda o **nome** da sala, define, altera ou remove a **senha**, abre/fecha a sala, escolhe o **popup de rolagem de dados** e **exclui a sala**. A exclusão não pode ser desfeita e desconecta todos que estão na sala. Mudar a senha não derruba quem já entrou; vale para quem entrar depois.
+- **Arquivo > Configurações de Sala…** — janela do mestre, dividida em abas:
+  - **Geral** — muda o **nome** da sala e **exclui a sala**. A exclusão não pode ser desfeita e desconecta todos que estão na sala.
+  - **Acesso** — abre ou fecha a sala, liga a **aprovação de entradas** e define, altera ou remove a **senha**. Mudar a senha não derruba quem já entrou; vale para quem entrar depois.
+  - **Participantes** — duas tabelas: quem está conectado (ícone da lixeira para **remover**) e quem foi removido, com data e hora (ícone de setas para **readmitir**). Deixe o mouse sobre o ícone para ver a dica.
+  - **Dados** — se os jogadores podem rolar dados e como o **popup de resultado** aparece.
 
 Os tokens funcionam como no editor de cenas: arraste, redimensione, gire, duplique, use o menu de contexto e o menu **Editar**. **Dois cliques** num token abrem as **Configurações do token**: nome, opacidade e os atributos (atual e máximo).
 

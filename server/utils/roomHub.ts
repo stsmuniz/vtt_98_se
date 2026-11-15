@@ -142,6 +142,23 @@ export async function broadcastDiceRoll(code: string, roll: { hidden?: boolean }
     await broadcastToRoom(code, { type: 'dice:roll', roll, gmOnly: !!roll.hidden })
 }
 
+// Lista de quem está na sala (ver roomParticipants.ts): só o mestre a recebe (`gmOnly`, filtrado
+// em events.get.ts), para jogadores não verem quem mais está conectado.
+export async function broadcastPresence(code: string, participants: unknown[]) {
+    await broadcastToRoom(code, { type: 'presence', participants, gmOnly: true })
+}
+
+// Alguém informou o nome e espera a aprovação do mestre (só ele recebe).
+export async function broadcastJoinRequest(code: string, request: { id: string, name: string }) {
+    await broadcastToRoom(code, { type: 'join:request', request, gmOnly: true })
+}
+
+// Mestre removeu alguém: a stream desse participante (em qualquer instância) se encerra ao
+// receber isto (ver events.get.ts); as demais ignoram.
+export async function broadcastKicked(code: string, participantId: string) {
+    await broadcastToRoom(code, { type: 'kicked', participantId })
+}
+
 // Mestre fechou a sala (isOpen=false): zera o histórico para todos os conectados.
 export async function resetDiceLog(code: string) {
     await clearDiceLog(code)

@@ -260,6 +260,8 @@ export interface RoomSettings {
     dicePopup?: DicePopupMode
     /** Jogadores podem rolar dados? Ausente = sim (padrão). */
     allowPlayerRolls?: boolean
+    /** O mestre precisa aprovar cada pessoa antes de ela entrar (depois de informar o nome)? Ausente = não. */
+    requireApproval?: boolean
 }
 
 export const roomsTable = pgTable('rooms', {

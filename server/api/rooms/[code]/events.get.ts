@@ -1,15 +1,16 @@
 import { eq } from 'drizzle-orm'
 import { roomsTable } from '#server/db/schema.ts'
-import { createEventStream, createError, getQuery, getRouterParam } from 'h3'
+import { createEventStream, createError, getRouterParam } from 'h3'
 
 // Stream de eventos ao vivo da sala (Server-Sent Events): substitui o WebSocket original, que
 // não é suportado pelo preset da Vercel (ver roomHub.ts). Só entrega dados nesta direção — a
 // única mensagem que o dono da sala manda ao vivo (`snapshot:live`) vai por um POST comum em
 // server/api/rooms/[code]/live.post.ts, então não há necessidade de um canal bidirecional.
 //
-// Autenticação: o dono usa a sessão do better-auth (mesmo cookie do dashboard). Um visitante
-// de sala com senha não tem essa sessão, então precisa de um `token` de acesso de curta
-// duração emitido por /join (ver comentário lá) — a senha em si nunca trafega numa query string.
+// Autenticação: o dono usa a sessão do better-auth (mesmo cookie do dashboard). Os demais
+// precisam de um `token` de participante de curta duração emitido por /join (ver
+// roomParticipants.ts) — ele também diz quem é (nome único na sala) e a senha em si nunca
+// trafega numa query string.
 export default defineEventHandler(async (event) => {
     const code = getRouterParam(event, 'code')
     if (!code) {
@@ -24,32 +25,33 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 404, statusMessage: 'Sala não encontrada.' })
     }
 
-    const session = await auth.api.getSession({ headers: event.headers }).catch(() => null)
-    const isOwner = !!session?.user && session.user.id === room.userId
-
-    if (!room.isOpen && !isOwner) {
-        throw createError({ statusCode: 403, statusMessage: 'Esta sala está fechada no momento.' })
-    }
-
-    if (room.password && !isOwner) {
-        const token = getQuery(event).token
-        // Redis fora do ar = acesso não confirmado (o visitante vê a tela de senha de novo).
-        const grantedCode = typeof token === 'string'
-            ? await redis.get(`room-access:${token}`).catch((error: unknown) => {
-                console.error(`Erro ao validar acesso à sala ${code} no Redis:`, error)
-                return null
-            })
-            : null
-        if (grantedCode !== code) {
-            throw createError({ statusCode: 401, statusMessage: 'Não autenticado.' })
-        }
-    }
+    // Dono (sessão) ou participante com token emitido por /join; lança 401/403 se não houver acesso.
+    const participant = await resolveRoomParticipant(event, room)
+    const isOwner = participant.role === 'gm'
+    // Sem Redis (modo degradado) não há identidade nem presença para acompanhar.
+    const tracksPresence = participant.id !== 'anonimo'
 
     const eventStream = createEventStream(event)
+    // Verdadeiro depois que o mestre removeu este participante: o `onClosed` não deve devolvê-lo
+    // à lista de presença (já foi tirado dela pelo kick).
+    let kickedHere = false
 
     const unsubscribe = subscribeToRoomEvents(code, (message) => {
         // Rolagens escondidas só chegam ao mestre.
         if ((message as { gmOnly?: boolean })?.gmOnly && !isOwner) return
+
+        // Removido pelo mestre: avisa (o cliente mostra o motivo) e encerra a stream. O
+        // `presence` que o mestre publica em seguida já não inclui este participante.
+        const kicked = message as { type?: string, participantId?: string }
+        if (kicked?.type === 'kicked') {
+            if (kicked.participantId !== participant.id) return
+            kickedHere = true
+            eventStream.push(JSON.stringify(message))
+                .catch(() => {})
+                .finally(() => eventStream.close().catch(() => {}))
+            return
+        }
+
         eventStream.push(JSON.stringify(message)).catch(() => {})
     })
 
@@ -57,13 +59,51 @@ export default defineEventHandler(async (event) => {
     // isto, nenhum byte trafega até o primeiro evento real, e tanto o EventSource do
     // navegador quanto qualquer proxy no meio do caminho podem tratar isso como uma conexão
     // parada e encerrá-la.
+    // O mesmo ping renova a presença e, como quem some sem avisar (aba fechada, função da
+    // Vercel derrubada) só deixa de dar sinal, confere se a lista mudou e avisa SÓ esta stream —
+    // cada stream faz o mesmo, então todas acabam sabendo sem precisar de um broadcast.
+    // Só o mestre vê quem está na sala (e os pedidos de entrada): jogadores não recebem a
+    // lista, nem aqui nem pelo broadcast (`gmOnly`, filtrado acima).
+    let lastPresence = ''
+    const pushPresence = (participants: unknown[]) => {
+        if (!isOwner) return
+        const serialized = JSON.stringify(participants)
+        if (serialized === lastPresence) return
+        lastPresence = serialized
+        eventStream.push(JSON.stringify({ type: 'presence', participants })).catch(() => {})
+    }
+
+    // Pedidos de entrada aguardando aprovação: lista completa ao conectar e a cada ping (o
+    // cliente ignora os que já mostrou), então um pedido feito com o mestre desconectado
+    // aparece assim que ele volta, e os abandonados (ver `listPending`) deixam de aparecer.
+    let lastPending = ''
+    const pushPending = (requests: unknown[]) => {
+        if (!isOwner) return
+        const serialized = JSON.stringify(requests)
+        if (serialized === lastPending) return
+        lastPending = serialized
+        eventStream.push(JSON.stringify({ type: 'join:pending', requests })).catch(() => {})
+    }
+
     const heartbeat = setInterval(() => {
         eventStream.push(JSON.stringify({ type: 'ping' })).catch(() => {})
+        if (!tracksPresence || kickedHere) return
+        touchPresence(code, participant)
+            .then(() => isOwner ? listPresence(code) : [])
+            .then(pushPresence)
+            .catch(() => {})
+        if (isOwner) listPending(code).then(pushPending).catch(() => {})
     }, 20_000)
 
     eventStream.onClosed(() => {
         clearInterval(heartbeat)
         unsubscribe()
+        if (tracksPresence && !kickedHere) {
+            removePresence(code, participant.id)
+                .then(() => listPresence(code))
+                .then(list => broadcastPresence(code, list))
+                .catch(() => {})
+        }
     })
 
     // IMPORTANTE: nenhum `push` acima é aguardado (`await`), e o rascunho ao vivo abaixo
@@ -78,6 +118,18 @@ export default defineEventHandler(async (event) => {
             }
         })
         .catch(() => {})
+
+    // Entrada: registra a presença, manda a lista a esta stream e avisa os demais.
+    if (tracksPresence) {
+        touchPresence(code, participant)
+            .then(() => listPresence(code))
+            .then((list) => {
+                pushPresence(list)
+                return broadcastPresence(code, list)
+            })
+            .catch(() => {})
+    }
+    if (isOwner) listPending(code).then(pushPending).catch(() => {})
 
     getDiceLog(code)
         .then((rolls) => {

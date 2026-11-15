@@ -35,6 +35,8 @@ export interface RoomRoll extends RollResult {
     id: string
     at: number
     by: string
+    /** Id de participante de quem rolou (só em salas; ver server/utils/roomParticipants.ts). */
+    byId?: string
     hidden: boolean
 }
 

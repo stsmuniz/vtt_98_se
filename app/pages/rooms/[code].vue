@@ -48,6 +48,11 @@ const allowPlayerRollsSetting = computed<boolean>({
 })
 watch(allowPlayerRollsSetting, (value) => { dice.playerRollsAllowed.value = value }, { immediate: true })
 
+const requireApprovalSetting = computed<boolean>({
+  get: () => room.value?.settings?.requireApproval === true,
+  set: (value) => { saveRoomSettings({ requireApproval: value }) },
+})
+
 /** PATCH genérico da sala (nome, senha...). Devolve se deu certo; mostra o erro ao mestre. */
 async function patchRoom(body: Record<string, unknown>): Promise<boolean> {
   if (!room.value || !isGm.value) return false
@@ -135,48 +140,296 @@ function setRoom(next: any) {
   nextTick(() => { isApplyingRemoteUpdate = false })
 }
 
-async function loadRoom(password?: string) {
+// ---- Identidade (nome único na sala + token do servidor, lembrados neste navegador) ----
+const isNameWindowOpen = ref(false)
+const nameError = ref('')
+/** Quem está na sala agora (evento `presence` do SSE) e quem sou eu nela. */
+const participants = ref<{ id: string; name: string; role: 'gm' | 'player' }[]>([])
+const selfParticipantId = ref<string | undefined>(undefined)
+const isParticipantsWindowOpen = ref(false)
+/** Senha já digitada nesta visita (só em memória), reenviada se o nome precisar ser pedido depois. */
+let enteredPassword: string | undefined
+
+const identityKey = `vtt:room-identity:${code}`
+
+function readIdentity(): { token?: string; name?: string } {
+  try {
+    const raw = localStorage.getItem(identityKey)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveIdentity(identity: { token?: string; name?: string }) {
+  try { localStorage.setItem(identityKey, JSON.stringify(identity)) } catch { /* sem localStorage: pede o nome de novo ao recarregar */ }
+}
+
+function submitPassword(password: string) {
+  enteredPassword = password
+  loadRoom({ password })
+}
+
+function submitName(name: string) {
+  loadRoom({ name })
+}
+
+/** Mestre: remove um participante da sala (ele perde o acesso e é desconectado na hora). */
+async function kickParticipant(participant: { id: string; name: string }) {
+  if (!isGm.value) return
+  const ok = await dialog.confirm(
+    `Remover "${participant.name}" da sala?\nEle será desconectado e não conseguirá voltar.`,
+    { title: 'Remover participante', icon: 'warning', okLabel: 'Remover' },
+  )
+  if (!ok) return
+  try {
+    const response = await fetch(`/api/rooms/${code}/kick`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ participantId: participant.id }),
+    })
+    if (!response.ok) {
+      const data = await response.json().catch(() => null)
+      await dialog.alert(data?.statusMessage || 'Não foi possível remover o participante.', { icon: 'error' })
+      return
+    }
+    kickedList.value = (await response.json()).kicked ?? kickedList.value
+    showStatusMessage(`${participant.name} foi removido da sala.`)
+  } catch (error) {
+    console.error(error)
+    await dialog.alert('Não foi possível remover o participante.', { icon: 'error' })
+  }
+}
+
+/** Mestre: revoga a remoção (a pessoa volta a poder entrar). */
+async function unkickParticipant(participant: { id: string; name: string }) {
+  if (!isGm.value) return
+  try {
+    const response = await fetch(`/api/rooms/${code}/unkick`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ participantId: participant.id }),
+    })
+    if (!response.ok) {
+      const data = await response.json().catch(() => null)
+      await dialog.alert(data?.statusMessage || 'Não foi possível readmitir o participante.', { icon: 'error' })
+      return
+    }
+    kickedList.value = (await response.json()).kicked ?? []
+    showStatusMessage(`${participant.name} pode entrar na sala de novo.`)
+  } catch (error) {
+    console.error(error)
+    await dialog.alert('Não foi possível readmitir o participante.', { icon: 'error' })
+  }
+}
+
+// Removidos: carregados ao abrir as Configurações de Sala (só o mestre).
+const kickedList = ref<{ id: string; name: string; at: number; denied?: boolean }[]>([])
+async function loadKicked() {
+  if (!isGm.value) return
+  try {
+    const response = await fetch(`/api/rooms/${code}/kicked`)
+    if (response.ok) kickedList.value = (await response.json()).kicked ?? []
+  } catch (error) {
+    console.error('Erro ao carregar os participantes removidos:', error)
+  }
+}
+watch(isRoomSettingsWindowOpen, (isOpen) => { if (isOpen) loadKicked() })
+
+/** O mestre me removeu: corta a conexão, esquece a identidade e mostra o motivo. */
+function handleKicked() {
+  disconnectRoomEvents()
+  dice.leaveRoom()
+  try { localStorage.removeItem(identityKey) } catch { /* ignora */ }
+  isParticipantsWindowOpen.value = false
+  participants.value = []
+  room.value = null
+  loadError.value = 'Você foi removido da sala pelo mestre.'
+}
+
+// ---- Espera pela aprovação do mestre (Configurações de Sala > Acesso) ----
+const isWaitingApproval = ref(false)
+let approvalPollTimer: ReturnType<typeof setTimeout> | null = null
+
+function stopWaitingForApproval() {
+  if (approvalPollTimer) clearTimeout(approvalPollTimer)
+  approvalPollTimer = null
+  isWaitingApproval.value = false
+}
+
+// ---- Mestre: pedidos de entrada ----
+// Chegam por `join:request` (na hora) e por `join:pending` (lista completa ao conectar e a cada
+// ping). Um popup por vez; "Decidir depois" (também Esc/X) não decide nada e o pedido volta
+// em 30 s, se a pessoa ainda estiver esperando.
+type JoinRequest = { id: string; name: string }
+const joinQueue: JoinRequest[] = []
+let askingJoinId: string | null = null
+let processingJoins = false
+/** Ids decididos há instantes: uma lista atrasada do servidor não pode reabrir o popup. */
+const recentlyDecided = new Set<string>()
+/** Pedidos que o servidor diz estarem vivos (para saber se vale a pena perguntar de novo). */
+let alivePendingIds = new Set<string>()
+
+function enqueueJoinRequest(request: JoinRequest) {
+  if (!isGm.value || !request?.id) return
+  if (recentlyDecided.has(request.id) || askingJoinId === request.id || joinQueue.some(r => r.id === request.id)) return
+  joinQueue.push(request)
+  processJoinQueue()
+}
+
+function onPendingList(requests: JoinRequest[]) {
+  alivePendingIds = new Set(requests.map(r => r.id))
+  requests.forEach(enqueueJoinRequest)
+}
+
+async function processJoinQueue() {
+  if (processingJoins) return
+  processingJoins = true
+  try {
+    while (joinQueue.length) {
+      const request = joinQueue.shift()!
+      askingJoinId = request.id
+      const answer = await dialog.ask({
+        title: 'Pedido de entrada',
+        icon: 'question',
+        message: `"${request.name}" deseja entrar na sala.\n\nRecusar impede o acesso e coloca "${request.name}" na lista de removidos (Configurações de Sala > Participantes).`,
+        buttons: [
+          { label: 'Aprovar', value: 'approve', default: true },
+          { label: 'Recusar', value: 'deny' },
+          { label: 'Decidir depois', value: 'later', cancel: true },
+        ],
+      })
+      askingJoinId = null
+      if (answer === 'later') {
+        setTimeout(() => { if (alivePendingIds.has(request.id)) enqueueJoinRequest(request) }, 30_000)
+      } else {
+        await decideJoinRequest(request, answer === 'approve')
+      }
+    }
+  } finally {
+    processingJoins = false
+    askingJoinId = null
+  }
+}
+
+async function decideJoinRequest(request: JoinRequest, approve: boolean) {
+  recentlyDecided.add(request.id)
+  alivePendingIds.delete(request.id)
+  setTimeout(() => recentlyDecided.delete(request.id), 5000)
+  try {
+    const response = await fetch(`/api/rooms/${code}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ participantId: request.id, approve }),
+    })
+    if (!response.ok) {
+      const data = await response.json().catch(() => null)
+      recentlyDecided.delete(request.id)
+      await dialog.alert(data?.statusMessage || 'Não foi possível registrar a decisão.', { icon: 'error' })
+      return
+    }
+    const data = await response.json()
+    if (data.kicked) kickedList.value = data.kicked
+    showStatusMessage(
+      approve
+        ? `"${request.name}" foi aprovado e já pode entrar.`
+        : `"${request.name}" foi recusado e adicionado à lista de removidos.`,
+      5000,
+    )
+  } catch (error) {
+    console.error(error)
+    recentlyDecided.delete(request.id)
+    await dialog.alert('Não foi possível registrar a decisão.', { icon: 'error' })
+  }
+}
+
+function cancelEntry() {
+  stopWaitingForApproval()
+  navigateTo(desktop.isGuest.value ? '/' : '/dashboard')
+}
+
+async function loadRoom(attempt: { password?: string; name?: string } = {}) {
+  const password = attempt.password ?? enteredPassword
+  const stored = readIdentity()
+  // Deslogado: reaproveita o nome da última visita; um nome digitado agora tem prioridade.
+  const name = attempt.name ?? stored.name
   try {
     const response = await fetch(`/api/rooms/${code}/join`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ password, name, token: stored.token }),
     })
 
     if (response.status === 401) {
+      isNameWindowOpen.value = false
       isPasswordWindowOpen.value = true
-      passwordError.value = password ? 'Senha incorreta.' : ''
+      passwordError.value = attempt.password ? 'Senha incorreta.' : ''
+      return
+    }
+
+    if (response.status === 400 || response.status === 409) {
+      const data = await response.json().catch(() => null)
+      isPasswordWindowOpen.value = false
+      isNameWindowOpen.value = true
+      // Sem nome ainda (400) só pede; nome repetido (409) explica o motivo.
+      nameError.value = response.status === 409 ? (data?.statusMessage || 'Já existe alguém na sala com esse nome.') : ''
       return
     }
 
     if (response.status === 403) {
-      loadError.value = 'Esta sala está fechada no momento.'
+      const data = await response.json().catch(() => null)
+      stopWaitingForApproval()
+      const reason = data?.data?.reason
+      loadError.value = reason === 'denied'
+        ? 'O mestre não aprovou a sua entrada.'
+        : reason === 'kicked'
+          ? 'Você foi removido da sala pelo mestre.'
+          : 'Esta sala está fechada no momento.'
       return
     }
 
     if (response.status === 503) {
+      stopWaitingForApproval()
       isPasswordWindowOpen.value = false
       loadError.value = 'O serviço de tempo real está indisponível no momento. Tente novamente em instantes.'
       return
     }
 
+    // 202: o mestre exige aprovar cada entrada. A sala não vem junto; fica consultando o /join
+    // (com o token guardado) até o mestre decidir — aprovado devolve a sala, recusado dá 403.
+    if (response.status === 202) {
+      const data = await response.json()
+      isPasswordWindowOpen.value = false
+      isNameWindowOpen.value = false
+      nameError.value = ''
+      if (data.accessToken) saveIdentity({ token: data.accessToken, name: data.participant?.name })
+      isWaitingApproval.value = true
+      approvalPollTimer = setTimeout(() => loadRoom(), 3000)
+      return
+    }
+
     if (!response.ok) {
+      stopWaitingForApproval()
       loadError.value = 'Erro ao carregar a sala.'
       console.error('Erro ao carregar a sala.')
       return
     }
 
     const data = await response.json()
+    stopWaitingForApproval()
     setRoom(data)
     isPasswordWindowOpen.value = false
+    isNameWindowOpen.value = false
     passwordError.value = ''
+    nameError.value = ''
     loadError.value = ''
     lastAccessToken.value = data.accessToken
+    selfParticipantId.value = data.participant?.id
+    if (data.role !== 'gm' && data.accessToken) saveIdentity({ token: data.accessToken, name: data.participant?.name })
     dice.enterRoom({
       code: String(code),
       token: data.accessToken,
       isOwner: data.role === 'gm',
-      by: desktop.user.value?.name || 'Jogador',
     })
     connectRoomEvents()
   } catch (error) {
@@ -222,6 +475,15 @@ function connectRoomEvents() {
         dice.receiveLog(data.rolls)
       } else if (data.type === 'dice:clear') {
         dice.clearRoom()
+      } else if (data.type === 'presence' && Array.isArray(data.participants)) {
+        participants.value = data.participants
+      } else if (data.type === 'join:request' && data.request) {
+        alivePendingIds.add(data.request.id)
+        enqueueJoinRequest(data.request)
+      } else if (data.type === 'join:pending' && Array.isArray(data.requests)) {
+        onPendingList(data.requests)
+      } else if (data.type === 'kicked' && data.participantId === selfParticipantId.value) {
+        handleKicked()
       }
     } catch (error) {
       console.error('Erro ao processar mensagem da sala:', error)
@@ -254,6 +516,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  stopWaitingForApproval()
   disconnectRoomEvents()
   dice.leaveRoom()
 })
@@ -849,6 +1112,7 @@ const roomMenus = computed<MenuDef[]>(() => {
     items: [
       { id: 'dados', label: '&Rolador de dados', icon: 'dice', action: openDiceRoller },
       ...(isGm.value ? [
+        { id: 'participantes', label: '&Participantes…', icon: 'users' as const, action: () => { isParticipantsWindowOpen.value = true } },
         { id: 'iniciativa', label: '&Iniciativa', icon: 'initiative' as const, action: () => { isInitiativeWindowOpen.value = true } },
         { id: 'status', label: '&Status…', icon: 'warning' as const, action: () => { desktop.openApp('status-manager') } },
         { type: 'separator' as const },
@@ -899,6 +1163,7 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
         <UiToolbarButton label="Salvar" icon="save" show-label @click="saveRoomSnapshot" />
         <UiToolbarSeparator />
         <UiToolbarButton label="Dados" icon="dice" show-label @click="openDiceRoller" />
+        <UiToolbarButton label="Participantes" icon="users" show-label @click="isParticipantsWindowOpen = true" />
         <UiToolbarButton label="Iniciativa" icon="initiative" show-label @click="isInitiativeWindowOpen = true" />
         <UiToolbarButton :label="room.isOpen ? 'Fechar sala' : 'Abrir sala'" icon="lock" show-label :pressed="!room.isOpen" @click="openToggleRoomOpenAlert" />
         <UiToolbarSeparator />
@@ -923,15 +1188,22 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
           @confirm="onTokenAttributesConfirmed"
       />
 
+      <EditorRoomParticipantsWindow v-if="isGm" v-model:open="isParticipantsWindowOpen" :participants="participants" :self-id="selfParticipantId" />
       <EditorInitiativeWindow v-if="isGm" v-model:open="isInitiativeWindowOpen" v-model:list="initiativeList" />
       <EditorRoomSettingsWindow
           v-if="isGm"
           v-model:open="isRoomSettingsWindowOpen"
           v-model:dice-popup="dicePopupSetting"
           v-model:allow-player-rolls="allowPlayerRollsSetting"
+          v-model:require-approval="requireApprovalSetting"
           :name="room.name"
           :has-password="!!room.hasPassword"
           :is-open="!!room.isOpen"
+          :participants="participants"
+          :self-id="selfParticipantId"
+          :kicked="kickedList"
+          @kick="kickParticipant"
+          @unkick="unkickParticipant"
           @rename="renameRoom"
           @set-password="setRoomPassword"
           @remove-password="removeRoomPassword"
@@ -970,14 +1242,25 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
     <EditorRoomPasswordDialog
         v-else-if="isPasswordWindowOpen"
         :error="passwordError"
-        @submit="loadRoom"
-        @cancel="navigateTo(desktop.isGuest.value ? '/' : '/dashboard')"
+        @submit="submitPassword"
+        @cancel="cancelEntry"
+    />
+    <EditorRoomNameDialog
+        v-else-if="isNameWindowOpen"
+        :error="nameError"
+        @submit="submitName"
+        @cancel="cancelEntry"
+    />
+    <EditorRoomWaitingDialog
+        v-else-if="isWaitingApproval"
+        @cancel="cancelEntry"
     />
     <p v-else-if="loadError" style="padding: 1rem;">{{ loadError }}</p>
     <p v-else style="padding: 1rem;">Carregando sala...</p>
     <template v-if="room" #statusbar>
       <UiStatusBar>
         <UiStatusField grow>{{ statusFlash ?? roomStatusText }}</UiStatusField>
+        <UiStatusField v-if="isGm">{{ participants.length }} {{ participants.length === 1 ? 'participante' : 'participantes' }}</UiStatusField>
         <UiStatusField>{{ isGm ? 'Mestre' : 'Jogador' }}</UiStatusField>
         <UiStatusField v-if="isDirty">Alterações não salvas</UiStatusField>
         <UiStatusField class="zoom-field">

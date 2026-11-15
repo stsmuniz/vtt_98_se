@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { roomsTable } from '#server/db/schema.ts'
-import { createError, getQuery, getRouterParam, readBody } from 'h3'
+import { createError, getRouterParam, readBody } from 'h3'
 import { rollDiceGroups, type DiceGroup, type RollType, type ModSignal } from '../../../../lib/rollDice'
 
 // Rolagem de dados dentro da sala: qualquer participante (mesma checagem de acesso do
@@ -19,22 +19,10 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 404, statusMessage: 'Sala não encontrada.' })
     }
 
-    const session = await auth.api.getSession({ headers: event.headers }).catch(() => null)
-    const isOwner = !!session?.user && session.user.id === room.userId
-
-    if (!room.isOpen && !isOwner) {
-        throw createError({ statusCode: 403, statusMessage: 'Esta sala está fechada no momento.' })
-    }
-
-    if (room.password && !isOwner) {
-        const token = getQuery(event).token
-        const grantedCode = typeof token === 'string'
-            ? await redis.get(`room-access:${token}`).catch(() => null)
-            : null
-        if (grantedCode !== code) {
-            throw createError({ statusCode: 401, statusMessage: 'Não autenticado.' })
-        }
-    }
+    // Quem rola é quem o servidor identifica (sessão do dono ou token de /join) — o nome nunca
+    // vem do corpo da requisição, então ninguém rola "como" outra pessoa.
+    const participant = await resolveRoomParticipant(event, room)
+    const isOwner = participant.role === 'gm'
 
     // O mestre pode reservar as rolagens para si (Configurações de Sala).
     if (!isOwner && room.settings?.allowPlayerRolls === false) {
@@ -48,7 +36,6 @@ export default defineEventHandler(async (event) => {
         modSignal?: ModSignal
         hidden?: boolean
         coin?: boolean
-        by?: string
     }>(event).catch(() => null)
 
     if (!body || !Array.isArray(body.groups)) {
@@ -67,15 +54,12 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 400, statusMessage: (error as Error).message })
     }
 
-    const by = isOwner
-        ? (session!.user.name || 'Mestre')
-        : (typeof body.by === 'string' && body.by.trim() ? body.by.trim().slice(0, 30) : 'Jogador')
-
     const roll = {
         ...result,
         id: crypto.randomUUID(),
         at: Date.now(),
-        by,
+        by: participant.name,
+        byId: participant.id,
         hidden: isOwner && body.hidden === true,
     }
 

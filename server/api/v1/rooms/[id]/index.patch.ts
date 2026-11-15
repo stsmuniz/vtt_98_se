@@ -40,6 +40,7 @@ export default defineEventHandler(async (event) => {
 
     // Configurações de sala: só chaves conhecidas, com valores válidos; mescla com as atuais
     // para que salvar uma opção não apague as outras.
+    let enablingApproval = false
     if ('settings' in body) {
         const incoming = (body.settings ?? {}) as Record<string, unknown>
         const current = await useDrizzle().query.roomsTable.findFirst({
@@ -52,6 +53,10 @@ export default defineEventHandler(async (event) => {
         }
         if (typeof incoming.allowPlayerRolls === 'boolean') {
             next.allowPlayerRolls = incoming.allowPlayerRolls
+        }
+        if (typeof incoming.requireApproval === 'boolean') {
+            next.requireApproval = incoming.requireApproval
+            enablingApproval = incoming.requireApproval && !current?.settings?.requireApproval
         }
         updateData.settings = next
     }
@@ -95,6 +100,12 @@ export default defineEventHandler(async (event) => {
     })
 
     if (updatedRoom) {
+        // Ligou a aprovação: quem já está na sala segue nela (e não pede aprovação ao recarregar).
+        if (enablingApproval) {
+            await approveEveryoneInRoom(updatedRoom.code).catch((error: unknown) => {
+                console.error(`Erro ao liberar quem já estava na sala ${updatedRoom.code}:`, error)
+            })
+        }
         await broadcastRoomUpdate(updatedRoom.code, publicRoomResource(updatedRoom))
         // Fechar a sala encerra a "sessão": o histórico de rolagens recomeça vazio.
         if (body.isOpen === false) await resetDiceLog(updatedRoom.code)
