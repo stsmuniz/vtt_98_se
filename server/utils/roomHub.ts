@@ -206,6 +206,13 @@ export async function broadcastKicked(code: string, participantId: string) {
     await broadcastToRoom(code, { type: 'kicked', participantId })
 }
 
+// Mestre fechou a sala (isOpen=false): a stream de cada jogador (em qualquer instância) avisa e
+// se encerra ao receber isto (ver events.get.ts); a do mestre ignora. Quem saiu não volta até a
+// sala ser reaberta (ver `resolveRoomParticipant` e o /join).
+export async function broadcastRoomShut(code: string) {
+    await broadcastToRoom(code, { type: 'room:shut' })
+}
+
 // Mestre fechou a sala (isOpen=false): zera o histórico para todos os conectados.
 export async function resetDiceLog(code: string) {
     await clearDiceLog(code)

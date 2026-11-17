@@ -56,23 +56,15 @@ export default defineEventHandler(async (event) => {
         statusMessage: "O serviço de tempo real está indisponível no momento. Tente novamente em instantes.",
     })
 
-    // Sala fechada (`isOpen: false`): não entra ninguém novo. Quem já estava dentro (token desta
-    // sala e presente agora) continua — recarregar a página não o tira da mesa. Ver o botão de
-    // abrir/fechar em app/pages/rooms/[code].vue.
+    // Sala fechada (`isOpen: false`): ninguém além do mestre entra — nem quem já estava dentro,
+    // que é desconectado no momento em que o mestre fecha (ver `broadcastRoomShut` no PATCH da
+    // sala). Volta-se só quando ela for reaberta.
     if (!room.isOpen && !isOwner) {
-        let stillInside = false
-        try {
-            const participantId = await participantIdForToken(code, body?.token)
-            stillInside = !!participantId && await isPresentParticipant(code, participantId)
-        } catch (error) {
-            console.error(`Erro ao conferir presença na sala fechada ${code} no Redis:`, error)
-        }
-        if (!stillInside) {
-            throw createError({
-                statusCode: 403,
-                statusMessage: "Esta sala está fechada no momento.",
-            })
-        }
+        throw createError({
+            statusCode: 403,
+            statusMessage: "Esta sala está fechada no momento.",
+            data: { reason: 'closed' },
+        })
     }
 
     // Senha: conferida a cada entrada, a não ser que o token de uma entrada anterior (que já a

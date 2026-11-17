@@ -27,6 +27,8 @@ export default defineEventHandler(async (event) => {
     // vivo, senão quem está na sala perderia o rascunho que o mestre ainda não salvou.
     const { snapshot: _snapshot, ...withoutSnapshot } = resource
     await broadcastRoomUpdate(room.code, withoutSnapshot)
+    // Sala fechada: desconecta os jogadores que ainda estiverem nela (ver o PATCH).
+    if (!room.isOpen) await broadcastRoomShut(room.code)
 
     // Nunca devolve o hash da senha, nem ao dono (só `hasPassword`).
     return resource

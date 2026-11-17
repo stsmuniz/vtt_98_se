@@ -108,7 +108,7 @@ function submitPassword() {
         <fieldset class="room-settings-group">
           <legend>Entrada</legend>
           <p class="room-settings-note">
-            {{ isOpen ? 'A sala está aberta: visitantes podem entrar.' : 'A sala está fechada: visitantes não conseguem entrar.' }}
+            {{ isOpen ? 'A sala está aberta: visitantes podem entrar. Fechar desconecta todos os jogadores.' : 'A sala está fechada: ninguém além de você consegue entrar.' }}
           </p>
           <div class="room-settings-actions">
             <button type="button" @click="emit('toggleOpen')">{{ isOpen ? 'Fechar sala…' : 'Abrir sala…' }}</button>

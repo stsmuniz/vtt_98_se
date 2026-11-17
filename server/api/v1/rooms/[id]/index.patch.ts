@@ -145,8 +145,12 @@ export default defineEventHandler(async (event) => {
         // faria todos (mestre e jogadores) voltarem ao estado salvo, perdendo o rascunho ao vivo.
         const { snapshot: _snapshot, ...withoutSnapshot } = publicRoomResource(updatedRoom)
         await broadcastRoomUpdate(updatedRoom.code, 'snapshot' in updateData ? publicRoomResource(updatedRoom) : withoutSnapshot)
-        // Fechar a sala encerra a "sessão": o histórico de rolagens recomeça vazio.
-        if (body.isOpen === false) await resetDiceLog(updatedRoom.code)
+        // Fechar a sala encerra a "sessão": todos os jogadores são desconectados e o histórico de
+        // rolagens recomeça vazio.
+        if (body.isOpen === false) {
+            await broadcastRoomShut(updatedRoom.code)
+            await resetDiceLog(updatedRoom.code)
+        }
     }
 
     return updatedRoom ? publicRoomResource(updatedRoom) : updatedRoom

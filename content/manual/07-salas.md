@@ -46,7 +46,7 @@ A barra de ferramentas da sala tem:
 - **Cena** — troca a cena usada como base, reconstruindo o mapa.
 - **Salvar** — grava o estado atual da sala (**Ctrl+S**).
 - **Dados** e **Iniciativa** — abrem essas janelas (veja o capítulo seguinte).
-- **Fechar sala** / **Abrir sala** — controla se novos visitantes conseguem entrar.
+- **Fechar sala** / **Abrir sala** — fechar desconecta todos os jogadores e impede qualquer entrada até a sala ser reaberta.
 - **Arquivo > Configurações de Sala…** — janela do mestre, dividida em abas:
   - **Geral** — muda o **nome** da sala e **exclui a sala**. A exclusão não pode ser desfeita e desconecta todos que estão na sala.
   - **Acesso** — abre ou fecha a sala, liga a **aprovação de entradas** e define, altera ou remove a **senha**. Mudar ou remover a senha não derruba quem está na sala; quem estiver fora precisa da senha nova para voltar (a antiga deixa de valer na hora). Quem erra a senha 10 vezes seguidas precisa esperar 1 minuto para tentar de novo (a janela de senha mostra a contagem). Cada 3 erros depois disso aumentam a espera para 3, 5 e, a partir daí, 10 minutos. Acertar a senha zera a contagem.
@@ -67,7 +67,7 @@ Tudo o que o mestre faz — mover, girar, duplicar, ajustar atributos — chega 
 
 ## Salas fechadas e com senha
 
-- Fechar a sala impede a entrada de **novos** visitantes; quem já estava dentro continua, mesmo recarregando a página. Quem sair da sala por mais de um minuto só volta quando ela for reaberta. Quem tentar entrar vê "Esta sala está fechada no momento".
+- Fechar a sala **desconecta todos os jogadores na hora**: eles veem o aviso "O mestre fechou a sala" e só conseguem entrar de novo depois que o mestre a reabrir (abrindo o link outra vez; nada reconecta sozinho). Na volta, cada um entra com o mesmo nome. Enquanto a sala está fechada, quem tenta entrar vê "Esta sala está fechada no momento". O mestre continua na sala normalmente.
 - Numa sala com senha, o visitante vê uma janela pedindo a senha antes de entrar. A senha digitada vale por até 24 horas naquele navegador; depois disso ela é pedida de novo.
 - Uma sala recebe até 100 participantes ao mesmo tempo, e até 20 pedidos de entrada podem aguardar a aprovação do mestre.
 

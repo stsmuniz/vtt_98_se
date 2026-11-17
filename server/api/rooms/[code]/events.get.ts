@@ -78,11 +78,10 @@ export default defineEventHandler(async (event) => {
             return
         }
 
-        // Sala excluída: o jogador recebe o aviso e a stream acaba (o EventSource tenta reconectar,
-        // recebe 404 e o cliente mostra o erro) — sem isso a stream seguiria aberta à toa. Fechar
-        // a sala (`isOpen: false`) NÃO derruba ninguém: quem está dentro continua (ver
-        // resolveRoomParticipant); só novos visitantes ficam de fora.
-        if (!isOwner && typed?.type === 'room:closed') {
+        // Sala excluída (`room:closed`) ou fechada pelo mestre (`room:shut`): o jogador recebe o
+        // aviso e a stream acaba. Na sala fechada, reconectar é recusado (ver
+        // resolveRoomParticipant) até o mestre reabri-la.
+        if (!isOwner && (typed?.type === 'room:closed' || typed?.type === 'room:shut')) {
             eventStream.push(playerPayload(message))
                 .catch(() => {})
                 .finally(() => eventStream.close().catch(() => {}))

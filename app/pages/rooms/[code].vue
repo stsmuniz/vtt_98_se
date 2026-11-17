@@ -258,6 +258,15 @@ function handleKicked() {
   loadError.value = 'Você foi removido da sala pelo mestre.'
 }
 
+// O mestre fechou a sala: todos os jogadores saem e só voltam quando ela for reaberta (abrindo o
+// link de novo). A identidade fica guardada, então o nome continua o mesmo na volta.
+function handleRoomShut() {
+  disconnectRoomEvents()
+  dice.leaveRoom()
+  room.value = null
+  loadError.value = 'O mestre fechou a sala. Você poderá entrar de novo quando ela for reaberta.'
+}
+
 // ---- Espera pela aprovação do mestre (Configurações de Sala > Acesso) ----
 const isWaitingApproval = ref(false)
 let approvalPollTimer: ReturnType<typeof setTimeout> | null = null
@@ -499,13 +508,18 @@ function connectRoomEvents() {
     try {
       const data = JSON.parse(event.data)
       if (data.type === 'room:update' && data.room) {
-        setRoom({ ...room.value, ...data.room })
+        // Sala fechada: o `room:shut` vem logo em seguida, mas o aviso de atualização já basta
+        // para o jogador sair (e cobre o caso de o `room:shut` se perder no caminho).
+        if (!isGm.value && data.room.isOpen === false) handleRoomShut()
+        else setRoom({ ...room.value, ...data.room })
       } else if (data.type === 'snapshot:live' && data.snapshot) {
         isLiveSnapshot = true
         setRoom({ ...room.value, snapshot: data.snapshot })
         nextTick(() => { isLiveSnapshot = false })
       } else if (data.type === 'room:closed') {
         console.error('A sala foi encerrada pelo dono.')
+      } else if (data.type === 'room:shut' && !isGm.value) {
+        handleRoomShut()
       } else if (data.type === 'dice:roll' && data.roll) {
         dice.receiveRoll(data.roll)
       } else if (data.type === 'dice:log' && Array.isArray(data.rolls)) {
@@ -1080,7 +1094,7 @@ async function openToggleRoomOpenAlert() {
   const closing = room.value.isOpen
   const ok = await dialog.confirm(
     closing
-      ? 'Tem certeza de que deseja fechar a sala?\nVisitantes não conseguirão entrar até que ela seja reaberta.'
+      ? 'Tem certeza de que deseja fechar a sala?\nTodos os jogadores serão desconectados e só poderão entrar de novo quando ela for reaberta.'
       : 'Tem certeza de que deseja abrir a sala?\nVisitantes poderão entrar novamente.',
     { title: closing ? 'Fechar sala' : 'Abrir sala', icon: 'question' },
   )

@@ -369,13 +369,15 @@ export async function resolveRoomParticipant(
         }
     }
 
-    // Sala fechada: só quem já estava dentro continua (token válido E presente — ver
-    // `isPresentParticipant`); quem chega agora é barrado. Conferido mais abaixo, com o token.
-    const closed = !room.isOpen
+    // Sala fechada: só o mestre fica. Quem estava dentro foi desconectado ao fechar (ver
+    // `broadcastRoomShut`) e não volta, nem com um token válido, até a sala ser reaberta.
+    if (!room.isOpen) {
+        throw createError({ statusCode: 403, statusMessage: 'Esta sala está fechada no momento.', data: { reason: 'closed' } })
+    }
 
     const requireApproval = room.settings?.requireApproval === true
     // Sala em que o acesso depende de conferir algo no Redis.
-    const strict = !!room.password || requireApproval || closed
+    const strict = !!room.password || requireApproval
     const unavailable = () => createError({
         statusCode: 503,
         statusMessage: 'O serviço de tempo real está indisponível no momento. Tente novamente em instantes.',
@@ -398,13 +400,11 @@ export async function resolveRoomParticipant(
             let banned: KickedItem | null = null
             let pending = false
             let approved = true
-            let present = true
             try {
-                [banned, pending, approved, present] = await Promise.all([
+                [banned, pending, approved] = await Promise.all([
                     getKicked(room.code, stored.id),
                     isPending(room.code, stored.id),
                     requireApproval ? isApproved(room.code, stored.id) : Promise.resolve(true),
-                    closed ? isPresentParticipant(room.code, stored.id) : Promise.resolve(true),
                 ])
             } catch (error) {
                 console.error(`Erro ao verificar expulsão/aprovação na sala ${room.code} no Redis:`, error)
@@ -418,7 +418,6 @@ export async function resolveRoomParticipant(
                     data: { reason: banned.denied ? 'denied' : 'kicked' },
                 })
             }
-            if (!present) throw createError({ statusCode: 403, statusMessage: 'Esta sala está fechada no momento.' })
             // Ainda esperando a aprovação do mestre (ou nunca pediu): nada de eventos nem rolagens.
             // O cliente refaz o /join, que põe o pedido na fila do mestre.
             if (pending || !approved) {
@@ -435,25 +434,7 @@ export async function resolveRoomParticipant(
         }
     }
 
-    if (closed) throw createError({ statusCode: 403, statusMessage: 'Esta sala está fechada no momento.' })
     throw createError({ statusCode: 401, statusMessage: 'Não autenticado.' })
-}
-
-/**
- * O participante está na sala agora (sinal de vida da stream no último PRESENCE_STALE_MS)? Usado
- * na sala fechada: quem já estava dentro continua (inclusive recarregando a página ou quando a
- * stream reconecta), quem chega depois não entra. Lança se o Redis falhar.
- */
-export async function isPresentParticipant(code: string, id: string): Promise<boolean> {
-    const entry = parse<PresenceEntry>(await redis.hget(presenceKey(code), id))
-    return !!entry && entry.seen > Date.now() - PRESENCE_STALE_MS
-}
-
-/** Id de participante dono de `token` nesta sala, ou `null`. Lança se o Redis falhar. */
-export async function participantIdForToken(code: string, token: unknown): Promise<string | null> {
-    if (typeof token !== 'string') return null
-    const stored = parse<StoredParticipant>(await redis.get(tokenKey(token)))
-    return stored && stored.code === code ? stored.id : null
 }
 
 // ---- Aprovação de entrada ----
