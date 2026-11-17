@@ -693,6 +693,8 @@ defineExpose({
             :key="bar.key"
             @mouseenter="hoverBar = bar.key"
             @mouseleave="hoverBar = null"
+            @dblclick="(e: any) => { e.cancelBubble = true }"
+            @dbltap="(e: any) => { e.cancelBubble = true }"
           >
             <VRect
               :config="bar.back"
