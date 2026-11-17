@@ -23,10 +23,52 @@ onBeforeUnmount(() => { if (hideTimer) clearTimeout(hideTimer) })
 function close() {
   session.joeyVisible.value = false
 }
+
+// Arrastar pela barra de título: Joey e o balão se movem juntos (deslocamento sobre a posição
+// padrão no canto). A posição vale enquanto o componente existir, então as próximas rolagens
+// aparecem onde o usuário o deixou. Não sai da área visível da página.
+const rootEl = ref<HTMLElement | null>(null)
+const offset = ref({ x: 0, y: 0 })
+
+function onDragStart(event: PointerEvent) {
+  const root = rootEl.value
+  // O X da barra de título não inicia arraste (a captura do ponteiro roubaria o clique dele).
+  if (!root || event.button !== 0 || (event.target as HTMLElement).closest('button')) return
+  // Zoom da interface (body.desktop-mode): o deslocamento é em px CSS, o ponteiro em px de tela.
+  const zoom = root.getBoundingClientRect().width / root.offsetWidth || 1
+  const rect = root.getBoundingClientRect()
+  const start = { px: event.clientX, py: event.clientY, x: offset.value.x, y: offset.value.y }
+  event.preventDefault()
+  // Ouve na janela do navegador, não com setPointerCapture: clicar no Joey foca a janela da sala,
+  // e o gerenciador de janelas reordena o DOM — o que cancela a captura no meio do arraste.
+  const onMove = (ev: PointerEvent) => {
+    if (ev.pointerId !== event.pointerId) return
+    const dx = Math.min(Math.max(ev.clientX - start.px, -rect.left), window.innerWidth - rect.right)
+    const dy = Math.min(Math.max(ev.clientY - start.py, -rect.top), window.innerHeight - rect.bottom)
+    offset.value = { x: start.x + dx / zoom, y: start.y + dy / zoom }
+  }
+  const onUp = (ev: PointerEvent) => {
+    if (ev.pointerId !== event.pointerId) return
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+    window.removeEventListener('pointercancel', onUp)
+  }
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+  window.addEventListener('pointercancel', onUp)
+}
 </script>
 
 <template>
-  <div v-if="session.joeyVisible.value && latest" class="joey" :class="{ fixed }" role="status" aria-live="polite">
+  <div
+    v-if="session.joeyVisible.value && latest"
+    ref="rootEl"
+    class="joey"
+    :class="{ fixed }"
+    :style="{ transform: `translate(${offset.x}px, ${offset.y}px)` }"
+    role="status"
+    aria-live="polite"
+  >
     <div class="balloon">
         <p class="who">
           {{ latest.by }} rolou {{ latest.input }}<strong v-if="latest.hidden"> (escondida)</strong>
@@ -48,7 +90,7 @@ function close() {
         </ul>
       </div>
     <!-- A moldura de janela envolve só a imagem do Joey. -->
-    <UiWindow class="joey-window" title="Joey" icon="dice" variant="tool" :scroll-body="false" @close="close">
+    <UiWindow class="joey-window" title="Joey" icon="dice" variant="tool" :scroll-body="false" @close="close" @drag-start="onDragStart">
       <img
         :key="session.joeyTick.value"
         class="joey-gif"
