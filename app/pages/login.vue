@@ -76,25 +76,32 @@ const submitForm = async () => {
   }
 
   isSubmitting.value = true
+  let navigated = false
   try {
-    await withLoading(() => authClient.signIn.email({
-      email: form.email,
-      password: form.password,
-    }, {
-      onSuccess: (ctx) => {
-        navigateTo(redirectTarget.value)
-      },
-      onError: (ctx) => {
+    // A navegação é aguardada DENTRO do withLoading: o "Aguarde" só some quando a rota de destino já
+    // carregou (chunk do dashboard + middleware de sessão), em vez de sumir logo após o signIn e deixar
+    // o formulário à vista por alguns segundos.
+    await withLoading(async () => {
+      const { error } = await authClient.signIn.email({
+        email: form.email,
+        password: form.password,
+      })
+      if (error) {
         // E-mail ainda não confirmado: leva à página onde se pede um novo e-mail de confirmação.
-        if (ctx.error.code === 'EMAIL_NOT_VERIFIED') {
-          navigateTo(confirmLink.value)
+        if (error.code === 'EMAIL_NOT_VERIFIED') {
+          await navigateTo(confirmLink.value)
+          navigated = true
           return
         }
-        err.value = authErrorMessage(ctx.error)
+        err.value = authErrorMessage(error)
+        return
       }
-    }), 'Entrando...')
+      await navigateTo(redirectTarget.value)
+      navigated = true
+    }, 'Entrando...')
   } finally {
-    isSubmitting.value = false
+    // Depois de navegar a página é desmontada; reabilitar o form antes disso só o faria piscar.
+    if (!navigated) isSubmitting.value = false
   }
 }
 

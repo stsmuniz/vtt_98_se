@@ -79,24 +79,29 @@ const submitForm = async () => {
   }
 
   isSubmitting.value = true
+  let navigated = false
   try {
-    await withLoading(() => authClient.signUp.email({
-      name: form.name,
-      email: form.email,
-      password: form.password,
-    }, {
-      onSuccess: () => {
-          // A conta só funciona depois de confirmar o e-mail (enviado no cadastro).
-          const q = new URLSearchParams({ email: form.email, enviado: '1' })
-          if (redirectQuery.value) q.set('redirect', redirectQuery.value)
-          navigateTo(`/confirmar-email?${q}`)
-      },
-      onError: (ctx) => {
-        err.value = authErrorMessage(ctx.error)
+    // A navegação é aguardada DENTRO do withLoading: o "Aguarde" só some quando a página de destino
+    // já carregou, em vez de sumir logo após o signUp e deixar o formulário à vista por alguns segundos.
+    await withLoading(async () => {
+      const { error } = await authClient.signUp.email({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+      })
+      if (error) {
+        err.value = authErrorMessage(error)
+        return
       }
-    }), 'Registrando...')
+      // A conta só funciona depois de confirmar o e-mail (enviado no cadastro).
+      const q = new URLSearchParams({ email: form.email, enviado: '1' })
+      if (redirectQuery.value) q.set('redirect', redirectQuery.value)
+      await navigateTo(`/confirmar-email?${q}`)
+      navigated = true
+    }, 'Registrando...')
   } finally {
-    isSubmitting.value = false
+    // Depois de navegar a página é desmontada; reabilitar o form antes disso só o faria piscar.
+    if (!navigated) isSubmitting.value = false
   }
 }
 
