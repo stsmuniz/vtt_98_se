@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * Editor de cenas: posiciona tokens sobre o cenário. Roda dentro da janela da
+ * Editor de cenas: posiciona tokens sobre o cenário e desenha sobre ele (caixa de ferramentas
+ * à esquerda; desenhos ficam abaixo dos tokens e são salvos com a cena). Roda dentro da janela da
  * página (DesktopRouteWindow) com menus, barra de ferramentas e barra de status
  * próprias. Avisa sobre alterações não salvas ao fechar, sair ou recarregar.
  */
@@ -10,10 +11,13 @@ import type { ResourceRecord } from '~/desktop/resources'
 import { buildTokenMenu } from '~/utils/tokenMenu'
 import { documentTokenBase, isDocument, openDocumentViewer, type DocumentRecord } from '~/utils/documents'
 import { useDialog } from '~~/composables/useDialog'
+import { SAVE_WINDOW_MIN_MS, useLoadingWindow } from '~~/composables/useLoadingWindow'
 import { useDesktop } from '~~/composables/useDesktop'
 import { useWindow } from '~~/composables/useWindow'
 import { useCanvasZoom } from '~~/composables/useCanvasZoom'
 import { usePreloadedImage, useImageMap } from '~~/composables/useImagePreloader'
+import { useSceneDrawings } from '~~/composables/useSceneDrawings'
+import type { SceneDrawing } from '~~/lib/drawings'
 
 definePageMeta({
   layout: 'desktop',
@@ -21,10 +25,11 @@ definePageMeta({
 })
 
 type TokenTemplate = ResourceRecord & { image?: string; width?: number; height?: number; attributes?: SceneToken['attributes'] }
-type StageApi = { hFlip: (id: number) => void; vFlip: (id: number) => void; resetRotation: (id: number) => void; fit: () => void }
+type StageApi = { hFlip: (id: number) => void; vFlip: (id: number) => void; resetRotation: (id: number) => void; fit: () => void; commitText: () => void }
 
 const desktop = useDesktop()
 const dialog = useDialog()
+const loading = useLoadingWindow()
 const routeWindow = useWindow('route')
 const params = useRoute().params
 
@@ -37,6 +42,7 @@ const stage = ref<StageApi | null>(null)
 const isTokenWindowOpen = ref(false)
 const selectedTokenId = ref<number | null>(null)
 const localTokens = ref<SceneToken[]>([])
+const localDrawings = ref<SceneDrawing[]>([])
 const sceneWidth = ref(1920)
 const sceneHeight = ref(1084)
 
@@ -51,8 +57,17 @@ function showStatusMessage(text: string, duration = 2000) {
 
 // ---------- alterações não salvas ----------
 const savedSignature = ref('[]')
+const savedDrawingsSignature = ref('[]')
 const signature = (tokens: SceneToken[]) => JSON.stringify(tokens)
-const isDirty = computed(() => signature(localTokens.value) !== savedSignature.value)
+const isDirty = computed(() => signature(localTokens.value) !== savedSignature.value
+  || JSON.stringify(localDrawings.value) !== savedDrawingsSignature.value)
+
+// ---------- desenhos ----------
+const drawing = useSceneDrawings({
+  drawings: localDrawings,
+  canEdit: () => true,
+  clearTokenSelection: () => { selectedTokenId.value = null },
+})
 
 // ---------- dados da cena ----------
 watch(() => currentScene.value, (scene) => {
@@ -69,6 +84,16 @@ watch(() => currentScene.value?.tokens, (tokens: SceneToken[] | undefined) => {
   savedSignature.value = signature(localTokens.value)
 }, { immediate: true, deep: true })
 
+// Só na abertura: trocar o cenário substitui `currentScene` pela resposta do PATCH, que traz os
+// desenhos SALVOS e apagaria os que ainda não foram salvos.
+let drawingsLoaded = false
+watch(() => currentScene.value, (scene) => {
+  if (!scene || drawingsLoaded) return
+  drawingsLoaded = true
+  drawing.load((scene.drawings as SceneDrawing[] | null) ?? [])
+  savedDrawingsSignature.value = JSON.stringify(localDrawings.value)
+}, { immediate: true })
+
 watch(localTokens, tokens => tokens.forEach(t => ensureTokenImageLoaded(t.id, t.image)), { immediate: true, deep: true })
 
 const selectedToken = computed(() => localTokens.value.find(t => t.id === selectedTokenId.value) ?? null)
@@ -77,6 +102,7 @@ const selectedToken = computed(() => localTokens.value.find(t => t.id === select
 function selectToken(id: number | null) {
   selectedTokenId.value = id
   if (id === null) return
+  drawing.selectDrawing(null)
   const index = localTokens.value.findIndex(t => t.id === id)
   if (index > 0) {
     const [token] = localTokens.value.splice(index, 1)
@@ -85,14 +111,26 @@ function selectToken(id: number | null) {
 }
 
 // ---------- persistência ----------
-/** Grava todos os tokens da cena. Retorna se deu certo. */
+/** Grava os tokens e os desenhos da cena. Retorna se deu certo. */
 async function saveSceneTokens(): Promise<boolean> {
+  stage.value?.commitText()
   try {
-    await $fetch(`/api/v1/scenes/${params.id}/tokens`, { method: 'POST', body: localTokens.value })
-    savedSignature.value = signature(localTokens.value)
+    // A janela "Salvando..." é modal (mouse e teclado): nada muda entre o envio e a resposta,
+    // então o que fica marcado como salvo é exatamente o que foi gravado.
+    await loading.withLoading(async () => {
+      const tokens = localTokens.value
+      const drawings = localDrawings.value
+      await Promise.all([
+        $fetch(`/api/v1/scenes/${params.id}/tokens`, { method: 'POST', body: tokens }),
+        $fetch(`/api/v1/scenes/${params.id}`, { method: 'PATCH', body: { drawings } }),
+      ])
+      savedSignature.value = signature(tokens)
+      savedDrawingsSignature.value = JSON.stringify(drawings)
+    }, 'Salvando a cena...', 'loading', { minMs: SAVE_WINDOW_MIN_MS })
     showStatusMessage('Cena salva com sucesso!')
     return true
   } catch (error) {
+    // O alerta só abre depois que a janela de progresso fechou (ela fica por cima e trava o teclado).
     console.error('Erro ao salvar tokens da cena:', error)
     await dialog.alert('Não foi possível salvar a cena. Tente novamente.', { title: 'Erro ao salvar', icon: 'error' })
     return false
@@ -262,6 +300,12 @@ function onTokenContext(payload: { x: number; y: number }) {
   Object.assign(ctxMenu, { open: true, x: payload.x, y: payload.y })
 }
 
+/** Delete: apaga o desenho selecionado; senão, remove o token selecionado. */
+function deleteSelection() {
+  if (drawing.selectedDrawing.value) drawing.deleteSelected()
+  else removeSelectedToken()
+}
+
 // ---------- sair com alterações não salvas ----------
 let leaveConfirmed = false
 
@@ -312,7 +356,7 @@ const editorMenus = computed<MenuDef[]>(() => [
       { id: 'fechar', label: '&Fechar', action: () => navigateTo('/dashboard') },
     ],
   },
-  { id: 'editar', label: '&Editar', items: tokenMenuItems.value },
+  { id: 'editar', label: '&Editar', items: [...drawing.editMenuItems.value, { type: 'separator' }, ...tokenMenuItems.value] },
   {
     id: 'inserir',
     label: '&Inserir',
@@ -327,6 +371,7 @@ const editorMenus = computed<MenuDef[]>(() => [
     label: 'E&xibir',
     items: [
       { id: 'janela-tokens', type: 'check', label: 'Janela de &tokens', checked: isTokenWindowOpen.value, action: () => { isTokenWindowOpen.value = !isTokenWindowOpen.value } },
+      drawing.toolboxMenuItem.value,
       { type: 'separator' },
       { id: 'zoom-mais', label: '&Aumentar zoom', icon: 'zoom-in', action: zoomIn },
       { id: 'zoom-menos', label: '&Diminuir zoom', icon: 'zoom-out', action: zoomOut },
@@ -348,8 +393,9 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
 
 // Atalhos só com a janela do editor ativa. Ctrl+S funciona mesmo digitando.
 routeWindow.shortcuts({
+  ...drawing.shortcuts,
   'ctrl+s': { run: () => saveSceneTokens(), allowInInput: true },
-  delete: () => removeSelectedToken(),
+  delete: deleteSelection,
 })
 </script>
 
@@ -366,24 +412,54 @@ routeWindow.shortcuts({
       </UiToolbar>
     </template>
 
-    <div class="canvas-wrap">
-      <EditorStage
-        ref="stage"
-        v-model:tokens="localTokens"
-        v-model:width="sceneWidth"
-        v-model:height="sceneHeight"
-        :scale="stageScale"
-        :background="bgImageObj"
-        :images="tokenImages"
-        :selected="selectedTokenId"
-        resizable
-        @select="selectToken"
-        @context="onTokenContext"
-        @dblclick="onTokenDblClick"
-        @zoom="sceneZoom = $event"
-        @resized="updateSceneSize"
+    <div class="work-area">
+      <EditorDrawingToolbox
+        v-if="drawing.toolboxVisible.value"
+        v-model:tool="drawing.tool.value"
+        v-model:draw-style="drawing.drawStyle.value"
+        :can-undo="drawing.canUndo.value"
+        :can-redo="drawing.canRedo.value"
+        :editing-text="drawing.textEditing.value"
+        @undo="drawing.undo"
+        @redo="drawing.redo"
       />
+      <div class="canvas-wrap">
+        <EditorStage
+          ref="stage"
+          v-model:tokens="localTokens"
+          v-model:width="sceneWidth"
+          v-model:height="sceneHeight"
+          v-model:drawings="localDrawings"
+          :scale="stageScale"
+          :background="bgImageObj"
+          :images="tokenImages"
+          :selected="selectedTokenId"
+          :tool="drawing.tool.value"
+          :draw-style="drawing.drawStyle.value"
+          :selected-drawing="drawing.selectedDrawingId.value"
+          resizable
+          @select="selectToken"
+          @context="onTokenContext"
+          @dblclick="onTokenDblClick"
+          @zoom="sceneZoom = $event"
+          @resized="updateSceneSize"
+          @select-drawing="drawing.selectDrawing"
+          @drawings-commit="drawing.commit"
+          @context-drawing="drawing.openContextMenu"
+          @pick-color="drawing.onPickColor"
+          @text-editing="drawing.onTextEditing"
+        />
+      </div>
     </div>
+
+    <UiContextMenu
+      :open="drawing.contextMenu.show"
+      :x="drawing.contextMenu.x"
+      :y="drawing.contextMenu.y"
+      :items="drawing.drawingContextItems.value"
+      label="Desenho"
+      @close="drawing.contextMenu.show = false"
+    />
 
     <UiContextMenu
       :open="ctxMenu.open"
@@ -421,6 +497,12 @@ routeWindow.shortcuts({
 </template>
 
 <style scoped>
+.work-area {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
 .canvas-wrap {
   position: relative; /* o canvas ocupa toda a área (position: absolute) */
   flex: 1 1 auto;

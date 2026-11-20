@@ -5,7 +5,7 @@ icon: room
 description: Como criar salas, convidar jogadores e conduzir uma sessão ao vivo.
 ---
 
-Uma **sala** é onde a sessão acontece de verdade. Ela parte de uma cena — copiando o cenário e a posição dos tokens naquele momento — e permite ao mestre conduzir a partida em tempo real com os jogadores.
+Uma **sala** é onde a sessão acontece de verdade. Ela parte de uma cena — copiando o cenário, a posição dos tokens e os desenhos naquele momento — e permite ao mestre conduzir a partida em tempo real com os jogadores.
 
 ## Criando uma sala
 
@@ -57,13 +57,19 @@ Os tokens funcionam como no editor de cenas: arraste, redimensione, gire, dupliq
 
 Marque **Exibir nome sobre o token** para mostrar o nome acima do token. Em cada atributo, a coluna **Visibilidade** define se ele aparece como uma barra logo abaixo do token (preenchida conforme atual/máximo): **Visível** ou **Oculto**. O nome do atributo é escrito dentro da barra. A coluna **Cor** escolhe a cor da barra e a coluna **Números** (opcional) acrescenta os valores atual/máximo no meio dela, por exemplo "PV 5/10". As barras crescem um pouco ao aproximar o zoom (e têm um tamanho mínimo ao afastar), para continuarem legíveis. O mestre pode **arrastar a barra** para mudar o valor atual, ou passar o mouse sobre ela e usar os botões **-** e **+** nos cantos (com **Shift**, o passo é de 5). Quanto à visibilidade, o seletor é o único controle: em **Oculto**, a barra não aparece para ninguém, e os valores do atributo nem chegam ao navegador dos jogadores. Sem **Números**, os jogadores recebem só a proporção da barra, não os valores.
 
+## Desenhos e Apontar
+
+O mestre tem na sala a mesma **caixa de ferramentas** de desenho do editor de cenas, à esquerda do mapa (veja o capítulo **Cenas e editor**). Cada desenho chega aos jogadores assim que é terminado (ao soltar o botão do mouse). Os jogadores veem os desenhos, mas não conseguem selecioná-los nem mexer neles. Os desenhos são gravados com a sala ao **Salvar**, e trocar de cena traz os desenhos da nova cena.
+
+A ferramenta **Apontar** (tecla **A**, a mãozinha) existe só na sala: clique num ponto do mapa e todos na sala veem ali três ondas amarelas que crescem e somem, com o nome de quem apontou. Serve para chamar a atenção da mesa para um lugar ("a porta é aqui"). Nada é gravado.
+
 ## Documentos na sala
 
 O mestre coloca documentos na mesa com **Inserir > Documento…**. Todos na sala, inclusive quem entrou sem conta, abrem a imagem em tamanho grande com **dois cliques** na miniatura ou pelo menu de contexto (**Abrir documento**). Só o mestre move os documentos. Eles não aparecem na iniciativa. Veja o capítulo **Documentos**.
 
 ## Ao vivo e salvo são coisas diferentes
 
-Tudo o que o mestre faz — mover, girar, duplicar, ajustar atributos — chega **na hora** aos jogadores conectados, mesmo sem salvar. Já o botão **Salvar** grava o estado no banco, para que ele continue lá na próxima vez que a sala for aberta. A barra de status mostra **Alterações não salvas** enquanto houver diferença, e o sistema pergunta se você quer salvar antes de sair.
+Tudo o que o mestre faz — mover, girar, duplicar, ajustar atributos, desenhar — chega **na hora** aos jogadores conectados, mesmo sem salvar. Já o botão **Salvar** grava o estado no banco, para que ele continue lá na próxima vez que a sala for aberta. Enquanto grava, a janela **Salvando a sala...**, com uma barra de progresso, bloqueia a sala até o servidor confirmar: uma alteração feita nesse meio-tempo poderia ser desfeita pela confirmação. A barra de status mostra **Alterações não salvas** enquanto houver diferença, e o sistema pergunta se você quer salvar antes de sair.
 
 ## Salas fechadas e com senha
 

@@ -43,6 +43,13 @@
       "when": 1794680017943,
       "tag": "0005_room_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795119726094,
+      "tag": "0006_scene_drawings",
+      "breakpoints": true
     }
   ]
 }

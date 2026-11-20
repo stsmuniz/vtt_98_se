@@ -1,7 +1,10 @@
 import { relations, sql } from 'drizzle-orm'
 import type { StoredPreferences } from '../../lib/preferences'
 import type { TokenStatusEntry } from '../../lib/tokenStatuses'
+import type { SceneDrawing } from '../../lib/drawings'
 import { boolean, index, integer, jsonb, pgTable, serial, text, timestamp, unique } from 'drizzle-orm/pg-core'
+
+export type { SceneDrawing } from '../../lib/drawings'
 
 export type TokenStatus = 'normal' | 'machucado' | 'morrendo'
 
@@ -67,6 +70,8 @@ export type RoomSceneSnapshot = {
     height: number
     tokens: RoomToken[]
     startingPosition?: { x: number; y: number } | null
+    /** Desenhos sobre o mapa (ausente em snapshots antigos = nenhum). */
+    drawings?: SceneDrawing[]
 }
 
 export type RoomPlayerRole = 'owner' | 'gm' | 'player' | 'spectator'
@@ -242,6 +247,8 @@ export const scenesTable = pgTable('scenes', {
     height: integer('height').notNull(),
     tags: jsonb('tags').$type<string[]>(),
     tokens: jsonb('tokens').$type<SceneToken[]>(),
+    /** Desenhos (formas, traços, textos) sobre o cenário, abaixo dos tokens. */
+    drawings: jsonb('drawings').$type<SceneDrawing[]>(),
     startingPosition: jsonb('starting_position')
         .$type<{ x: number; y: number } | null>(),
     createdAt: timestamp('created_at', { mode: 'date' })

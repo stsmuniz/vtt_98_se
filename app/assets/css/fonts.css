@@ -100,6 +100,51 @@
   font-display: swap;
 }
 
+/*
+ * Fontes da ferramenta Texto dos desenhos (lista em TEXT_FONTS, lib/drawings.ts). Todas OFL,
+ * subconjunto latino (cobre o português), licença ao lado em public/fonts. Liberation Sans,
+ * Tinos e Pixel Operator (acima) completam a lista.
+ */
+@font-face {
+  font-family: "Comic Neue";
+  src: url("/fonts/comic-neue-latin-400-normal.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Cousine";
+  src: url("/fonts/cousine-latin-400-normal.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dancing Script";
+  src: url("/fonts/dancing-script-latin-400-normal.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Arvo";
+  src: url("/fonts/arvo-latin-400-normal.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Anton";
+  src: url("/fonts/anton-latin-400-normal.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 /* Só a tela de erro (estilo "tela azul") e o fallback mono usam a fonte VGA */
 @font-face {
   font-family: "Perfect DOS VGA 437";

@@ -43,7 +43,15 @@ Cada menu tem uma letra sublinhada. Pressione **Alt** e a letra para abri-lo —
 | Atalho | O que faz |
 | --- | --- |
 | **Ctrl+S** | Salvar a cena (ou a sala, para o mestre). |
-| **Delete** | Remover o token selecionado, depois de confirmar. |
+| **Delete** | Excluir o desenho selecionado; sem desenho selecionado, remover o token selecionado (depois de confirmar). |
+| **Ctrl+Z** / **Ctrl+Y** | Desfazer / refazer desenho (**Ctrl+Shift+Z** também refaz). |
+| **S**, **P**, **E** | Ferramentas Selecionar, Lápis e Borracha. |
+| **L**, **W** | Linha e Seta. |
+| **R**, **O**, **T** | Retângulo, Elipse e Triângulo. |
+| **X**, **F**, **I** | Texto, Preencher com cor e Selecionar cor. |
+| **A** | Apontar (só na sala). |
+| **Esc** | Volta para a ferramenta Selecionar. |
+| **Shift** ao desenhar | Trava linhas e setas em 45 graus; faz quadrados, círculos e triângulos equiláteros. |
 | **Roda do mouse** | Zoom no mapa, em torno do cursor. |
 | **Arrastar o fundo** (ou botão do meio) | Mover o mapa. |
 

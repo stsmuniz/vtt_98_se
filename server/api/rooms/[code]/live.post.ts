@@ -37,9 +37,12 @@ export default defineEventHandler(async (event) => {
     // na sala continuam valendo. O rascunho vai direto para o navegador de todos os visitantes.
     await assertAllowedTokenImages(tokens, session.user.id, room.snapshot?.tokens ?? [])
 
+    // Desenhos: validados e normalizados (limites de quantidade/tamanho) antes de irem a todos.
+    const snapshot = withParsedDrawings(body.snapshot as object)
+
     await Promise.all([
-        setRoomLiveSnapshot(code, body.snapshot),
-        broadcastSnapshotLive(code, body.snapshot),
+        setRoomLiveSnapshot(code, snapshot),
+        broadcastSnapshotLive(code, snapshot),
     ])
 
     return { ok: true }

@@ -1,4 +1,4 @@
-import type { SceneToken, RoomToken, RoomSceneSnapshot, SceneAttribute } from "#server/db/schema.ts"
+import type { SceneToken, RoomToken, RoomSceneSnapshot, SceneAttribute, SceneDrawing } from "#server/db/schema.ts"
 import { barFraction } from "../../lib/tokenBars"
 
 export interface SceneResourceResponse {
@@ -9,6 +9,7 @@ export interface SceneResourceResponse {
     image?: string;
     startingPosition: {x: number, y: number},
     tokens: Token[],
+    drawings: SceneDrawing[],
     scenario: Scenario,
     tags: string[]
 }
@@ -22,6 +23,7 @@ export const sceneResource = (scene: any): SceneResourceResponse => {
         image: scene.scenarios.image,
         startingPosition: scene.scenes.startingPosition,
         tokens: scene.scenes.tokens,
+        drawings: scene.scenes.drawings ?? [],
         scenario: scene.scenarios,
         tags: scene.scenes.tags,
     }
@@ -128,12 +130,14 @@ export function buildRoomSnapshotFromScene(scene: {
     height: number
     startingPosition?: { x: number; y: number } | null
     tokens?: SceneToken[] | null
+    drawings?: SceneDrawing[] | null
 }): RoomSceneSnapshot {
     return {
         sceneId: scene.id,
         width: scene.width,
         height: scene.height,
         startingPosition: scene.startingPosition ?? null,
+        drawings: scene.drawings ?? [],
         tokens: (scene.tokens ?? []).map((token): RoomToken => ({
             ...token,
             statuses: [],

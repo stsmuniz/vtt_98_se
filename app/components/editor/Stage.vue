@@ -16,6 +16,11 @@
  * fundo (ou usar o botão do meio) move a cena, e ao abrir ela já vem ajustada à
  * janela e centralizada. `scale` vem de fora (controle de zoom da barra de
  * status); o zoom feito aqui dentro (roda, "Ajustar") volta pelo evento `zoom`.
+ *
+ * Desenhos (`v-model:drawings`) ficam numa camada entre o cenário e os tokens. Com uma
+ * ferramenta de desenho (`tool` diferente de 'select'), os tokens ficam travados e o botão
+ * esquerdo desenha (o do meio e a roda continuam movendo a câmera e dando zoom). `pings` são
+ * as animações da ferramenta Apontar.
  */
 import type { SceneAttribute, SceneToken } from '#server/db/schema.ts'
 import {
@@ -30,6 +35,8 @@ import {
 import { useTokenTransform } from '~~/composables/useTokenTransform'
 import { barFraction, barZoomFactor, defaultBarColor } from '~~/lib/tokenBars'
 import { statusInitial, statusTextColor, type TokenStatusEntry } from '~~/lib/tokenStatuses'
+import { DEFAULT_DRAW_STYLE, DEFAULT_TEXT_FONT, newDrawingId, textFontFamily, type DrawStyle, type DrawingTool, type SceneDrawing, type StagePing, type TextFont } from '~~/lib/drawings'
+import { useDrawingTools } from '~~/composables/useDrawingTools'
 
 /**
  * Versão da imagem do token "recolorida" por um status: a cor é pintada só onde a imagem
@@ -100,6 +107,13 @@ const props = withDefaults(defineProps<{
   /** Limites do zoom, em porcentagem. */
   minZoom?: number
   maxZoom?: number
+  /** Ferramenta de desenho ativa ('select' = modo normal). Só vale com `editable`. */
+  tool?: DrawingTool
+  drawStyle?: DrawStyle
+  /** Desenho selecionado (ferramenta Selecionar). */
+  selectedDrawing?: string | null
+  /** Animações da ferramenta Apontar em andamento. */
+  pings?: StagePing[]
 }>(), {
   background: null,
   editable: true,
@@ -107,11 +121,16 @@ const props = withDefaults(defineProps<{
   resizable: false,
   minZoom: 10,
   maxZoom: 500,
+  tool: 'select',
+  drawStyle: () => DEFAULT_DRAW_STYLE,
+  selectedDrawing: null,
+  pings: () => [],
 })
 
 const tokens = defineModel<StageToken[]>('tokens', { required: true })
 const width = defineModel<number>('width', { required: true })
 const height = defineModel<number>('height', { required: true })
+const drawings = defineModel<SceneDrawing[]>('drawings', { default: () => [] })
 
 const emit = defineEmits<{
   select: [id: number | null]
@@ -123,6 +142,16 @@ const emit = defineEmits<{
   change: [id: number]
   /** Fim do arraste da alça de tamanho do cenário. */
   resized: [size: { width: number; height: number }]
+  'select-drawing': [id: string | null]
+  /** Uma alteração nos desenhos terminou (histórico de desfazer e transmissão). */
+  'drawings-commit': []
+  'context-drawing': [payload: { id: string; x: number; y: number }]
+  /** Campo de texto aberto (fonte e tamanho do texto) ou fechado (`null`). */
+  'text-editing': [payload: { font: TextFont; fontSize: number } | null]
+  /** Ferramenta Apontar: ponto do mapa clicado. */
+  point: [point: { x: number; y: number }]
+  /** Conta-gotas: cor pega (botão esquerdo = primária, direito = secundária). */
+  'pick-color': [color: string, which: 'primary' | 'secondary']
 }>()
 
 const MIN_SCENE = 100
@@ -131,6 +160,136 @@ const stageRef = ref<{ getNode: () => any } | null>(null)
 const transformerRef = ref<{ getNode: () => any } | null>(null)
 
 const { handleTransformEnd, handleDragEnd, hFlipToken, vFlipToken, resetTokenRotation } = useTokenTransform(tokens, stageRef, transformerRef)
+
+// ---------- ferramentas de desenho ----------
+/** Visitantes (não editável) ficam sempre no modo normal. */
+const activeTool = computed<DrawingTool>(() => (props.editable ? props.tool : 'select'))
+const drawingsInteractive = computed(() => props.editable && activeTool.value === 'select')
+
+const drawingTools = useDrawingTools({
+  stage: () => stageRef.value?.getNode(),
+  drawings,
+  tool: () => activeTool.value,
+  style: () => props.drawStyle,
+  scale: () => props.scale,
+  onCommit: () => emit('drawings-commit'),
+  onPoint: point => emit('point', point),
+  onPick: (color, which) => emit('pick-color', color, which),
+  onText: point => openTextEditor(point),
+})
+const drawingPreview = drawingTools.preview
+
+function toolCursor(): string {
+  switch (activeTool.value) {
+    case 'select': return ''
+    case 'text': return 'text'
+    case 'point': return 'pointer'
+    default: return 'crosshair'
+  }
+}
+
+// ---------- texto: campo sobreposto ao canvas ----------
+const textEdit = reactive({ open: false, id: null as string | null, x: 0, y: 0, value: '', fontSize: 32, font: DEFAULT_TEXT_FONT as TextFont, color: '#000000' })
+const textAreaRef = ref<HTMLTextAreaElement | null>(null)
+
+function openTextEditor(point: { x: number; y: number }, existing?: SceneDrawing) {
+  commitText()
+  Object.assign(textEdit, existing
+    ? { open: true, id: existing.id, x: existing.x, y: existing.y, value: existing.text ?? '', fontSize: existing.fontSize ?? 32, font: existing.font ?? DEFAULT_TEXT_FONT, color: existing.fill ?? existing.stroke ?? '#000000' }
+    : { open: true, id: null, x: point.x, y: point.y, value: '', fontSize: props.drawStyle.fontSize, font: props.drawStyle.font, color: props.drawStyle.primary })
+  // A página mostra as opções de texto na caixa de ferramentas (e, editando um texto existente,
+  // a fonte e o tamanho dele); trocar ali muda o texto em digitação (watch abaixo).
+  emit('text-editing', { font: textEdit.font, fontSize: textEdit.fontSize })
+  nextTick(() => textAreaRef.value?.focus())
+}
+
+// Fonte/tamanho escolhidos na caixa de ferramentas durante a digitação valem para este texto.
+watch(() => [props.drawStyle.font, props.drawStyle.fontSize] as const, ([font, fontSize]) => {
+  if (!textEdit.open) return
+  textEdit.font = font
+  textEdit.fontSize = fontSize
+  nextTick(() => textAreaRef.value?.focus())
+})
+
+function commitText() {
+  if (!textEdit.open) return
+  textEdit.open = false
+  emit('text-editing', null)
+  const value = textEdit.value.replace(/\s+$/, '')
+  const font = textEdit.font === DEFAULT_TEXT_FONT ? undefined : textEdit.font
+  if (textEdit.id) {
+    const target = drawings.value.find(d => d.id === textEdit.id)
+    if (!target) return
+    if (!value.trim()) drawings.value = drawings.value.filter(d => d !== target)
+    else if (target.text !== value || target.fontSize !== textEdit.fontSize || target.font !== font) {
+      target.text = value
+      target.fontSize = textEdit.fontSize
+      if (font) target.font = font
+      else delete target.font
+    } else return
+  } else {
+    if (!value.trim()) return
+    drawings.value = [...drawings.value, {
+      id: newDrawingId(),
+      kind: 'text',
+      x: textEdit.x,
+      y: textEdit.y,
+      width: 0,
+      height: 0,
+      text: value,
+      fontSize: textEdit.fontSize,
+      ...(font ? { font } : {}),
+      stroke: null,
+      fill: textEdit.color,
+      strokeWidth: 0,
+    }]
+  }
+  emit('drawings-commit')
+}
+
+function cancelText() {
+  if (!textEdit.open) return
+  textEdit.open = false
+  emit('text-editing', null)
+}
+
+function onTextKeydown(e: KeyboardEvent) {
+  // As teclas não chegam aos atalhos da janela (letras das ferramentas, Delete...).
+  e.stopPropagation()
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    cancelText()
+  } else if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    commitText()
+  }
+}
+
+const textEditStyle = computed(() => {
+  const lines = textEdit.value.split('\n')
+  const longest = Math.max(4, ...lines.map(line => line.length + 1))
+  const fontPx = textEdit.fontSize * props.scale
+  return {
+    left: `${offset.x + textEdit.x * props.scale}px`,
+    top: `${offset.y + textEdit.y * props.scale}px`,
+    fontSize: `${fontPx}px`,
+    lineHeight: `${fontPx * 1.25}px`,
+    fontFamily: textFontFamily(textEdit.font),
+    width: `${longest * fontPx * 0.6 + 8}px`,
+    height: `${lines.length * fontPx * 1.25 + 4}px`,
+    color: textEdit.color,
+  }
+})
+
+function onDrawingDblClick(id: string) {
+  const target = drawings.value.find(d => d.id === id)
+  if (target?.kind === 'text') openTextEditor(target, target)
+}
+
+watch(activeTool, () => {
+  commitText()
+  setStageCursor(toolCursor())
+})
 
 // ---------- câmera: tamanho da área, posição (pan) e zoom ----------
 const root = ref<HTMLElement | null>(null)
@@ -194,6 +353,7 @@ function measure() {
   tryInitialFit()
 }
 onMounted(() => {
+  setStageCursor(toolCursor())
   measure()
   observer = new ResizeObserver(measure)
   if (root.value) observer.observe(root.value)
@@ -245,6 +405,12 @@ function onStageDown(e: any) {
   const evt = e.evt as MouseEvent | TouchEvent
   const isTouch = 'touches' in evt
   const button = isTouch ? 0 : (evt as MouseEvent).button
+  // Ferramenta de desenho: o botão do meio continua movendo a câmera; o resto desenha.
+  if (activeTool.value !== 'select' && button !== 1) {
+    if (isTouch && (evt as TouchEvent).touches.length > 1) return
+    drawingTools.down(evt, button)
+    return
+  }
   const onEmpty = e.target === e.target.getStage() || e.target.attrs.id === 'scene'
   if (!(button === 1 || (button === 0 && onEmpty))) return
   const point = isTouch ? (evt as TouchEvent).touches[0] : (evt as MouseEvent)
@@ -283,7 +449,12 @@ function stopPan() {
     setTimeout(() => { justPanned = false }, 0)
   }
   pan = null
-  setStageCursor('')
+  setStageCursor(toolCursor())
+}
+
+// Com ferramenta de desenho, o botão direito é do Preencher/Conta-gotas (sem menu do navegador).
+function onStageContext(e: any) {
+  if (activeTool.value !== 'select') e.evt.preventDefault()
 }
 
 const backgroundConfig = computed(() => ({
@@ -477,8 +648,11 @@ watch(() => props.selected, async (id) => {
 })
 
 function onStageClick(e: any) {
-  if (justPanned) return
-  if (e.target === e.target.getStage() || e.target.attrs.id === 'scene') emit('select', null)
+  if (justPanned || activeTool.value !== 'select') return
+  if (e.target === e.target.getStage() || e.target.attrs.id === 'scene') {
+    emit('select', null)
+    emit('select-drawing', null)
+  }
 }
 
 function onGroupDown(id: number) {
@@ -630,11 +804,11 @@ function onGroupLeave(e: any, isDocument: boolean) {
 }
 
 function onBackgroundEnter(e: any) {
-  if (!pan) setCursor(e, 'grab')
+  if (!pan && activeTool.value === 'select') setCursor(e, 'grab')
 }
 
 function onBackgroundLeave(e: any) {
-  if (!pan) setCursor(e, '')
+  if (!pan && activeTool.value === 'select') setCursor(e, '')
 }
 
 defineExpose({
@@ -644,6 +818,8 @@ defineExpose({
   getStage: () => stageRef.value?.getNode(),
   /** Ajusta o zoom para a cena inteira caber na janela e a centraliza. */
   fit: () => { autoFit = true; fit() },
+  /** Confirma o texto em digitação (antes de salvar, trocar de ferramenta...). */
+  commitText,
 })
 </script>
 
@@ -658,11 +834,24 @@ defineExpose({
       @wheel="onWheel"
       @mousedown="onStageDown"
       @touchstart="onStageDown"
+      @contextmenu="onStageContext"
     >
       <VLayer>
         <VImage :config="backgroundConfig" @mouseenter="onBackgroundEnter" @mouseleave="onBackgroundLeave" />
       </VLayer>
-      <VLayer>
+      <EditorStageDrawings
+        v-model:drawings="drawings"
+        :scale="scale"
+        :preview="drawingPreview"
+        :interactive="drawingsInteractive"
+        :selected-id="selectedDrawing"
+        :hidden-id="textEdit.open ? textEdit.id : null"
+        @select="(id: string) => emit('select-drawing', id)"
+        @commit="emit('drawings-commit')"
+        @context="(payload: { id: string; x: number; y: number }) => emit('context-drawing', payload)"
+        @dblclick="onDrawingDblClick"
+      />
+      <VLayer :config="{ listening: activeTool === 'select' }">
         <VGroup
           v-for="group in tokenGroups"
           :key="group.id"
@@ -737,7 +926,21 @@ defineExpose({
           @mouseleave="(e: any) => setCursor(e, 'default')"
         />
       </VLayer>
+      <EditorStagePings :pings="pings" :scale="scale" />
     </VStage>
+    <!-- Campo do texto em digitação (contra-zoom, como o canvas: 1 px aqui = 1 px de tela). -->
+    <div v-if="textEdit.open" class="text-layer">
+      <textarea
+        ref="textAreaRef"
+        v-model="textEdit.value"
+        class="text-edit"
+        :style="textEditStyle"
+        spellcheck="false"
+        aria-label="Texto do desenho"
+        @keydown="onTextKeydown"
+        @blur="commitText"
+      />
+    </div>
     <!-- Camada com contra-zoom (como o canvas): 1 px aqui = 1 px de tela, igual ao ponteiro do Konva. -->
     <div v-if="tip.text" class="tip-layer" aria-hidden="true">
       <div class="tip-anchor" :class="{ flip: tipFlip }" :style="{ left: `${tip.x}px`, top: `${tip.y}px` }">
@@ -777,6 +980,27 @@ defineExpose({
 /* Devolve a escala da interface ao texto da dica. */
 .tip-box {
   zoom: var(--ui-scale, 1);
+}
+.text-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  zoom: calc(1 / var(--ui-scale, 1));
+}
+/* Mesmo tamanho e fonte do texto no canvas (por isso px calculados, fora da escala de --fs-*). */
+.text-edit {
+  position: absolute;
+  pointer-events: auto;
+  margin: 0;
+  padding: 0 2px;
+  border: 1px dashed #000080;
+  background: rgba(255, 255, 255, 0.5);
+  font-family: var(--font-ui);
+  white-space: pre;
+  overflow: hidden;
+  resize: none;
+  outline: none;
+  box-shadow: none;
 }
 .editor-stage :deep(.konvajs-content) {
   background: var(--c-shadow);

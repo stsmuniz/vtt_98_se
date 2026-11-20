@@ -2,6 +2,7 @@
 import type { DicePopupMode, RoomSettings, RoomToken, SceneAttribute, SceneInitiativeEntry } from "#server/db/schema.ts"
 import type { MenuDef, MenuItemDef } from "~/utils/menu"
 import { useDialog } from "~~/composables/useDialog"
+import { SAVE_WINDOW_MIN_MS, useLoadingWindow } from "~~/composables/useLoadingWindow"
 import { useDesktop } from "~~/composables/useDesktop"
 import { useWindow } from "~~/composables/useWindow"
 import { useDiceSession } from "~~/composables/useDiceSession"
@@ -10,6 +11,8 @@ import { useCanvasZoom } from "~~/composables/useCanvasZoom"
 import { usePreloadedImage, useImageMap } from "~~/composables/useImagePreloader"
 import { buildTokenMenu } from "~/utils/tokenMenu"
 import { documentTokenBase, isDocument, openDocumentViewer, type DocumentRecord } from "~/utils/documents"
+import { useSceneDrawings } from "~~/composables/useSceneDrawings"
+import { PING_DURATION_MS, type SceneDrawing, type StagePing } from "~~/lib/drawings"
 
 
 
@@ -512,6 +515,7 @@ function connectRoomEvents() {
         // para o jogador sair (e cobre o caso de o `room:shut` se perder no caminho).
         if (!isGm.value && data.room.isOpen === false) handleRoomShut()
         else setRoom({ ...room.value, ...data.room })
+        if (isGm.value && data.room.snapshot) resolveSaveEcho?.()
       } else if (data.type === 'snapshot:live' && data.snapshot) {
         isLiveSnapshot = true
         setRoom({ ...room.value, snapshot: data.snapshot })
@@ -535,6 +539,9 @@ function connectRoomEvents() {
         onPendingList(data.requests)
       } else if (data.type === 'kicked' && data.participantId === selfParticipantId.value) {
         handleKicked()
+      } else if (data.type === 'pointer' && data.ping && !isGm.value) {
+        // O mestre já vê o próprio apontamento na hora (ver `pointAt`).
+        showPing(data.ping)
       }
     } catch (error) {
       console.error('Erro ao processar mensagem da sala:', error)
@@ -586,16 +593,63 @@ const { zoom: sceneZoom, scale: stageScale, zoomIn, zoomOut, resetZoom } = useCa
 const { image: bgImageObj, load: loadBgImage } = usePreloadedImage()
 const { images: tokenImages, ensureLoaded: ensureTokenImageLoaded } = useImageMap()
 
-type StageApi = { hFlip: (id: number) => void; vFlip: (id: number) => void; resetRotation: (id: number) => void; fit: () => void }
+type StageApi = { hFlip: (id: number) => void; vFlip: (id: number) => void; resetRotation: (id: number) => void; fit: () => void; commitText: () => void }
 const stage = ref<StageApi | null>(null)
 const selectedTokenId = ref<number | null>(null)
 
 const initiativeList = ref<SceneInitiativeEntry[]>([])
 
 const localTokens = ref<RoomToken[]>([])
+const localDrawings = ref<SceneDrawing[]>([])
 /** Tokens como estão gravados no banco (para saber se há alterações não salvas). */
 const savedSignature = ref('[]')
-const isDirty = computed(() => isGm.value && JSON.stringify(localTokens.value) !== savedSignature.value)
+/** Idem, para os desenhos. */
+const savedDrawingsSignature = ref('[]')
+const isDirty = computed(() => isGm.value && (
+  JSON.stringify(localTokens.value) !== savedSignature.value
+  || JSON.stringify(localDrawings.value) !== savedDrawingsSignature.value
+))
+
+// ==========================================
+// DESENHOS E APONTAR (só o mestre desenha; todos veem)
+// ==========================================
+const drawing = useSceneDrawings({
+  drawings: localDrawings,
+  canEdit: () => isGm.value,
+  allowPointer: true,
+  clearTokenSelection: () => { selectedTokenId.value = null },
+})
+
+/**
+ * O mestre recebe de volta, pela stream, cada rascunho ao vivo que ele mesmo mandou. Para os
+ * desenhos esse eco é ignorado (ele é o único autor, e um eco atrasado desfaria o traço que ele
+ * acabou de fazer) — exceto o rascunho que o servidor manda ao conectar, que traz o que ficou sem
+ * salvar antes de recarregar a página. Deixa de valer no primeiro desenho feito aqui.
+ */
+let gmDraftPending = true
+
+function onDrawingsCommit() {
+  gmDraftPending = false
+  drawing.commit()
+}
+
+const pings = ref<StagePing[]>([])
+
+function showPing(ping: { id: string; x: number; y: number; by?: string }) {
+  if (pings.value.some(p => p.id === ping.id)) return
+  pings.value = [...pings.value, { id: ping.id, x: ping.x, y: ping.y, by: ping.by ?? '', at: performance.now() }]
+  setTimeout(() => { pings.value = pings.value.filter(p => p.id !== ping.id) }, PING_DURATION_MS + 100)
+}
+
+/** Ferramenta Apontar: mostra na hora para o mestre e transmite para todos. */
+async function pointAt(point: { x: number; y: number }) {
+  showPing({ id: `local-${Date.now()}`, ...point, by: participants.value.find(p => p.id === selfParticipantId.value)?.name || 'Mestre' })
+  try {
+    await $fetch(`/api/rooms/${code}/point`, { method: 'POST', body: point })
+  } catch (error) {
+    console.error('Erro ao apontar:', error)
+  }
+}
 const sceneWidth = ref(1920)
 const sceneHeight = ref(1080)
 
@@ -669,8 +723,15 @@ watch(() => room.value?.snapshot, (snapshot) => {
   // localTokens from the (unsaved) snapshot — silently wiping out any local-only token, such
   // as one just duplicated or added but not yet saved.
   localTokens.value = JSON.parse(JSON.stringify(snapshot.tokens ?? []))
+  // Desenhos: o mestre ignora o eco dos próprios rascunhos (ver `gmDraftPending`).
+  if (!(isGm.value && isLiveSnapshot && !gmDraftPending)) drawing.load(snapshot.drawings ?? [])
+  if (isLiveSnapshot) gmDraftPending = false
   // Snapshot ao vivo (rascunho do mestre) não conta como salvo; o do banco, sim.
-  if (!isLiveSnapshot) savedSignature.value = JSON.stringify(localTokens.value)
+  if (!isLiveSnapshot) {
+    savedSignature.value = JSON.stringify(localTokens.value)
+    // Dos desenhos locais: o `load` acima só não os troca quando já equivalem aos do servidor.
+    savedDrawingsSignature.value = JSON.stringify(localDrawings.value)
+  }
 }, { immediate: true })
 
 watchEffect(() => {
@@ -688,6 +749,7 @@ const selectToken = (id: number | null) => {
     selectedTokenId.value = null
     return
   }
+  drawing.selectDrawing(null)
   selectedTokenId.value = id
   const index = localTokens.value.findIndex(t => t.id === id)
   if (index > 0) {
@@ -812,6 +874,7 @@ function buildSnapshotPayload() {
     height: sceneHeight.value,
     startingPosition: room.value?.snapshot?.startingPosition ?? null,
     tokens: localTokens.value,
+    drawings: localDrawings.value,
   }
 }
 
@@ -832,30 +895,73 @@ async function sendLiveSnapshot() {
 // gravar no banco. A gravação só ocorre quando o dono clica em "Salvar" (`saveRoomSnapshot`).
 // O guard de `isApplyingRemoteUpdate` evita reenviar um snapshot que acabou de chegar do
 // próprio servidor (via `setRoom`), o que causaria um loop infinito de mensagens.
-watch(localTokens, () => {
+watch([localTokens, localDrawings], () => {
   if (!isGm.value || isApplyingRemoteUpdate) return
   sendLiveSnapshot()
 }, { deep: true })
 
+/** Tempo máximo esperando o `room:update` do próprio salvamento (a stream pode estar caída). */
+const SAVE_ECHO_TIMEOUT_MS = 3000
+/** Chamado pelo handler da stream quando chega um `room:update` com snapshot (ver `waitForSaveEcho`). */
+let resolveSaveEcho: (() => void) | null = null
+
+/**
+ * Promessa que termina quando o `room:update` do salvamento chega pela stream (ou no tempo
+ * máximo). Na Vercel a stream do mestre pode estar em outra instância, e esse aviso chegar DEPOIS
+ * da resposta do PATCH: ele reaplica o snapshot salvo, o que desfaria uma edição feita nesse
+ * intervalo. Criada antes do PATCH, porque na mesma instância o aviso chega antes da resposta.
+ */
+function waitForSaveEcho(): { promise: Promise<void>; cancel: () => void } {
+  if (roomEvents?.readyState !== EventSource.OPEN) return { promise: Promise.resolve(), cancel: () => {} }
+  let timer: ReturnType<typeof setTimeout> | null = null
+  let done: () => void = () => {}
+  const promise = new Promise<void>((resolve) => {
+    done = () => {
+      if (timer) clearTimeout(timer)
+      if (resolveSaveEcho === done) resolveSaveEcho = null
+      resolve()
+    }
+    resolveSaveEcho = done
+    timer = setTimeout(done, SAVE_ECHO_TIMEOUT_MS)
+  })
+  return { promise, cancel: done }
+}
+
 /** Grava a sala. Retorna se deu certo. */
 async function saveRoomSnapshot(): Promise<boolean> {
   if (!room.value) return false
+  stage.value?.commitText()
+  // A janela "Salvando..." é modal (mouse e teclado) do envio até a confirmação — a resposta
+  // do servidor E o aviso `room:update` pela stream —, para nenhuma edição cair no meio e ser
+  // desfeita pelo snapshot salvo que volta do servidor.
+  const echo = waitForSaveEcho()
   try {
-    const response = await fetch(`/api/v1/rooms/${room.value.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ snapshot: buildSnapshotPayload() }),
-    })
-    if (response.ok) {
+    const saved = await loading.withLoading(async () => {
+      const response = await fetch(`/api/v1/rooms/${room.value!.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ snapshot: buildSnapshotPayload() }),
+      })
+      if (!response.ok) {
+        console.error('Erro ao salvar a sala.')
+        return false
+      }
       setRoom({ ...(await response.json()), role: 'gm' })
       savedSignature.value = JSON.stringify(localTokens.value)
+      savedDrawingsSignature.value = JSON.stringify(localDrawings.value)
+      await echo.promise
+      return true
+    }, 'Salvando a sala...', 'loading', { minMs: SAVE_WINDOW_MIN_MS })
+    if (saved) {
       showStatusMessage('Sala salva com sucesso!')
       return true
     }
-    console.error('Erro ao salvar a sala.')
   } catch (error) {
     console.error('Erro ao salvar a sala:', error)
+  } finally {
+    echo.cancel()
   }
+  // O alerta só abre depois que a janela de progresso fechou (ela fica por cima e trava o teclado).
   await dialog.alert('Não foi possível salvar a sala. Tente novamente.', { title: 'Erro ao salvar', icon: 'error' })
   return false
 }
@@ -1070,6 +1176,7 @@ async function changeRoomScene(scene: any) {
 
 const desktop = useDesktop()
 const dialog = useDialog()
+const loading = useLoadingWindow()
 const routeWindow = useWindow('route')
 const openHelpManual = () => desktop.openHelp()
 const openDiceRoller = () => desktop.openApp('dice-room', {}, { ownerId: 'route' })
@@ -1123,8 +1230,14 @@ async function confirmToggleRoomOpen() {
 routeWindow.onBeforeClose(confirmLeave)
 
 routeWindow.shortcuts({
+  ...drawing.shortcuts,
   'ctrl+s': { run: () => { if (isGm.value) saveRoomSnapshot() }, allowInInput: true },
-  delete: () => { if (isGm.value) handleDeleteTokenAlertWindow() },
+  // Delete: o desenho selecionado, se houver; senão, o token.
+  delete: () => {
+    if (!isGm.value) return
+    if (drawing.selectedDrawing.value) drawing.deleteSelected()
+    else handleDeleteTokenAlertWindow()
+  },
 })
 
 
@@ -1159,6 +1272,7 @@ const roomMenus = computed<MenuDef[]>(() => {
       { id: 'zoom-100', label: '&Tamanho real (100%)', action: resetZoom },
       { id: 'zoom-ajustar', label: 'Ajustar à &janela', action: fitToWindow },
       { type: 'separator' },
+      ...(isGm.value ? [drawing.toolboxMenuItem.value] : []),
       { id: 'tela-cheia', label: '&Tela cheia', icon: 'fullscreen', action: desktop.toggleFullscreen },
     ],
   }
@@ -1194,7 +1308,7 @@ const roomMenus = computed<MenuDef[]>(() => {
         { id: 'fechar', label: '&Fechar', action: () => navigateTo('/dashboard') },
       ],
     },
-    { id: 'editar', label: '&Editar', items: tokenContextItems.value },
+    { id: 'editar', label: '&Editar', items: [...drawing.editMenuItems.value, { type: 'separator' }, ...tokenContextItems.value] },
     {
       id: 'inserir',
       label: '&Inserir',
@@ -1280,24 +1394,58 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
 
 
 
-      <div class="canvas-wrap">
-        <EditorStage
-            ref="stage"
-            v-model:tokens="localTokens"
-            v-model:width="sceneWidth"
-            v-model:height="sceneHeight"
-            :scale="stageScale"
-            :background="bgImageObj"
-            :images="tokenImages"
-            :selected="selectedTokenId"
-            :editable="isGm"
-            :positions="isGm ? null : displayPositions"
-            @select="selectToken"
-            @context="onTokenContext"
-            @dblclick="onTokenDblClick"
-            @zoom="sceneZoom = $event"
+      <UiContextMenu
+          v-if="isGm"
+          :open="drawing.contextMenu.show"
+          :x="drawing.contextMenu.x"
+          :y="drawing.contextMenu.y"
+          :items="drawing.drawingContextItems.value"
+          label="Desenho"
+          @close="drawing.contextMenu.show = false"
+      />
+
+      <div class="work-area">
+        <EditorDrawingToolbox
+            v-if="isGm && drawing.toolboxVisible.value"
+            v-model:tool="drawing.tool.value"
+            v-model:draw-style="drawing.drawStyle.value"
+            show-pointer
+            :can-undo="drawing.canUndo.value"
+            :can-redo="drawing.canRedo.value"
+            :editing-text="drawing.textEditing.value"
+            @undo="drawing.undo"
+            @redo="drawing.redo"
         />
-        <EditorJoeyPopup @new-roll="openDiceRoller" />
+        <div class="canvas-wrap">
+          <EditorStage
+              ref="stage"
+              v-model:tokens="localTokens"
+              v-model:width="sceneWidth"
+              v-model:height="sceneHeight"
+              v-model:drawings="localDrawings"
+              :scale="stageScale"
+              :background="bgImageObj"
+              :images="tokenImages"
+              :selected="selectedTokenId"
+              :editable="isGm"
+              :positions="isGm ? null : displayPositions"
+              :tool="drawing.tool.value"
+              :draw-style="drawing.drawStyle.value"
+              :selected-drawing="drawing.selectedDrawingId.value"
+              :pings="pings"
+              @select="selectToken"
+              @context="onTokenContext"
+              @dblclick="onTokenDblClick"
+              @zoom="sceneZoom = $event"
+              @select-drawing="drawing.selectDrawing"
+              @drawings-commit="onDrawingsCommit"
+              @context-drawing="drawing.openContextMenu"
+              @pick-color="drawing.onPickColor"
+              @text-editing="drawing.onTextEditing"
+              @point="pointAt"
+          />
+          <EditorJoeyPopup @new-roll="openDiceRoller" />
+        </div>
       </div>
     </template>
     <EditorRoomPasswordDialog
@@ -1341,6 +1489,13 @@ onBeforeUnmount(() => routeWindow.setMenus(undefined))
   gap: var(--sp-2);
   padding-top: 0;
   padding-bottom: 0;
+}
+
+.work-area {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
 }
 
 .canvas-wrap {

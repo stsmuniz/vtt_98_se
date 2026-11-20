@@ -6,6 +6,28 @@
 import { useLoadingWindow } from '~~/composables/useLoadingWindow'
 
 const { isActive, message, image } = useLoadingWindow()
+
+// O aviso é modal: a camada já bloqueia o mouse, e o teclado também fica parado enquanto ele
+// está aberto (atalhos das janelas, digitação num campo focado). Ex.: ao salvar a cena ou a
+// sala, nada pode mudar entre o envio e a confirmação do servidor.
+function swallowKey(event: KeyboardEvent) {
+  event.preventDefault()
+  event.stopImmediatePropagation()
+}
+watch(isActive, (active) => {
+  if (typeof window === 'undefined') return
+  if (active) {
+    window.addEventListener('keydown', swallowKey, true)
+    window.addEventListener('keypress', swallowKey, true)
+  } else {
+    window.removeEventListener('keydown', swallowKey, true)
+    window.removeEventListener('keypress', swallowKey, true)
+  }
+}, { immediate: true })
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', swallowKey, true)
+  window.removeEventListener('keypress', swallowKey, true)
+})
 </script>
 
 <template>

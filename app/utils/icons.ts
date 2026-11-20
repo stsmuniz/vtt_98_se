@@ -48,6 +48,24 @@ const CUSTOM_ICONS = {
   dice: '/assets/icons/dices/d20.png',
   initiative: '/assets/icons/initiative.png',
   logo: '/assets/logos/vtt_98_se_logo_v1.png',
+  // Caixa de ferramentas de desenho (parte do Chicago95, parte própria — ver
+  // public/assets/icons/draw/ATTRIBUTION.md). 22×22, exibidos no tamanho nativo.
+  'draw-select': '/assets/icons/draw/draw-select.png',
+  'draw-point': '/assets/icons/draw/draw-point.png',
+  'draw-pen': '/assets/icons/draw/draw-pen.png',
+  'draw-eraser': '/assets/icons/draw/draw-eraser.png',
+  'draw-line': '/assets/icons/draw/draw-line.png',
+  'draw-arrow': '/assets/icons/draw/draw-arrow.png',
+  'draw-rect': '/assets/icons/draw/draw-rect.png',
+  'draw-ellipse': '/assets/icons/draw/draw-ellipse.png',
+  'draw-triangle': '/assets/icons/draw/draw-triangle.png',
+  'draw-text': '/assets/icons/draw/draw-text.png',
+  'draw-fill': '/assets/icons/draw/draw-fill.png',
+  'draw-picker': '/assets/icons/draw/draw-picker.png',
+  'draw-undo': '/assets/icons/draw/draw-undo.png',
+  'draw-redo': '/assets/icons/draw/draw-redo.png',
+  'draw-colors': '/assets/icons/draw/draw-colors.png',
+  'draw-clear': '/assets/icons/draw/draw-clear.png',
 } as const
 
 export type Chicago95Icon = (typeof CHICAGO95_ICONS)[number]

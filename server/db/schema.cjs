@@ -166,6 +166,7 @@ const scenesTable = pgTable('scenes', {
   height: integer('height').notNull(),
   tags: jsonb('tags'),
   tokens: jsonb('tokens'),
+  drawings: jsonb('drawings'),
   startingPosition: jsonb('starting_position'),
   createdAt: timestamp('created_at', { mode: 'date' })
     .defaultNow(),

@@ -97,7 +97,7 @@ export default defineEventHandler(async (event) => {
             throw createError({ statusCode: 404, statusMessage: "Sala não encontrada." })
         }
         await assertAllowedTokenImages((body.snapshot as { tokens: unknown[] }).tokens, session.user.id, current.snapshot?.tokens ?? [])
-        updateData.snapshot = body.snapshot
+        updateData.snapshot = withParsedDrawings(body.snapshot as object)
     }
     if ('initiative' in body) {
         if (!Array.isArray(body.initiative)) {

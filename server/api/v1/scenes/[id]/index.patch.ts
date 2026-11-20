@@ -21,6 +21,8 @@ export default defineEventHandler(async (event) => {
     }
     if ('width' in body) updateData.width = parseSceneDimension(body.width)
     if ('height' in body) updateData.height = parseSceneDimension(body.height)
+    // Desenhos sobre o mapa (editor de cenas, ao salvar): validados e normalizados.
+    if ('drawings' in body) updateData.drawings = parseDrawings(body.drawings)
     // name/tags passam pela validação compartilhada (renomear com F2 nas pastas).
     Object.assign(updateData, sanitizeNameAndTags(body))
     if (!Object.keys(updateData).length) {

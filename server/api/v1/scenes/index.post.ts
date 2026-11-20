@@ -9,6 +9,9 @@ export default defineEventHandler((event) => {
             { name: 'tags', type: 'json' },
             { name: 'scenarioId', type: 'number' },
         ],
+        // Duplicar a cena leva junto o conteúdo do mapa: tokens posicionados, desenhos e a
+        // posição inicial (vêm da linha de origem, do próprio usuário, não do corpo).
+        copyOnDuplicate: ['tokens', 'drawings', 'startingPosition'],
         // O cenário tem de ser do próprio usuário: senão a cena passaria a carregar (e expor)
         // o cenário de outra pessoa em todo lugar que faz `with: { scenario: true }`.
         validate: async (values, userId) => {

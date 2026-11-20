@@ -189,6 +189,11 @@ export async function broadcastDiceRoll(code: string, roll: { hidden?: boolean }
     await broadcastToRoom(code, { type: 'dice:roll', roll, gmOnly: !!roll.hidden })
 }
 
+// Mestre apontou um ponto do mapa (ferramenta Apontar): só transmitido, nada fica gravado.
+export async function broadcastPointer(code: string, ping: { id: string, x: number, y: number, by: string, at: number }) {
+    await broadcastToRoom(code, { type: 'pointer', ping })
+}
+
 // Lista de quem está na sala (ver roomParticipants.ts): só o mestre a recebe (`gmOnly`, filtrado
 // em events.get.ts), para jogadores não verem quem mais está conectado.
 export async function broadcastPresence(code: string, participants: unknown[]) {
